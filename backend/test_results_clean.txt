@@ -1,0 +1,22 @@
+﻿
+  D:\etude_soutenance\SI-ENV\backend\app\config.py:12: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, 
+use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at 
+https://errors.pydantic.dev/2.13/migration/
+  D:\etude_soutenance\SI-ENV\backend\app\schemas.py:22: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, 
+use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at 
+https://errors.pydantic.dev/2.13/migration/
+  D:\etude_soutenance\SI-ENV\backend\app\schemas.py:86: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, 
+use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at 
+https://errors.pydantic.dev/2.13/migration/
+  D:\etude_soutenance\SI-ENV\backend\app\schemas.py:109: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, 
+use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at 
+https://errors.pydantic.dev/2.13/migration/
+  D:\etude_soutenance\SI-ENV\backend\app\schemas.py:125: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, 
+use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at 
+https://errors.pydantic.dev/2.13/migration/
+  D:\etude_soutenance\SI-ENV\backend\app\schemas.py:135: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, 
+use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at 
+https://errors.pydantic.dev/2.13/migration/
+====================== 32 passed, 92 warnings in 13.89s =======================
+
+

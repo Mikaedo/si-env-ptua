@@ -1,0 +1,135 @@
+<div style="max-width:820px; margin:0 auto;" class="space-y-5">
+
+  <!-- En-tête -->
+  <div class="page-header" style="justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div class="flex items-center gap-4">
+      <div class="page-header-icon" style="background:linear-gradient(135deg,#004F9F,#003366);">
+        <lucide-icon [img]="FileText" size="22" style="color:white;"></lucide-icon>
+      </div>
+      <div>
+        <h1 class="page-header-title">Génération de rapport PGES</h1>
+        <p class="page-header-sub">Plan de Gestion Environnementale et Sociale — Conforme aux exigences BAD</p>
+      </div>
+    </div>
+    <span class="badge badge-navy" style="padding:8px 16px; font-size:12px;">
+      <lucide-icon [img]="FileText" size="13"></lucide-icon>
+      Rapport trimestriel
+    </span>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">
+      <lucide-icon [img]="AlertCircle" size="16"></lucide-icon>
+      {{ error() }}
+    </div>
+  }
+
+  <!-- Formulaire -->
+  <div class="card">
+
+    <!-- Section période -->
+    <div style="padding:22px 26px; border-bottom:1px solid #F4F4F5;">
+      <div class="section-label">
+        <lucide-icon [img]="Calendar" size="13"></lucide-icon>
+        Période d'analyse
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="form-label">Date début</label>
+          <app-date-picker [value]="dateDebut()" placeholder="Sélectionner la date de début" (valueChange)="dateDebut.set($event)" />
+        </div>
+        <div>
+          <label class="form-label">Date fin</label>
+          <app-date-picker [value]="dateFin()" placeholder="Sélectionner la date de fin" (valueChange)="dateFin.set($event)" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Section chantiers -->
+    <div style="padding:22px 26px; border-bottom:1px solid #F4F4F5;">
+      <div class="section-label">
+        <lucide-icon [img]="Building2" size="13"></lucide-icon>
+        Chantiers à inclure
+        @if (selectedChantiers().length > 0) {
+          <span class="badge badge-orange" style="margin-left:auto;">{{ selectedChantiers().length }} sélectionné{{ selectedChantiers().length > 1 ? 's' : '' }}</span>
+        }
+      </div>
+
+      @if (chantiers().length > 0) {
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          @for (c of chantiers(); track c.id) {
+            <label class="chantier-card" [class.selected]="selectedChantiers().includes(c.id)">
+              <div style="position:relative; flex-shrink:0;">
+                <input type="checkbox" [checked]="selectedChantiers().includes(c.id)" (change)="toggleChantier(c.id)"
+                  style="width:16px; height:16px; accent-color:#F37021; cursor:pointer;" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <div style="font-size:13px; font-weight:700; color:#18181B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ c.nom }}</div>
+                <div style="font-size:11.5px; color:#71717A; margin-top:2px; display:flex; align-items:center; gap:4px;">
+                  <lucide-icon [img]="MapPin" size="11"></lucide-icon>
+                  {{ c.commune || 'Commune non renseignée' }}
+                </div>
+              </div>
+              @if (selectedChantiers().includes(c.id)) {
+                <lucide-icon [img]="CheckCircle" size="16" style="color:#F37021; flex-shrink:0;"></lucide-icon>
+              }
+            </label>
+          }
+        </div>
+      } @else {
+        <div style="padding:20px; background:#FAFAFA; border:1.5px dashed #E4E4E7; border-radius:10px; text-align:center;">
+          <div style="font-size:12.5px; color:#A1A1AA; font-weight:500;">
+            Aucun chantier disponible — vérifiez la connexion à l'API
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Section entreprise destinataire -->
+    <div style="padding:22px 26px; border-bottom:1px solid #F4F4F5;">
+      <div class="section-label">
+        <lucide-icon [img]="Send" size="13"></lucide-icon>
+        Entreprise destinataire
+      </div>
+      <select class="form-select" [value]="selectedEntreprise()" (change)="selectedEntreprise.set($any($event.target).value)"
+        style="width:100%; padding:10px 12px; border:1.5px solid #E4E4E7; border-radius:8px; font-size:13px; font-weight:500; color:#18181B; background:#fff; cursor:pointer; outline:none;">
+        @for (e of entreprises; track e.value) {
+          <option [value]="e.value">{{ e.label }}</option>
+        }
+      </select>
+      <p style="font-size:11.5px; color:#A1A1AA; margin:8px 0 0; font-weight:500;">
+        Le rapport sera adressé à l'entreprise sélectionnée (visible sur la page de garde du PDF)
+      </p>
+    </div>
+
+    <!-- Bouton générer -->
+    <div style="padding:22px 26px; background:#FAFAFA;">
+      <button (click)="generate()" [disabled]="generating()" class="btn btn-primary" style="width:100%; justify-content:center; padding:13px 24px; font-size:14px;" [style.opacity]="generating() ? '0.7' : '1'">
+        @if (generating()) {
+          <div class="spinner"></div>
+          Génération en cours...
+        } @else {
+          <lucide-icon [img]="Download" size="18"></lucide-icon>
+          Générer le rapport PDF
+        }
+      </button>
+      <p style="text-align:center; font-size:12px; color:#A1A1AA; margin:10px 0 0; font-weight:500;">
+        Le rapport agrège signalements, alertes et mesures · Modèle réglementaire BAD
+      </p>
+    </div>
+  </div>
+
+  <!-- Note contextuelle -->
+  <div style="background:linear-gradient(135deg,#EEF1F8,#E6EDF8); border:1px solid rgba(0,79,159,0.12); border-radius:12px; padding:18px 22px; display:flex; gap:14px; align-items:flex-start;">
+    <div style="width:36px;height:36px;border-radius:9px;background:rgba(0,79,159,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <lucide-icon [img]="Info" size="18" style="color:#004F9F;"></lucide-icon>
+    </div>
+    <div>
+      <div style="font-size:13px; font-weight:700; color:#004F9F; margin-bottom:5px;">Rapport PGES trimestriel</div>
+      <p style="font-size:12.5px; color:#3F5A8A; margin:0; line-height:1.7;">
+        Ce rapport est destiné à l'<strong>ANDE</strong> et aux <strong>bailleurs de fonds (BAD)</strong>. Il consolide automatiquement les signalements, les mesures correctives et les alertes sur la période sélectionnée — une opération autrefois réalisée manuellement en plusieurs jours.
+      </p>
+    </div>
+  </div>
+
+</div>

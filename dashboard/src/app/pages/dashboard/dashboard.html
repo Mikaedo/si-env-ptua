@@ -1,0 +1,319 @@
+<div class="space-y-5">
+
+  <!-- ── BARRE DE FILTRES ── -->
+  <div class="filter-bar">
+    <div class="flex items-center gap-2 shrink-0">
+      <lucide-icon [img]="Filter" size="15" style="color:#A1A1AA;"></lucide-icon>
+      <span style="font-size:11.5px; font-weight:700; color:#52525B; text-transform:uppercase; letter-spacing:0.6px;">Filtres</span>
+    </div>
+    <div class="flex flex-wrap gap-2 flex-1">
+      <app-custom-select
+        [options]="chantierOptions"
+        [value]="filterChantier()"
+        placeholder="Tous les chantiers"
+        (valueChange)="filterChantier.set($event); applyFilters()"
+      />
+      <app-custom-select
+        [options]="communeOptions"
+        [value]="filterCommune()"
+        placeholder="Toutes les communes"
+        (valueChange)="filterCommune.set($event); applyFilters()"
+      />
+      <app-custom-select
+        [options]="periodeOptions"
+        [value]="filterPeriode()"
+        placeholder="Toute la période"
+        (valueChange)="filterPeriode.set($event); applyFilters()"
+      />
+      <app-custom-select
+        [options]="statutOptions"
+        [value]="filterStatut()"
+        placeholder="Tous les statuts"
+        (valueChange)="filterStatut.set($event); applyFilters()"
+      />
+    </div>
+  </div>
+
+  <!-- ── KPI POWER BI STYLE ── -->
+  <div class="kpi-pbi-row">
+
+    <!-- Total signalements -->
+    <div class="kpi-pbi-card">
+      <div class="kpi-pbi-header">
+        <div class="kpi-pbi-icon" style="background:#E8F0FE;color:#004F9F;">
+          <lucide-icon [img]="BarChart2" size="16"></lucide-icon>
+        </div>
+        <span class="kpi-pbi-title">Total signalements</span>
+      </div>
+      <div class="kpi-pbi-body">
+        @if (totalSignalements === 0) {
+          <svg class="kpi-pbi-donut" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" class="donut-track" />
+          </svg>
+        } @else {
+          <svg class="kpi-pbi-donut" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" class="donut-track" />
+            <circle cx="50" cy="50" r="42" class="donut-fill" style="--c:#004F9F;" [style.stroke-dashoffset]="0" />
+          </svg>
+        }
+        <div class="kpi-pbi-center">
+          <div class="kpi-pbi-value" style="color:#004F9F;">{{ totalSignalements }}</div>
+          <div class="kpi-pbi-pct">{{ totalSignalements > 0 ? tauxResolution + '% résolus' : 'Aucun' }}</div>
+        </div>
+      </div>
+      <div class="kpi-pbi-footer">enregistrés sur l'ensemble</div>
+      <app-sparkline [data]="totalSparkData" color="#004F9F" [width]="140" [height]="28" />
+    </div>
+
+    <!-- En attente -->
+    <div class="kpi-pbi-card">
+      <div class="kpi-pbi-header">
+        <div class="kpi-pbi-icon" style="background:#FFF3E0;color:#F37021;">
+          <lucide-icon [img]="Clock" size="16"></lucide-icon>
+        </div>
+        <span class="kpi-pbi-title">En attente</span>
+      </div>
+      <div class="kpi-pbi-body">
+        <svg class="kpi-pbi-donut" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" class="donut-track" />
+          <circle cx="50" cy="50" r="42" class="donut-fill" style="--c:#F37021;" [style.stroke-dashoffset]="totalActifs > 0 ? 263.9 - (263.9 * nouveauxCount / totalActifs) : 263.9" />
+        </svg>
+        <div class="kpi-pbi-center">
+          <div class="kpi-pbi-value" style="color:#F37021;">{{ nouveauxCount }}</div>
+          <div class="kpi-pbi-pct">{{ totalActifs > 0 ? (nouveauxCount / totalActifs * 100 | number:'1.0-0') : 0 }}%</div>
+        </div>
+      </div>
+      <div class="kpi-pbi-footer">signalements non traités</div>
+      <app-sparkline [data]="nouveauSparkData" color="#F37021" [width]="140" [height]="28" />
+    </div>
+
+    <!-- En traitement -->
+    <div class="kpi-pbi-card">
+      <div class="kpi-pbi-header">
+        <div class="kpi-pbi-icon" style="background:#E3F2FD;color:#1565C0;">
+          <lucide-icon [img]="Wrench" size="16"></lucide-icon>
+        </div>
+        <span class="kpi-pbi-title">En traitement</span>
+      </div>
+      <div class="kpi-pbi-body">
+        <svg class="kpi-pbi-donut" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" class="donut-track" />
+          <circle cx="50" cy="50" r="42" class="donut-fill" style="--c:#1565C0;" [style.stroke-dashoffset]="totalActifs > 0 ? 263.9 - (263.9 * enCoursCount / totalActifs) : 263.9" />
+        </svg>
+        <div class="kpi-pbi-center">
+          <div class="kpi-pbi-value" style="color:#1565C0;">{{ enCoursCount }}</div>
+          <div class="kpi-pbi-pct">{{ totalActifs > 0 ? (enCoursCount / totalActifs * 100 | number:'1.0-0') : 0 }}%</div>
+        </div>
+      </div>
+      <div class="kpi-pbi-footer">signalements en cours</div>
+      <app-sparkline [data]="enCoursSparkData" color="#1565C0" [width]="140" [height]="28" />
+    </div>
+
+    <!-- Résolus -->
+    <div class="kpi-pbi-card">
+      <div class="kpi-pbi-header">
+        <div class="kpi-pbi-icon" style="background:#E8F5E9;color:#16A34A;">
+          <lucide-icon [img]="CheckCircle" size="16"></lucide-icon>
+        </div>
+        <span class="kpi-pbi-title">Résolus</span>
+      </div>
+      <div class="kpi-pbi-body">
+        <svg class="kpi-pbi-donut" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" class="donut-track" />
+          <circle cx="50" cy="50" r="42" class="donut-fill" style="--c:#16A34A;" [style.stroke-dashoffset]="totalActifs > 0 ? 263.9 - (263.9 * cloturesCount / totalActifs) : 263.9" />
+        </svg>
+        <div class="kpi-pbi-center">
+          <div class="kpi-pbi-value" style="color:#16A34A;">{{ cloturesCount }}</div>
+          <div class="kpi-pbi-pct">{{ totalActifs > 0 ? (cloturesCount / totalActifs * 100 | number:'1.0-0') : 0 }}%</div>
+        </div>
+      </div>
+      <div class="kpi-pbi-footer">signalements clôturés</div>
+      <app-sparkline [data]="clotureSparkData" color="#16A34A" [width]="140" [height]="28" />
+    </div>
+  </div>
+
+  <!-- ── CARTE + SIDEBAR DROITE ── -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    <!-- Carte Leaflet -->
+    <div class="card lg:col-span-2">
+      <div style="padding:16px 20px; border-bottom:1px solid #F4F4F5; display:flex; align-items:center; justify-content:space-between;">
+        <div>
+          <div style="font-size:14px; font-weight:700; color:#18181B;">Carte des signalements</div>
+          <div style="font-size:12px; color:#A1A1AA; margin-top:2px;">Localisation en temps réel — tracé PTUA</div>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-1.5">
+            <span class="dot dot-orange"></span>
+            <span style="font-size:11.5px;color:#71717A;font-weight:500;">Nouveau</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="dot dot-blue"></span>
+            <span style="font-size:11.5px;color:#71717A;font-weight:500;">En cours</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="dot dot-green"></span>
+            <span style="font-size:11.5px;color:#71717A;font-weight:500;">Résolu</span>
+          </div>
+        </div>
+      </div>
+      <div #mapContainer style="height:380px; width:100%; position:relative;">
+        <div class="map-zone-legend">
+          <div class="map-zone-legend-item"><span class="map-zone-legend-dot" style="background:#E8770E"></span>4e Pont</div>
+          <div class="map-zone-legend-item"><span class="map-zone-legend-dot" style="background:#1B2A4E"></span>Y4</div>
+          <div class="map-zone-legend-item"><span class="map-zone-legend-dot" style="background:#7B1FA2"></span>Latrille</div>
+          <div class="map-zone-legend-item"><span class="map-zone-legend-dot" style="background:#00838F"></span>Sortie Est</div>
+          <div class="map-zone-legend-item"><span class="map-zone-legend-dot" style="background:#C62828"></span>Sortie Ouest</div>
+          <div class="map-zone-legend-item"><span class="map-zone-legend-dot" style="background:#2E7D32"></span>Ech. CG</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Statistiques nuisances -->
+    <div class="space-y-4">
+
+      <!-- Répartition par statut -->
+      <div class="card p-4">
+        <div style="font-size:13.5px; font-weight:700; color:#18181B; margin-bottom:16px;">Répartition des statuts</div>
+        <div class="space-y-3">
+          @for (stat of statutStats; track stat.label) {
+            <div>
+              <div class="flex items-center justify-between" style="margin-bottom:6px;">
+                <span style="font-size:12.5px; color:#3F3F46; font-weight:600;">{{ stat.label }}</span>
+                <span style="font-size:12.5px; font-weight:700; color:#18181B;">{{ stat.count }}<span style="font-weight:400; color:#A1A1AA; font-size:11.5px;"> ({{ totalSignalements > 0 ? (stat.count / totalSignalements * 100 | number:'1.0-0') : 0 }}%)</span></span>
+              </div>
+              <div style="height:7px; background:#F4F4F5; border-radius:99px; overflow:hidden;">
+                <div class="progress-fill" [style.background]="stat.color" style="height:100%; border-radius:99px;" [style.width]="totalSignalements > 0 ? (stat.count / totalSignalements * 100) + '%' : '0%'"></div>
+              </div>
+            </div>
+          }
+        </div>
+        <div style="margin-top:16px; padding-top:12px; border-top:1px solid #F4F4F5; display:flex; align-items:center; justify-content:space-between;">
+          <span style="font-size:11.5px; color:#A1A1AA; font-weight:500;">Taux de résolution</span>
+          <span style="font-size:14px; font-weight:800; color:#16A34A;">{{ tauxResolution }}%</span>
+        </div>
+      </div>
+
+      <!-- Types de nuisances -->
+      <div class="card p-4">
+        <div style="font-size:13.5px; font-weight:700; color:#18181B; margin-bottom:16px;">Types de nuisances</div>
+        <div class="space-y-3">
+          @for (stat of nuisanceStats.slice(0, 5); track stat.type) {
+            <div class="flex items-center gap-3">
+              <div style="width:28px; height:28px; border-radius:7px; background:linear-gradient(135deg,#EEF1F8,#D8E4F5); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <span style="font-size:11px; font-weight:800; color:#004F9F;">{{ $index + 1 }}</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between" style="margin-bottom:4px;">
+                  <span style="font-size:12px; color:#27272A; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:110px;">{{ stat.type }}</span>
+                  <span style="font-size:12px; font-weight:800; color:#18181B; margin-left:4px;">{{ stat.count }}</span>
+                </div>
+                <div style="height:5px; background:#F4F4F5; border-radius:99px; overflow:hidden;">
+                  <div class="progress-fill" style="height:100%; background:linear-gradient(90deg,#F37021,#FF8C42); border-radius:99px;" [style.width]="(stat.count / (nuisanceStats[0]?.count || 1) * 100) + '%'"></div>
+                </div>
+              </div>
+            </div>
+          }
+          @empty {
+            <div class="empty-state" style="padding:20px 0;">
+              <div class="empty-state-text">Aucune donnée disponible</div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SIGNALEMENTS RÉCENTS + ALERTES ── -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    <!-- Tableau signalements récents -->
+    <div class="card lg:col-span-2">
+      <div style="padding:16px 20px; border-bottom:1px solid #F4F4F5; display:flex; align-items:center; justify-content:space-between;">
+        <div style="font-size:14px; font-weight:700; color:#18181B;">Signalements récents</div>
+        <button (click)="goToSignalements()" style="font-size:12.5px; color:#F37021; font-weight:700; background:none; border:none; cursor:pointer; display:flex; align-items:center; gap:4px;" onmouseenter="this.style.opacity='0.7'" onmouseleave="this.style.opacity='1'">
+          Voir tout
+          <lucide-icon [img]="ChevronRight" size="14"></lucide-icon>
+        </button>
+      </div>
+
+      <!-- En-tête tableau -->
+      <div class="grid" style="grid-template-columns:1fr 130px 100px 90px; padding:9px 20px; border-bottom:1px solid #F4F4F5; background:#FAFAFA;">
+        <span style="font-size:10.5px; font-weight:700; color:#A1A1AA; text-transform:uppercase; letter-spacing:0.6px;">Nuisance / Chantier</span>
+        <span style="font-size:10.5px; font-weight:700; color:#A1A1AA; text-transform:uppercase; letter-spacing:0.6px;">Date</span>
+        <span style="font-size:10.5px; font-weight:700; color:#A1A1AA; text-transform:uppercase; letter-spacing:0.6px;">Criticité</span>
+        <span style="font-size:10.5px; font-weight:700; color:#A1A1AA; text-transform:uppercase; letter-spacing:0.6px;">Statut</span>
+      </div>
+
+      @for (s of recentSignalements; track s.id) {
+        <div
+          class="grid"
+          style="grid-template-columns:1fr 130px 100px 90px; padding:12px 20px; border-bottom:1px solid #F4F4F5; align-items:center; cursor:pointer; transition:background 0.12s;"
+          onmouseenter="this.style.background='#FAFAFA'" onmouseleave="this.style.background='white'"
+          (click)="goToSignalement(s.id)"
+        >
+          <div class="min-w-0">
+            <div style="font-size:13px; font-weight:600; color:#18181B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ s.type_nuisance }}</div>
+            <div style="font-size:11px; color:#A1A1AA; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ s.chantier?.nom ?? '—' }}</div>
+          </div>
+          <span style="font-size:12px; color:#71717A;">{{ formatDate(s.cree_le) }}</span>
+          <span class="badge"
+            [class.badge-red]="s.criticite === 'ELEVE'"
+            [class.badge-orange]="s.criticite === 'MODERE'"
+            [class.badge-green]="s.criticite === 'FAIBLE'">
+            {{ s.criticite === 'ELEVE' ? '▲ Élevé' : s.criticite === 'MODERE' ? '● Modéré' : '▼ Faible' }}
+          </span>
+          <span style="font-size:12px; font-weight:600; display:flex; align-items:center; gap:5px;"
+            [style.color]="s.statut === 'NOUVEAU' ? '#F37021' : s.statut === 'EN_TRAITEMENT' ? '#1565C0' : '#16A34A'">
+            <span class="dot" [style.background]="s.statut === 'NOUVEAU' ? '#F37021' : s.statut === 'EN_TRAITEMENT' ? '#1565C0' : '#16A34A'"></span>
+            {{ s.statut === 'EN_TRAITEMENT' ? 'En cours' : s.statut === 'CLOTURE' ? 'Résolu' : 'Nouveau' }}
+          </span>
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <div class="empty-state-icon"><lucide-icon [img]="BarChart2" size="24" style="color:#D1D1D6;"></lucide-icon></div>
+          <div class="empty-state-text">Aucun signalement enregistré</div>
+        </div>
+      }
+    </div>
+
+    <!-- Alertes -->
+    <div class="card">
+      <div style="padding:16px 20px; border-bottom:1px solid #F4F4F5; display:flex; align-items:center; justify-content:space-between;">
+        <div style="font-size:14px; font-weight:700; color:#18181B;">Alertes actives</div>
+        @if (alertesCritiques > 0) {
+          <div class="badge badge-red">
+            <span class="dot dot-red"></span>
+            {{ alertesCritiques }} critique{{ alertesCritiques > 1 ? 's' : '' }}
+          </div>
+        }
+      </div>
+
+      <div>
+        @for (a of alertes().slice(0, 6); track a.id) {
+          <div style="padding:13px 20px; border-bottom:1px solid #F4F4F5;" class="flex items-start gap-3">
+            <div style="width:8px; height:8px; border-radius:50%; margin-top:5px; flex-shrink:0; box-shadow: 0 0 0 3px rgba(0,0,0,0.06);"
+              [style.background]="a.niveau === 'CRITIQUE' ? '#C62828' : a.niveau === 'WARNING' ? '#F37021' : '#1565C0'"
+            ></div>
+            <div class="flex-1 min-w-0">
+              <div style="font-size:12.5px; font-weight:600; color:#18181B; line-height:1.4;">{{ a.message }}</div>
+              <div style="font-size:11px; color:#A1A1AA; margin-top:3px;">{{ a.chantier?.nom ?? 'Système' }}</div>
+            </div>
+            <div class="badge"
+              [class.badge-red]="a.niveau === 'CRITIQUE'"
+              [class.badge-orange]="a.niveau === 'WARNING'"
+              [class.badge-blue]="a.niveau === 'INFO'">
+              {{ a.niveau }}
+            </div>
+          </div>
+        } @empty {
+          <div class="empty-state">
+            <div class="empty-state-icon"><lucide-icon [img]="Bell" size="22" style="color:#D1D1D6;"></lucide-icon></div>
+            <div class="empty-state-text">Aucune alerte active</div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+</div>

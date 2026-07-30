@@ -1,0 +1,261 @@
+"""
+schemas.py
+----------
+Schemas Pydantic : structure des messages JSON echanges avec le client.
+"""
+from datetime import datetime
+from typing import Optional, List
+
+from pydantic import BaseModel, EmailStr
+
+from .models import RoleEnum, StatutSignalement, CriticiteEnum
+
+
+# ---------- Utilisateur ----------
+class UtilisateurCreate(BaseModel):
+    nom: Optional[str] = None
+    email: EmailStr
+    role: RoleEnum = RoleEnum.RESP_ENV
+    telephone: Optional[str] = None
+
+
+class UtilisateurUpdate(BaseModel):
+    nom: Optional[str] = None
+    role: Optional[RoleEnum] = None
+
+
+class UtilisateurOut(BaseModel):
+    id: int
+    nom: Optional[str] = None
+    email: EmailStr
+    role: RoleEnum
+    premiere_connexion: bool
+    telephone: Optional[str] = None
+    cree_le: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SetPassword(BaseModel):
+    mot_de_passe: str
+
+
+class FirstLoginComplete(BaseModel):
+    nom: str
+    telephone: Optional[str] = None
+    mot_de_passe: str
+
+
+class ChangePassword(BaseModel):
+    ancien_mot_de_passe: str
+    nouveau_mot_de_passe: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyCode(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class ResetPassword(BaseModel):
+    email: EmailStr
+    code: str
+    nouveau_mot_de_passe: str
+
+
+# ---------- Authentification ----------
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    premiere_connexion: bool = False
+    role: Optional[str] = None
+
+
+class LoginInput(BaseModel):
+    email: EmailStr
+    mot_de_passe: str
+
+
+# ---------- Signalement ----------
+class SignalementCreate(BaseModel):
+    uuid_mobile: str
+    type_nuisance: str
+    description: Optional[str] = None
+    criticite: CriticiteEnum = CriticiteEnum.FAIBLE
+    criticite_ia: Optional[CriticiteEnum] = None
+    confiance_ia: Optional[float] = None
+    gps_source: str = "AUTO"
+    latitude: float
+    longitude: float
+    chantier_id: Optional[int] = None
+
+
+class GeoPoint(BaseModel):
+    type: str = "Point"
+    coordinates: tuple[float, float]
+
+
+class UtilisateurResume(BaseModel):
+    id: int
+    nom: Optional[str] = None
+    email: EmailStr
+
+
+class ChantierResume(BaseModel):
+    id: int
+    nom: str
+    commune: Optional[str] = None
+
+
+class PhotoResume(BaseModel):
+    id: int
+    chemin: str
+    signalement_id: int
+
+
+class SignalementOut(BaseModel):
+    id: int
+    uuid_mobile: str
+    type_nuisance: str
+    description: Optional[str]
+    criticite: CriticiteEnum
+    criticite_ia: Optional[CriticiteEnum] = None
+    confiance_ia: Optional[float] = None
+    gps_source: str
+    statut: StatutSignalement
+    cree_le: datetime
+    auteur_id: Optional[int]
+    chantier_id: Optional[int]
+    geom: Optional[GeoPoint] = None
+    auteur: Optional[UtilisateurResume] = None
+    chantier: Optional[ChantierResume] = None
+    photos: List[PhotoResume] = []
+
+    class Config:
+        from_attributes = True
+
+
+class ActionCorrectiveCreate(BaseModel):
+    description: str
+    echeance: Optional[datetime] = None
+
+
+class ActionCorrectiveOut(BaseModel):
+    id: int
+    description: str
+    echeance: Optional[datetime]
+    cree_le: datetime
+    signalement_id: int
+
+    class Config:
+        from_attributes = True
+
+
+class RetourAgent(BaseModel):
+    motif: str
+
+
+class SignalementStatutUpdate(BaseModel):
+    statut: StatutSignalement
+
+
+# ---------- Chantier ----------
+class ChantierCreate(BaseModel):
+    nom: str
+    commune: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+
+class ChantierOut(BaseModel):
+    id: int
+    nom: str
+    commune: Optional[str]
+    geom: Optional[GeoPoint] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ---------- Alerte ----------
+class AlerteOut(BaseModel):
+    id: int
+    message: str
+    niveau: str
+    valeur: Optional[float] = None
+    cree_le: datetime
+    chantier_id: Optional[int] = None
+    chantier: Optional[ChantierResume] = None
+    recue: bool = False
+
+    class Config:
+        from_attributes = True
+
+
+class AlerteSeuilCreate(BaseModel):
+    nom: str
+    indicateur: str
+    seuil: float
+    niveau: str = "WARNING"
+    actif: bool = True
+
+
+class AlerteSeuilOut(AlerteSeuilCreate):
+    id: int
+    cree_le: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ---------- Plaintes ----------
+class PlainteCreate(BaseModel):
+    nom_plaignant: str
+    contact: Optional[str] = None
+    description: str
+    chantier_id: Optional[int] = None
+
+
+class PlainteOut(BaseModel):
+    id: int
+    nom_plaignant: str
+    contact: Optional[str] = None
+    description: str
+    statut: str
+    cree_le: datetime
+    chantier_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PlainteStatutUpdate(BaseModel):
+    statut: str
+
+
+# ---------- Administration ----------
+class JournalOut(BaseModel):
+    id: int
+    niveau: str
+    message: str
+    utilisateur: Optional[str] = None
+    ip_source: Optional[str] = None
+    cree_le: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ---------- Statistiques ----------
+class Statistiques(BaseModel):
+    total: int
+    traites: int
+    en_attente: int
+    urgents: int
+    taux_traitement: float
+    repartition: dict
+    evolution: dict

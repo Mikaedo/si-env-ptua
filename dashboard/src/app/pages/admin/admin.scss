@@ -1,0 +1,20 @@
+:host { display: block; }
+
+.upload-zone {
+  border: 2px dashed #D1D1D6;
+  border-radius: 14px;
+  padding: 52px 28px;
+  text-align: center;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.upload-zone:hover {
+  background: #FAFAFA;
+  border-color: #004F9F;
+}
+.upload-zone.drag-active {
+  background: #EEF1F8;
+  border-color: #004F9F;
+  border-style: solid;
+  transform: scale(1.01);
+}

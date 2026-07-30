@@ -1,0 +1,196 @@
+<div class="space-y-4">
+
+  @if (isAdmin()) {
+    <div class="badge-consultation" style="align-self:flex-start;">
+      <lucide-icon [img]="Bell" size="13"></lucide-icon>
+      Mode consultation — lecture seule sur les alertes
+    </div>
+  }
+
+  @if (error()) {
+    <div class="error-banner">
+      <lucide-icon [img]="AlertTriangle" size="16"></lucide-icon>
+      {{ error() }}
+    </div>
+  }
+
+  <!-- En-tête avec compteurs -->
+  <div class="page-header" style="justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div class="flex items-center gap-4">
+      <div class="page-header-icon" style="background:linear-gradient(135deg,#C62828,#E53935);">
+        <lucide-icon [img]="Bell" size="22" style="color:white;"></lucide-icon>
+      </div>
+      <div>
+        <h1 class="page-header-title">Alertes environnementales</h1>
+        <p class="page-header-sub">Dépassements de seuils — qualité de l'air, nuisances PGES</p>
+      </div>
+    </div>
+    <div class="flex gap-2 flex-wrap">
+      <span class="badge badge-red">
+        <span class="dot dot-red"></span>
+        {{ critiqueCount }} critique{{ critiqueCount !== 1 ? 's' : '' }}
+      </span>
+      <span class="badge badge-orange">
+        <span class="dot dot-orange"></span>
+        {{ warningCount }} warning{{ warningCount !== 1 ? 's' : '' }}
+      </span>
+      <span class="badge badge-blue">
+        <span class="dot dot-blue"></span>
+        {{ infoCount }} info
+      </span>
+    </div>
+  </div>
+
+  <!-- Liste des alertes -->
+  <div class="space-y-2">
+    @for (a of alertes(); track a.id) {
+      <div class="alert-strip" style="cursor:pointer;" (click)="openDetail(a)"
+           onmouseenter="this.style.background='#FAFAFA'" onmouseleave="this.style.background=''">
+        <!-- Bande couleur gauche -->
+        <div class="accent-bar"
+          [style.background]="a.niveau === 'CRITIQUE' ? 'linear-gradient(180deg,#C62828,#E53935)' : a.niveau === 'WARNING' ? 'linear-gradient(180deg,#F37021,#FF8C42)' : 'linear-gradient(180deg,#1565C0,#2196F3)'">
+        </div>
+
+        <!-- Icône niveau -->
+        <div style="width:40px; height:40px; border-radius:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"
+          [style.background]="niveauConfig[a.niveau]?.bg">
+          <lucide-icon [img]="niveauConfig[a.niveau]?.icon || AlertTriangle" size="20"
+            [style.color]="niveauConfig[a.niveau]?.color">
+          </lucide-icon>
+        </div>
+
+        <!-- Message + méta -->
+        <div class="flex-1 min-w-0">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+            <span style="font-size:13.5px; font-weight:700; color:#18181B;">{{ a.message }}</span>
+            <span class="badge"
+              [class.badge-red]="a.niveau === 'CRITIQUE'"
+              [class.badge-orange]="a.niveau === 'WARNING'"
+              [class.badge-blue]="a.niveau === 'INFO'">{{ a.niveau }}</span>
+          </div>
+          <div style="font-size:12px; color:#A1A1AA; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <span style="font-weight:500; color:#71717A;">{{ a.chantier?.nom ?? 'Système' }}</span>
+            @if (a.valeur) {
+              <span style="font-weight:700; color:#3F3F46;">Valeur : {{ a.valeur }}</span>
+            }
+            <span>{{ formatDate(a.cree_le) }}</span>
+          </div>
+        </div>
+
+        <!-- Statut + flèche -->
+        <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+          @if (!a.recue && canAcknowledge) {
+            <button (click)="$event.stopPropagation(); acknowledge(a.id)" class="btn btn-ghost" style="font-size:12px; padding:7px 14px;">
+              <lucide-icon [img]="CheckCircle" size="14"></lucide-icon>
+              Accuser réception
+            </button>
+          } @else if (a.recue) {
+            <div style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:#16A34A;">
+              <lucide-icon [img]="CheckCircle" size="14"></lucide-icon>
+              <span>Reçue</span>
+            </div>
+          } @else {
+            <span style="font-size:11.5px; color:#D1D1D6; font-weight:500;">Lecture seule</span>
+          }
+          <span style="font-size:11px; color:#D1D1D6;">▶</span>
+        </div>
+      </div>
+    } @empty {
+      <div class="card">
+        <div class="empty-state">
+          <div class="empty-state-icon" style="width:64px;height:64px;border-radius:16px;">
+            <lucide-icon [img]="Bell" size="28" style="color:#D1D1D6;"></lucide-icon>
+          </div>
+          <div class="empty-state-text" style="font-size:14px;">
+            @if (loading()) { Chargement des alertes... }
+            @else if (error()) { Vérifiez la connexion à l'API. }
+            @else { Aucune alerte active — tout est nominal ✓ }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- ====== MODALE DÉTAIL ALERTE ====== -->
+@if (selectedAlerte(); as a) {
+  <div style="position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px;"
+       (click)="closeDetail()">
+    <div style="background:white; border-radius:20px; max-width:560px; width:100%; box-shadow:0 24px 64px rgba(0,0,0,0.25); overflow:hidden;"
+         (click)="$event.stopPropagation()">
+
+      <!-- Header modale -->
+      <div style="padding:24px 28px; border-bottom:1px solid #F4F4F5; display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"
+           [style.background]="a.niveau === 'CRITIQUE' ? '#FFF5F5' : a.niveau === 'WARNING' ? '#FFFBF5' : '#F0F8FF'">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div style="width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center;"
+               [style.background]="niveauConfig[a.niveau]?.bg">
+            <lucide-icon [img]="niveauConfig[a.niveau]?.icon || AlertTriangle" size="24"
+              [style.color]="niveauConfig[a.niveau]?.color">
+            </lucide-icon>
+          </div>
+          <div>
+            <div style="font-size:16px; font-weight:800; color:#18181B; letter-spacing:-0.3px;">{{ a.message }}</div>
+            <div style="font-size:12px; color:#71717A; margin-top:3px; font-weight:500;">{{ niveauLabels[a.niveau] }}</div>
+          </div>
+        </div>
+        <button (click)="closeDetail()" style="background:none; border:none; cursor:pointer; padding:4px; color:#A1A1AA;" 
+                onmouseenter="this.style.color='#18181B'" onmouseleave="this.style.color='#A1A1AA'">
+          <lucide-icon [img]="X" size="20"></lucide-icon>
+        </button>
+      </div>
+
+      <!-- Body modale -->
+      <div style="padding:24px 28px; display:flex; flex-direction:column; gap:14px;">
+
+        <!-- Chantier -->
+        <div style="display:flex; align-items:center; gap:10px; padding:14px 16px; background:#F8F8F9; border-radius:10px;">
+          <lucide-icon [img]="MapPin" size="16" style="color:#004F9F; flex-shrink:0;"></lucide-icon>
+          <div>
+            <div style="font-size:11px; color:#A1A1AA; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Chantier concerné</div>
+            <div style="font-size:14px; font-weight:700; color:#18181B;">{{ a.chantier?.nom ?? 'Système global' }}</div>
+            @if (a.chantier?.commune) {
+              <div style="font-size:12px; color:#71717A;">{{ a.chantier?.commune }}</div>
+            }
+          </div>
+        </div>
+
+        <!-- Valeur mesurée -->
+        @if (a.valeur) {
+          <div style="display:flex; align-items:center; gap:10px; padding:14px 16px; background:#F8F8F9; border-radius:10px;">
+            <lucide-icon [img]="Activity" size="16" style="flex-shrink:0;" [style.color]="niveauConfig[a.niveau]?.color"></lucide-icon>
+            <div>
+              <div style="font-size:11px; color:#A1A1AA; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Valeur mesurée</div>
+              <div style="font-size:22px; font-weight:900; letter-spacing:-0.5px;" [style.color]="niveauConfig[a.niveau]?.color">{{ a.valeur }}</div>
+            </div>
+          </div>
+        }
+
+        <!-- Date -->
+        <div style="display:flex; align-items:center; gap:10px; padding:14px 16px; background:#F8F8F9; border-radius:10px;">
+          <lucide-icon [img]="Clock" size="16" style="color:#71717A; flex-shrink:0;"></lucide-icon>
+          <div>
+            <div style="font-size:11px; color:#A1A1AA; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Date de détection</div>
+            <div style="font-size:14px; font-weight:700; color:#18181B;">{{ formatDate(a.cree_le) }}</div>
+          </div>
+        </div>
+
+        <!-- Statut -->
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:#F8F8F9; border-radius:10px;">
+          <div>
+            <div style="font-size:11px; color:#A1A1AA; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Accusé de réception</div>
+            <div style="font-size:13px; font-weight:700; margin-top:4px;" [style.color]="a.recue ? '#16A34A' : '#F37021'">
+              {{ a.recue ? '✓ Alerte reçue et traitée' : '⚠ En attente de prise en charge' }}
+            </div>
+          </div>
+          @if (!a.recue && canAcknowledge) {
+            <button (click)="acknowledge(a.id)" class="btn btn-primary" style="font-size:12.5px; padding:9px 18px;">
+              <lucide-icon [img]="CheckCircle" size="14"></lucide-icon>
+              Accuser réception
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}

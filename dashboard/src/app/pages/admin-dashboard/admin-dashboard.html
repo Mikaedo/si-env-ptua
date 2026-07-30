@@ -1,0 +1,377 @@
+<div class="admin-view">
+
+  <!-- Header -->
+  <div class="admin-header">
+    <div class="admin-header-left">
+      <div class="admin-header-icon">
+        <lucide-icon [img]="Eye" size="22" style="color:white;"></lucide-icon>
+      </div>
+      <div>
+        <h1 class="admin-title">Centre de consultation</h1>
+        <p class="admin-subtitle">Surveillance globale — signalements, plaintes & alertes environnementales</p>
+      </div>
+    </div>
+    <div class="admin-header-right">
+      <button class="btn btn-outline" (click)="goToAdmin()">
+        <lucide-icon [img]="Users" size="15"></lucide-icon>
+        Gestion système
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="admin-tabs">
+    <button class="admin-tab" [class.active]="activeTab() === 'overview'" (click)="setTab('overview')">
+      <lucide-icon [img]="Activity" size="15"></lucide-icon>
+      Vue d'ensemble
+    </button>
+    <button class="admin-tab" [class.active]="activeTab() === 'signalements'" (click)="setTab('signalements')">
+      <lucide-icon [img]="MapPin" size="15"></lucide-icon>
+      Signalements
+      <span class="tab-count">{{ signalements().length }}</span>
+    </button>
+    <button class="admin-tab" [class.active]="activeTab() === 'plaintes'" (click)="setTab('plaintes')">
+      <lucide-icon [img]="ShieldAlert" size="15"></lucide-icon>
+      Plaintes
+      <span class="tab-count">{{ plaintes().length }}</span>
+    </button>
+    <button class="admin-tab" [class.active]="activeTab() === 'alertes'" (click)="setTab('alertes')">
+      <lucide-icon [img]="Bell" size="15"></lucide-icon>
+      Alertes
+      <span class="tab-count">{{ alertes().length }}</span>
+    </button>
+  </div>
+
+  <!-- ════════ TAB: OVERVIEW ════════ -->
+  @if (activeTab() === 'overview') {
+    <div class="admin-overview">
+      <!-- Signalements donuts -->
+      <div class="overview-block">
+        <div class="overview-block-header">
+          <lucide-icon [img]="MapPin" size="16" style="color:#004F9F;"></lucide-icon>
+          <span>Signalements</span>
+          <button class="overview-go" (click)="setTab('signalements')">Détails <lucide-icon [img]="ChevronRight" size="12"></lucide-icon></button>
+        </div>
+        <div class="kpi-pbi-row">
+          @for (stat of sigStats; track stat.label) {
+            <div class="kpi-pbi-card">
+              <div class="kpi-pbi-header">
+                <div class="kpi-pbi-icon" [style.background]="stat.color + '18'" [style.color]="stat.color">
+                  @if (stat.icon === 'bar') { <lucide-icon [img]="BarChart2" size="16"></lucide-icon> }
+                  @if (stat.icon === 'clock') { <lucide-icon [img]="Clock" size="16"></lucide-icon> }
+                  @if (stat.icon === 'alert') { <lucide-icon [img]="AlertTriangle" size="16"></lucide-icon> }
+                  @if (stat.icon === 'check') { <lucide-icon [img]="CheckCircle" size="16"></lucide-icon> }
+                </div>
+                <span class="kpi-pbi-title">{{ stat.label }}</span>
+              </div>
+              <div class="kpi-pbi-body">
+                @if (stat.count === 0) {
+                  <svg class="kpi-pbi-donut" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" class="donut-track" /></svg>
+                } @else {
+                  <svg class="kpi-pbi-donut" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="42" class="donut-track" />
+                    <circle cx="50" cy="50" r="42" class="donut-fill" [style.--c]="stat.color" [style.stroke-dashoffset]="263.9 - (263.9 * stat.pct / 100)" />
+                  </svg>
+                }
+                <div class="kpi-pbi-center">
+                  <div class="kpi-pbi-value" [style.color]="stat.color">{{ stat.count }}</div>
+                  <div class="kpi-pbi-pct">{{ stat.pct > 0 ? stat.pct.toFixed(0) + '%' : 'Aucun' }}</div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Plaintes donuts -->
+      <div class="overview-block">
+        <div class="overview-block-header">
+          <lucide-icon [img]="ShieldAlert" size="16" style="color:#F37021;"></lucide-icon>
+          <span>Plaintes (MGP)</span>
+          <button class="overview-go" (click)="setTab('plaintes')">Détails <lucide-icon [img]="ChevronRight" size="12"></lucide-icon></button>
+        </div>
+        <div class="kpi-pbi-row">
+          @for (stat of plainteStats; track stat.label) {
+            <div class="kpi-pbi-card">
+              <div class="kpi-pbi-header">
+                <div class="kpi-pbi-icon" [style.background]="stat.color + '18'" [style.color]="stat.color">
+                  @if (stat.icon === 'bar') { <lucide-icon [img]="BarChart2" size="16"></lucide-icon> }
+                  @if (stat.icon === 'clock') { <lucide-icon [img]="Clock" size="16"></lucide-icon> }
+                  @if (stat.icon === 'alert') { <lucide-icon [img]="AlertTriangle" size="16"></lucide-icon> }
+                  @if (stat.icon === 'check') { <lucide-icon [img]="CheckCircle" size="16"></lucide-icon> }
+                </div>
+                <span class="kpi-pbi-title">{{ stat.label }}</span>
+              </div>
+              <div class="kpi-pbi-body">
+                @if (stat.count === 0) {
+                  <svg class="kpi-pbi-donut" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" class="donut-track" /></svg>
+                } @else {
+                  <svg class="kpi-pbi-donut" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="42" class="donut-track" />
+                    <circle cx="50" cy="50" r="42" class="donut-fill" [style.--c]="stat.color" [style.stroke-dashoffset]="263.9 - (263.9 * stat.pct / 100)" />
+                  </svg>
+                }
+                <div class="kpi-pbi-center">
+                  <div class="kpi-pbi-value" [style.color]="stat.color">{{ stat.count }}</div>
+                  <div class="kpi-pbi-pct">{{ stat.pct > 0 ? stat.pct.toFixed(0) + '%' : 'Aucun' }}</div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Alertes donuts -->
+      <div class="overview-block">
+        <div class="overview-block-header">
+          <lucide-icon [img]="Bell" size="16" style="color:#C62828;"></lucide-icon>
+          <span>Alertes environnementales</span>
+          <button class="overview-go" (click)="setTab('alertes')">Détails <lucide-icon [img]="ChevronRight" size="12"></lucide-icon></button>
+        </div>
+        <div class="kpi-pbi-row">
+          @for (stat of alerteStats; track stat.label) {
+            <div class="kpi-pbi-card">
+              <div class="kpi-pbi-header">
+                <div class="kpi-pbi-icon" [style.background]="stat.color + '18'" [style.color]="stat.color">
+                  @if (stat.icon === 'bar') { <lucide-icon [img]="BarChart2" size="16"></lucide-icon> }
+                  @if (stat.icon === 'clock') { <lucide-icon [img]="Clock" size="16"></lucide-icon> }
+                  @if (stat.icon === 'alert') { <lucide-icon [img]="AlertTriangle" size="16"></lucide-icon> }
+                  @if (stat.icon === 'check') { <lucide-icon [img]="CheckCircle" size="16"></lucide-icon> }
+                </div>
+                <span class="kpi-pbi-title">{{ stat.label }}</span>
+              </div>
+              <div class="kpi-pbi-body">
+                @if (stat.count === 0) {
+                  <svg class="kpi-pbi-donut" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" class="donut-track" /></svg>
+                } @else {
+                  <svg class="kpi-pbi-donut" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="42" class="donut-track" />
+                    <circle cx="50" cy="50" r="42" class="donut-fill" [style.--c]="stat.color" [style.stroke-dashoffset]="263.9 - (263.9 * stat.pct / 100)" />
+                  </svg>
+                }
+                <div class="kpi-pbi-center">
+                  <div class="kpi-pbi-value" [style.color]="stat.color">{{ stat.count }}</div>
+                  <div class="kpi-pbi-pct">{{ stat.pct > 0 ? stat.pct.toFixed(0) + '%' : 'Aucun' }}</div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ════════ TAB: SIGNALEMENTS ════════ -->
+  @if (activeTab() === 'signalements') {
+    <div class="admin-tab-content">
+      <div class="admin-filters">
+        <div class="search-wrapper" style="flex:1; min-width:200px;">
+          <lucide-icon [img]="Filter" size="15"></lucide-icon>
+          <input type="text" [value]="searchTerm()" (input)="searchTerm.set($any($event.target).value)"
+            placeholder="Rechercher par type, description..." class="search-input" />
+        </div>
+        <app-custom-select [options]="chantierOptions" [value]="filterChantier()" placeholder="Tous chantiers" (valueChange)="filterChantier.set($event)" />
+        <app-custom-select [options]="statutOptions" [value]="filterStatut()" placeholder="Tous statuts" (valueChange)="filterStatut.set($event)" />
+        <div class="filter-count">{{ filteredSignalements.length }} résultat{{ filteredSignalements.length !== 1 ? 's' : '' }}</div>
+      </div>
+
+      <div class="admin-table-card">
+        <div style="overflow-x:auto;">
+          <table class="si-table">
+            <thead>
+              <tr><th>ID</th><th>Type nuisance</th><th>Criticité</th><th>Chantier</th><th>Statut</th><th>Date</th><th></th></tr>
+            </thead>
+            <tbody>
+              @for (s of filteredSignalements; track s.id) {
+                <tr (click)="openSignalement(s)" style="cursor:pointer;">
+                  <td style="font-size:12px; color:#A1A1AA; font-weight:600;">#{{ s.id }}</td>
+                  <td style="font-size:13px; font-weight:600; color:#18181B;">{{ s.type_nuisance }}</td>
+                  <td><span class="badge" [class.badge-gray]="s.criticite === 'FAIBLE'" [class.badge-orange]="s.criticite === 'MODERE'" [class.badge-red]="s.criticite === 'ELEVE'">{{ s.criticite }}</span></td>
+                  <td style="font-size:12.5px; color:#3F3F46;">{{ s.chantier?.nom ?? '—' }}</td>
+                  <td><span class="badge" [class.badge-orange]="s.statut === 'NOUVEAU'" [class.badge-blue]="s.statut === 'EN_TRAITEMENT'" [class.badge-green]="s.statut === 'CLOTURE'" [class.badge-gray]="s.statut === 'REJETE'">{{ s.statut }}</span></td>
+                  <td style="font-size:12px; color:#71717A;">{{ formatDateTime(s.cree_le) }}</td>
+                  <td><lucide-icon [img]="ChevronRight" size="16" style="color:#D1D1D6;"></lucide-icon></td>
+                </tr>
+              } @empty {
+                <tr><td colspan="7" style="padding:32px; text-align:center; color:#A1A1AA; font-size:13px;">Aucun signalement</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ════════ TAB: PLAINTEs ════════ -->
+  @if (activeTab() === 'plaintes') {
+    <div class="admin-tab-content">
+      <div class="admin-filters">
+        <div class="search-wrapper" style="flex:1; min-width:200px;">
+          <lucide-icon [img]="Filter" size="15"></lucide-icon>
+          <input type="text" [value]="searchTerm()" (input)="searchTerm.set($any($event.target).value)"
+            placeholder="Rechercher par nom, description..." class="search-input" />
+        </div>
+        <app-custom-select [options]="plainteStatutOptions" [value]="filterStatut()" placeholder="Tous statuts" (valueChange)="filterStatut.set($event)" />
+        <div class="filter-count">{{ filteredPlaintes.length }} résultat{{ filteredPlaintes.length !== 1 ? 's' : '' }}</div>
+      </div>
+
+      <div class="admin-cards-grid">
+        @for (p of filteredPlaintes; track p.id) {
+          <div class="admin-plainte-card" (click)="openPlainte(p)">
+            <div class="accent-bar" [style.background]="statutColors[p.statut] || '#A1A1AA'"></div>
+            <div class="admin-plainte-body">
+              <div class="admin-plainte-top">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <div class="admin-avatar"><lucide-icon [img]="User" size="16" style="color:#D16709;"></lucide-icon></div>
+                  <div>
+                    <div style="font-size:14px; font-weight:700; color:#18181B;">{{ p.nom_plaignant }}</div>
+                    <div style="font-size:11.5px; color:#71717A; display:flex; align-items:center; gap:4px; margin-top:2px;">
+                      <lucide-icon [img]="Phone" size="10"></lucide-icon> {{ p.contact || 'Non renseigné' }}
+                    </div>
+                  </div>
+                </div>
+                <span class="badge" [class.badge-orange]="p.statut === 'OUVERTE'" [class.badge-blue]="p.statut === 'EN_COURS'" [class.badge-green]="p.statut === 'RESOLU'" [class.badge-gray]="p.statut === 'REJETE'">{{ p.statut }}</span>
+              </div>
+              <div class="admin-plainte-desc">{{ p.description }}</div>
+              <div class="admin-plainte-footer">
+                <span><lucide-icon [img]="Clock" size="11"></lucide-icon> {{ formatDate(p.cree_le) }}</span>
+              </div>
+            </div>
+          </div>
+        } @empty {
+          <div class="card" style="grid-column:1/-1;">
+            <div class="empty-state">
+              <div class="empty-state-icon"><lucide-icon [img]="ShieldAlert" size="28" style="color:#D1D1D6;"></lucide-icon></div>
+              <div class="empty-state-text">Aucune plainte enregistrée</div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ════════ TAB: ALERTES ════════ -->
+  @if (activeTab() === 'alertes') {
+    <div class="admin-tab-content">
+      <div class="admin-filters">
+        <app-custom-select [options]="chantierOptions" [value]="filterChantier()" placeholder="Tous chantiers" (valueChange)="filterChantier.set($event)" />
+        <div class="filter-count">{{ filteredAlertes.length }} alerte{{ filteredAlertes.length !== 1 ? 's' : '' }}</div>
+      </div>
+
+      <div class="admin-alertes-list">
+        @for (a of filteredAlertes; track a.id) {
+          <div class="admin-alerte-row" (click)="openAlerte(a)">
+            <div class="alerte-severity" [style.background]="niveauColors[a.niveau] || '#A1A1AA'"></div>
+            <div class="admin-alerte-icon" [style.background]="(niveauColors[a.niveau] || '#A1A1AA') + '18'" [style.color]="niveauColors[a.niveau] || '#A1A1AA'">
+              <lucide-icon [img]="AlertTriangle" size="18"></lucide-icon>
+            </div>
+            <div class="admin-alerte-content">
+              <div class="admin-alerte-msg">{{ a.message }}</div>
+              <div class="admin-alerte-meta">
+                @if (a.chantier) { <span><lucide-icon [img]="Building2" size="11"></lucide-icon> {{ a.chantier.nom }}</span> }
+                <span><lucide-icon [img]="Clock" size="11"></lucide-icon> {{ formatDateTime(a.cree_le) }}</span>
+                @if (a.valeur != null) { <span style="font-weight:600; color:#3F3F46;">Valeur: {{ a.valeur }}</span> }
+              </div>
+            </div>
+            <div class="admin-alerte-right">
+              <span class="badge" [class.badge-red]="a.niveau === 'CRITIQUE'" [class.badge-orange]="a.niveau === 'WARNING'" [class.badge-blue]="a.niveau === 'INFO'">{{ a.niveau }}</span>
+              @if (!a.recue) { <span class="badge badge-gray" style="font-size:10px;">Non lue</span> }
+            </div>
+          </div>
+        } @empty {
+          <div class="card">
+            <div class="empty-state">
+              <div class="empty-state-icon"><lucide-icon [img]="Bell" size="28" style="color:#D1D1D6;"></lucide-icon></div>
+              <div class="empty-state-text">Aucune alerte</div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>
+
+<!-- ════════ MODAL: SIGNALEMENT DETAIL ════════ -->
+@if (selectedSignalement(); as s) {
+  <div class="admin-modal-overlay" (click)="closeSignalement()">
+    <div class="admin-modal" (click)="$event.stopPropagation()">
+      <div class="admin-modal-header" [style.background]="statutColors[s.statut] ? statutColors[s.statut] + '0A' : '#FAFAFA'">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div class="admin-modal-icon" [style.background]="statutColors[s.statut] || '#A1A1AA'">
+            <lucide-icon [img]="MapPin" size="20" style="color:white;"></lucide-icon>
+          </div>
+          <div>
+            <div style="font-size:16px; font-weight:800; color:#18181B;">{{ s.type_nuisance }}</div>
+            <div style="font-size:12px; color:#71717A; margin-top:2px;">Signalement #{{ s.id }}</div>
+          </div>
+        </div>
+        <button class="admin-modal-close" (click)="closeSignalement()"><lucide-icon [img]="X" size="20"></lucide-icon></button>
+      </div>
+      <div class="admin-modal-body">
+        <div class="admin-info-row"><span class="admin-info-label">Statut</span><span class="badge" [class.badge-orange]="s.statut === 'NOUVEAU'" [class.badge-blue]="s.statut === 'EN_TRAITEMENT'" [class.badge-green]="s.statut === 'CLOTURE'" [class.badge-gray]="s.statut === 'REJETE'">{{ s.statut }}</span></div>
+        <div class="admin-info-row"><span class="admin-info-label">Criticité</span><span style="font-weight:700; color:#18181B;">{{ s.criticite }}</span></div>
+        @if (s.criticite_ia) { <div class="admin-info-row"><span class="admin-info-label">IA criticité</span><span style="font-weight:600; color:#004F9F;">{{ s.criticite_ia }} ({{ s.confiance_ia }}% confiance)</span></div> }
+        <div class="admin-info-row"><span class="admin-info-label">Chantier</span><span style="font-weight:600; color:#18181B;">{{ selectedChantierNom }}</span></div>
+        @if (s.description) { <div class="admin-info-block"><span class="admin-info-label">Description</span><div class="admin-info-content">{{ s.description }}</div></div> }
+        <div class="admin-info-row"><span class="admin-info-label">Source GPS</span><span style="font-weight:600; color:#18181B;">{{ s.gps_source }}</span></div>
+        @if (s.auteur) { <div class="admin-info-row"><span class="admin-info-label">Auteur</span><span style="font-weight:600; color:#18181B;">{{ s.auteur.nom || s.auteur.email }}</span></div> }
+        <div class="admin-info-row"><span class="admin-info-label">Date</span><span style="font-weight:600; color:#18181B;">{{ formatDateTime(s.cree_le) }}</span></div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ════════ MODAL: PLAINTE DETAIL ════════ -->
+@if (selectedPlainte(); as p) {
+  <div class="admin-modal-overlay" (click)="closePlainte()">
+    <div class="admin-modal" (click)="$event.stopPropagation()">
+      <div class="admin-modal-header" [style.background]="statutColors[p.statut] ? statutColors[p.statut] + '0A' : '#FAFAFA'">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div class="admin-modal-icon" [style.background]="statutColors[p.statut] || '#A1A1AA'">
+            <lucide-icon [img]="User" size="20" style="color:white;"></lucide-icon>
+          </div>
+          <div>
+            <div style="font-size:16px; font-weight:800; color:#18181B;">{{ p.nom_plaignant }}</div>
+            <div style="font-size:12px; color:#71717A; margin-top:2px;">Plainte #{{ p.id }}</div>
+          </div>
+        </div>
+        <button class="admin-modal-close" (click)="closePlainte()"><lucide-icon [img]="X" size="20"></lucide-icon></button>
+      </div>
+      <div class="admin-modal-body">
+        <div class="admin-info-row"><span class="admin-info-label">Statut</span><span class="badge" [class.badge-orange]="p.statut === 'OUVERTE'" [class.badge-blue]="p.statut === 'EN_COURS'" [class.badge-green]="p.statut === 'RESOLU'" [class.badge-gray]="p.statut === 'REJETE'">{{ p.statut }}</span></div>
+        <div class="admin-info-row"><span class="admin-info-label">Contact</span><span style="font-weight:600; color:#18181B;">{{ p.contact || 'Non renseigné' }}</span></div>
+        <div class="admin-info-row"><span class="admin-info-label">Chantier</span><span style="font-weight:600; color:#18181B;">{{ selectedPlainteChantierNom }}</span></div>
+        <div class="admin-info-block"><span class="admin-info-label">Description</span><div class="admin-info-content">{{ p.description }}</div></div>
+        <div class="admin-info-row"><span class="admin-info-label">Date</span><span style="font-weight:600; color:#18181B;">{{ formatDateTime(p.cree_le) }}</span></div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ════════ MODAL: ALERTE DETAIL ════════ -->
+@if (selectedAlerte(); as a) {
+  <div class="admin-modal-overlay" (click)="closeAlerte()">
+    <div class="admin-modal" (click)="$event.stopPropagation()">
+      <div class="admin-modal-header" [style.background]="(niveauColors[a.niveau] || '#A1A1AA') + '0A'">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div class="admin-modal-icon" [style.background]="niveauColors[a.niveau] || '#A1A1AA'">
+            <lucide-icon [img]="Bell" size="20" style="color:white;"></lucide-icon>
+          </div>
+          <div>
+            <div style="font-size:16px; font-weight:800; color:#18181B;">{{ a.niveau }}</div>
+            <div style="font-size:12px; color:#71717A; margin-top:2px;">Alerte #{{ a.id }}</div>
+          </div>
+        </div>
+        <button class="admin-modal-close" (click)="closeAlerte()"><lucide-icon [img]="X" size="20"></lucide-icon></button>
+      </div>
+      <div class="admin-modal-body">
+        <div class="admin-info-block"><span class="admin-info-label">Message</span><div class="admin-info-content">{{ a.message }}</div></div>
+        <div class="admin-info-row"><span class="admin-info-label">Niveau</span><span class="badge" [class.badge-red]="a.niveau === 'CRITIQUE'" [class.badge-orange]="a.niveau === 'WARNING'" [class.badge-blue]="a.niveau === 'INFO'">{{ a.niveau }}</span></div>
+        @if (a.valeur != null) { <div class="admin-info-row"><span class="admin-info-label">Valeur</span><span style="font-weight:700; color:#18181B; font-size:16px;">{{ a.valeur }}</span></div> }
+        @if (a.chantier) { <div class="admin-info-row"><span class="admin-info-label">Chantier</span><span style="font-weight:600; color:#18181B;">{{ a.chantier.nom }}</span></div> }
+        <div class="admin-info-row"><span class="admin-info-label">Statut</span><span style="font-weight:600;" [style.color]="a.recue ? '#16A34A' : '#F37021'">{{ a.recue ? 'Accusée' : 'Non accusée' }}</span></div>
+        <div class="admin-info-row"><span class="admin-info-label">Date</span><span style="font-weight:600; color:#18181B;">{{ formatDateTime(a.cree_le) }}</span></div>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,211 @@
+<!-- Root layout: sidebar + main -->
+<div class="flex h-screen overflow-hidden" style="background:#F4F4F5;">
+  <app-toast-container></app-toast-container>
+
+  <aside
+    class="sidebar-container fixed lg:static inset-y-0 left-0 z-50 flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0"
+    [class.-translate-x-full]="!sidebarOpen()"
+  >
+
+    <!-- Logo AGEROUTE / SI-ENV -->
+    <div style="height:64px; padding:0 24px; border-bottom:1px solid rgba(255,255,255,0.05);" class="flex items-center gap-3 shrink-0">
+      <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg, #F37021 0%, #D85606 100%);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:white;letter-spacing:-0.5px;flex-shrink:0;box-shadow:0 4px 10px rgba(243,112,33,0.3);">SE</div>
+      <div class="flex flex-col">
+        <span style="font-size:14px;font-weight:700;color:white;letter-spacing:-0.2px;line-height:1.2;">SI-ENV</span>
+        <span style="font-size:10px;color:rgba(255,255,255,0.5);letter-spacing:0.5px;line-height:1.2;text-transform:uppercase;">PTUA · Ageroute</span>
+      </div>
+      <button class="ml-auto lg:hidden" style="color:rgba(255,255,255,0.5);" (click)="closeSidebar()">
+        <lucide-icon [img]="X" size="20"></lucide-icon>
+      </button>
+    </div>
+
+    <!-- Section label -->
+    <div style="padding:24px 24px 8px; font-size:10px; font-weight:700; color:rgba(255,255,255,0.35); letter-spacing:1px; text-transform:uppercase;">
+      Menu Principal
+    </div>
+
+    <!-- Nav items -->
+    <nav class="flex-1 overflow-y-auto" style="padding:0 16px;">
+      @for (item of visibleNavItems; track item.label) {
+        @if (item.isSection) {
+          <div class="nav-section-label">{{ item.label }}</div>
+        } @else {
+          <a
+            [routerLink]="item.route"
+            [queryParams]="item.queryParams || null"
+            routerLinkActive="active-nav-item"
+            [routerLinkActiveOptions]="{exact: item.route === '/dashboard'}"
+            (click)="closeSidebar()"
+            class="nav-item"
+            [class.nav-sub-item]="item.queryParams"
+          >
+            <lucide-icon [img]="item.icon" size="18"></lucide-icon>
+            <span>{{ item.label }}</span>
+          </a>
+        }
+      }
+    </nav>
+
+    <!-- Séparateur + user -->
+    <div style="border-top:1px solid rgba(255,255,255,0.05); padding:16px;">
+      <div class="flex items-center gap-3 user-profile-badge">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(243,112,33,0.15);border:1px solid rgba(243,112,33,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#F37021;flex-shrink:0;">
+          {{ initials }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div style="font-size:12.5px;font-weight:600;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ currentUser()?.nom || currentUser()?.email }}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);">{{ roleLabel }}</div>
+        </div>
+        <button (click)="logout()" title="Déconnexion" style="color:rgba(255,255,255,0.4);padding:6px;border-radius:8px;background:none;border:none;cursor:pointer;transition:all 0.2s;" onmouseenter="this.style.color='#ef4444'; this.style.background='rgba(239, 68, 68, 0.1)'" onmouseleave="this.style.color='rgba(255,255,255,0.4)'; this.style.background='transparent'">
+          <lucide-icon [img]="LogOut" size="16"></lucide-icon>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Overlay mobile -->
+  @if (sidebarOpen()) {
+    <div class="fixed inset-0 z-40 lg:hidden" style="background:rgba(0,15,35,0.6);backdrop-filter:blur(2px);" (click)="closeSidebar()"></div>
+  }
+
+  <div class="flex-1 flex flex-col overflow-hidden min-w-0" (click)="closeProfile(); closeNotif()">
+
+    <header class="topbar flex items-center justify-between shrink-0" style="height:72px; padding:0 28px; background:rgba(255,255,255,0.85); backdrop-filter:blur(16px); border-bottom:1px solid #E4E4E7; z-index:30;">
+      <!-- Left: Hamburger + Breadcrumb -->
+      <div class="flex items-center gap-4">
+        <button class="lg:hidden" style="color:#52525B; padding:8px; border-radius:8px; transition:all 0.2s;" onmouseenter="this.style.background='#F4F4F5'" onmouseleave="this.style.background='transparent'" (click)="toggleSidebar()">
+          <lucide-icon [img]="Menu" size="20"></lucide-icon>
+        </button>
+        <div class="flex flex-col">
+          <div class="flex items-center gap-2" style="font-size:11px; color:#A1A1AA; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">
+            <span>PTUA</span>
+            <lucide-icon [img]="ChevronRight" size="12"></lucide-icon>
+            <span>Côte d'Ivoire</span>
+          </div>
+          <div style="font-size:19px; color:#18181B; font-weight:800; letter-spacing:-0.4px; line-height:1.2; margin-top:2px;">{{ currentTitle }}</div>
+        </div>
+      </div>
+
+      <!-- Right: Live clock + Status + Profile -->
+      <div class="flex items-center gap-4">
+
+        <!-- Live Clock -->
+        <div class="hidden md:flex items-center gap-3" style="padding:8px 16px; border-radius:12px; background:linear-gradient(135deg, #F8F8F9 0%, #F4F4F5 100%); border:1px solid #E4E4E7;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <lucide-icon [img]="Clock" size="14" style="color:#71717A;"></lucide-icon>
+            <span style="font-size:12px; color:#71717A; font-weight:500;">{{ dateStr }}</span>
+          </div>
+          <div style="width:1px; height:16px; background:#E4E4E7;"></div>
+          <span style="font-size:14px; color:#18181B; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-0.3px;">{{ timeStr }}</span>
+        </div>
+
+        <!-- System Status Pill -->
+        <div class="hidden sm:flex items-center gap-2" style="padding:7px 16px; border-radius:99px; background:linear-gradient(90deg, #F0FDF4 0%, #ECFDF5 100%); border:1px solid rgba(16,185,129,0.2); box-shadow:inset 0 1px 2px rgba(255,255,255,0.5);">
+          <div style="position:relative; width:8px; height:8px;">
+            <div style="position:absolute; inset:0; border-radius:50%; background:#10B981; opacity:0.6; animation: pulseBadge 2s ease-in-out infinite;"></div>
+            <div style="position:relative; width:8px; height:8px; border-radius:50%; background:#059669; border:1.5px solid white;"></div>
+          </div>
+          <lucide-icon [img]="Activity" size="12" style="color:#059669;"></lucide-icon>
+          <span style="font-size:11.5px; font-weight:700; color:#059669; letter-spacing:-0.1px;">Système actif</span>
+        </div>
+
+        <!-- Notifications -->
+        <div style="position:relative;">
+          <button (click)="toggleNotif()" style="position:relative; color:#52525B; padding:10px; border-radius:50%; background:#F4F4F5; border:1px solid #E4E4E7; transition:all 0.2s; display:flex; align-items:center; justify-content:center; cursor:pointer;" onmouseenter="this.style.background='#E4E4E7'" onmouseleave="this.style.background='#F4F4F5'">
+            <lucide-icon [img]="Bell" size="18"></lucide-icon>
+            @if (alertesNonLues > 0) {
+              <div style="position:absolute; top:5px; right:5px; min-width:16px; height:16px; border-radius:99px; background:#EF4444; border:2px solid #F4F4F5; font-size:9px; font-weight:700; color:white; display:flex; align-items:center; justify-content:center; padding:0 4px;">{{ alertesNonLues > 9 ? '9+' : alertesNonLues }}</div>
+            }
+          </button>
+
+          @if (notifOpen()) {
+            <div style="position:absolute; top:calc(100% + 8px); right:0; width:360px; background:white; border:1px solid #E4E4E7; border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,0.15); z-index:100; overflow:hidden;" (click)="$event.stopPropagation()">
+              <!-- Header -->
+              <div style="padding:16px 18px; border-bottom:1px solid #F4F4F5; display:flex; align-items:center; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <lucide-icon [img]="BellRing" size="16" style="color:#004F9F;"></lucide-icon>
+                  <span style="font-size:14px; font-weight:700; color:#18181B;">Notifications</span>
+                </div>
+                @if (alertesCritiques > 0) {
+                  <span style="font-size:11px; font-weight:700; color:#DC2626; padding:3px 8px; border-radius:99px; background:#FEF2F2;">{{ alertesCritiques }} critique{{ alertesCritiques > 1 ? 's' : '' }}</span>
+                }
+              </div>
+
+              <!-- List -->
+              <div style="max-height:380px; overflow-y:auto;">
+                @for (a of alertesRecentes; track a.id) {
+                  <div style="padding:14px 18px; border-bottom:1px solid #F8F8F9; display:flex; gap:12px; transition:background 0.15s;" onmouseenter="this.style.background='#FAFAFA'" onmouseleave="this.style.background='white'">
+                    <div style="width:8px; height:8px; border-radius:50%; margin-top:6px; flex-shrink:0; box-shadow:0 0 0 3px rgba(0,0,0,0.04);"
+                      [style.background]="a.niveau === 'CRITIQUE' ? '#DC2626' : a.niveau === 'WARNING' ? '#F37021' : '#1565C0'"
+                    ></div>
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:12.5px; font-weight:600; color:#18181B; line-height:1.4;">{{ a.message }}</div>
+                      <div style="font-size:11px; color:#A1A1AA; margin-top:4px; display:flex; align-items:center; gap:6px;">
+                        <span>{{ a.chantier?.nom ?? 'Système' }}</span>
+                        <span>·</span>
+                        <span>{{ formatAlerteDate(a.cree_le) }}</span>
+                      </div>
+                    </div>
+                    <span style="font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; flex-shrink:0; height:fit-content;"
+                      [style.background]="a.niveau === 'CRITIQUE' ? '#FEF2F2' : a.niveau === 'WARNING' ? '#FFF7ED' : '#EFF6FF'"
+                      [style.color]="a.niveau === 'CRITIQUE' ? '#DC2626' : a.niveau === 'WARNING' ? '#F37021' : '#1565C0'">
+                      {{ a.niveau }}
+                    </span>
+                  </div>
+                } @empty {
+                  <div style="padding:40px 20px; text-align:center;">
+                    <lucide-icon [img]="Bell" size="28" style="color:#D4D4D8;"></lucide-icon>
+                    <div style="font-size:13px; color:#A1A1AA; margin-top:10px; font-weight:500;">Aucune notification</div>
+                    <div style="font-size:11px; color:#D4D4D8; margin-top:4px;">Vous êtes à jour</div>
+                  </div>
+                }
+              </div>
+
+              <!-- Footer -->
+              <a routerLink="/alertes" (click)="closeNotif(); closeSidebar()" style="display:block; padding:12px 18px; border-top:1px solid #F4F4F5; text-align:center; font-size:12.5px; font-weight:600; color:#004F9F; text-decoration:none; transition:background 0.15s;" onmouseenter="this.style.background='#F8FAFC'" onmouseleave="this.style.background='white'">
+                Voir toutes les alertes
+              </a>
+            </div>
+          }
+        </div>
+
+        <!-- Profile Dropdown -->
+        <div style="position:relative;">
+          <button (click)="toggleProfile()" style="display:flex; align-items:center; gap:10px; padding:6px 12px 6px 6px; border-radius:99px; background:#F4F4F5; border:1px solid #E4E4E7; cursor:pointer; transition:all 0.2s;" onmouseenter="this.style.background='#E4E4E7'" onmouseleave="this.style.background='#F4F4F5'">
+            <div style="width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg, #F37021 0%, #D16709 100%); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:white; flex-shrink:0;">
+              {{ initials }}
+            </div>
+            <div class="hidden sm:flex flex-col" style="text-align:left; line-height:1.2;">
+              <span style="font-size:12px; font-weight:700; color:#18181B; max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ currentUser()?.nom || currentUser()?.email }}</span>
+              <span style="font-size:10px; color:#71717A;">{{ roleLabel }}</span>
+            </div>
+          </button>
+
+          @if (profileOpen()) {
+            <div style="position:absolute; top:calc(100% + 8px); right:0; width:240px; background:white; border:1px solid #E4E4E7; border-radius:14px; box-shadow:0 12px 32px rgba(0,0,0,0.12); z-index:100; overflow:hidden;" (click)="$event.stopPropagation()">
+              <div style="padding:16px 18px; background:linear-gradient(135deg, #004F9F 0%, #003A7A 100%); color:white;">
+                <div style="font-size:13px; font-weight:700;">{{ currentUser()?.nom || 'Utilisateur' }}</div>
+                <div style="font-size:11px; opacity:0.8; margin-top:2px;">{{ currentUser()?.email }}</div>
+                <div style="margin-top:8px; display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:99px; background:rgba(255,255,255,0.15); font-size:10.5px; font-weight:600;">
+                  <lucide-icon [img]="CircleUser" size="11"></lucide-icon>
+                  {{ roleLabel }}
+                </div>
+              </div>
+              <div style="padding:8px;">
+                <button (click)="logout()" style="width:100%; display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:8px; border:none; background:transparent; cursor:pointer; font-size:13px; font-weight:600; color:#C62828; transition:background 0.15s;" onmouseenter="this.style.background='#FFEBEE'" onmouseleave="this.style.background='transparent'">
+                  <lucide-icon [img]="LogOut" size="16"></lucide-icon>
+                  Déconnexion
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </header>
+
+    <!-- Contenu des pages -->
+    <main class="flex-1 overflow-y-auto" style="padding:28px;">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

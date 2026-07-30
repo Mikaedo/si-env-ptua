@@ -1,0 +1,45 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Flutter / Dart
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/ios/Pods/
+mobile/android/.gradle/
+
+# Docker volumes
+sienv_data/
+
+# IA models (trop lourds pour GitHub)
+ia/**/*.pt
+ia/**/*.onnx
+ia/**/*.h5
+ia/**/*.pkl
+ia/dataset/
+ia/dataset_criticite/
+ia/runs_detection/
+
+# GEE cache et credentials
+gee_series_cache.json
+gee-service-account.json
+
+# IDE
+.idea/
+.vscode/
+*.swp

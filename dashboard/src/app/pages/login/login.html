@@ -1,0 +1,276 @@
+<!-- ============================================================
+     PAGE DE CONNEXION — SI-ENV / CC-PTUA / AGEROUTE
+     ============================================================ -->
+<div class="login-wrapper">
+  <!-- Fond image + overlay -->
+  <div class="login-bg" style="background-image: url('assets/bg-login.png');"></div>
+  <div class="login-overlay"></div>
+
+  <!-- Contenu centré -->
+  <div class="login-content">
+    <!-- En-tête logo -->
+    <div class="login-logo-block">
+      <img src="assets/images/logo.png" alt="Logo AGEROUTE" class="logo-img">
+      <div>
+        <div class="logo-title">SI-ENV</div>
+        <div class="logo-sub">Suivi Environnemental PTUA</div>
+      </div>
+    </div>
+    <p class="login-tagline">Tableau de bord de pilotage — AGEROUTE</p>
+
+    <!-- Carte formulaire -->
+    <div class="login-card">
+      <!-- Halo décoratif -->
+      <div class="card-halo"></div>
+
+      <div class="card-body">
+        <h1 class="card-title">Connexion</h1>
+        <p class="card-subtitle">Accédez à votre espace de pilotage sécurisé</p>
+
+        <!-- Erreur connexion -->
+        @if (error()) {
+          <div class="alert-error">
+            <lucide-icon [img]="AlertCircle" size="16"></lucide-icon>
+            <span>{{ error() }}</span>
+          </div>
+        }
+
+        <!-- Email -->
+        <div class="form-group">
+          <label class="form-label">Adresse email</label>
+          <input
+            type="email"
+            id="login-email"
+            [value]="email()"
+            (input)="email.set($any($event.target).value)"
+            (keyup.enter)="onLogin()"
+            placeholder="exemple@ageroute.ci"
+            class="form-input"
+          />
+        </div>
+
+        <!-- Mot de passe -->
+        <div class="form-group">
+          <div class="label-row">
+            <label class="form-label">Mot de passe</label>
+            <button type="button" class="forgot-link" (click)="openForgot()" id="btn-forgot">
+              Mot de passe oublié ?
+            </button>
+          </div>
+          <div class="input-wrapper">
+            <input
+              [type]="showPassword() ? 'text' : 'password'"
+              id="login-password"
+              [value]="password()"
+              (input)="password.set($any($event.target).value)"
+              (keyup.enter)="onLogin()"
+              placeholder="••••••••"
+              class="form-input pr-icon"
+            />
+            <button
+              type="button"
+              class="eye-btn"
+              (click)="showPassword.set(!showPassword())"
+              id="btn-show-password"
+            >
+              <lucide-icon [img]="showPassword() ? EyeOff : Eye" size="18"></lucide-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- Bouton connexion -->
+        <button
+          id="btn-login"
+          (click)="onLogin()"
+          [disabled]="loading()"
+          class="btn-login"
+        >
+          @if (loading()) {
+            <div class="spinner"></div>
+            <span>Connexion en cours...</span>
+          } @else {
+            <span>Se connecter</span>
+            <lucide-icon [img]="LogIn" size="18"></lucide-icon>
+          }
+        </button>
+      </div>
+    </div>
+
+    <p class="login-footer">© 2026 AGEROUTE · CC-PTUA</p>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODALE : MOT DE PASSE OUBLIÉ (3 ÉTAPES)
+     ============================================================ -->
+@if (showForgot()) {
+  <div class="modal-backdrop" (click)="closeForgot()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+
+      <!-- Header modale -->
+      <div class="modal-header">
+        <!-- Icône étape -->
+        <div class="modal-step-icon" [class.step-success]="forgotSuccess()">
+          @if (forgotSuccess()) {
+            <lucide-icon [img]="Lock" size="22"></lucide-icon>
+          } @else if (forgotStep() === 0) {
+            <lucide-icon [img]="Mail" size="22"></lucide-icon>
+          } @else if (forgotStep() === 1) {
+            <lucide-icon [img]="KeyRound" size="22"></lucide-icon>
+          } @else {
+            <lucide-icon [img]="Lock" size="22"></lucide-icon>
+          }
+        </div>
+        <div>
+          <h2 class="modal-title">Mot de passe oublié</h2>
+          @if (!forgotSuccess()) {
+            <p class="modal-step-label">Étape {{ forgotStep() + 1 }} / 3</p>
+          }
+        </div>
+        <button class="modal-close" (click)="closeForgot()" id="btn-close-forgot">
+          <lucide-icon [img]="X" size="20"></lucide-icon>
+        </button>
+      </div>
+
+      <!-- Indicateur de progression -->
+      @if (!forgotSuccess()) {
+        <div class="step-progress">
+          <div class="step-bar" [class.active]="forgotStep() >= 0"></div>
+          <div class="step-bar" [class.active]="forgotStep() >= 1"></div>
+          <div class="step-bar" [class.active]="forgotStep() >= 2"></div>
+        </div>
+      }
+
+      <!-- Corps de la modale -->
+      <div class="modal-body">
+
+        <!-- Succès global -->
+        @if (forgotSuccess()) {
+          <div class="success-block">
+            <div class="success-icon">✓</div>
+            <p class="success-msg">{{ forgotSuccess() }}</p>
+            <p class="success-sub">Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.</p>
+          </div>
+        }
+
+        <!-- Erreur -->
+        @if (forgotError() && !forgotSuccess()) {
+          <div class="alert-error mb-4">
+            <lucide-icon [img]="AlertCircle" size="15"></lucide-icon>
+            <span>{{ forgotError() }}</span>
+          </div>
+        }
+
+        <!-- ÉTAPE 0 : Saisie email -->
+        @if (forgotStep() === 0 && !forgotSuccess()) {
+          <p class="modal-desc">
+            Saisissez l'adresse email associée à votre compte AGEROUTE.<br/>
+            Un code de vérification vous sera envoyé.
+          </p>
+          <div class="form-group">
+            <label class="form-label">Adresse email professionnelle</label>
+            <input
+              type="email"
+              id="forgot-email"
+              [value]="forgotEmail()"
+              (input)="forgotEmail.set($any($event.target).value)"
+              (keyup.enter)="onForgotStep1()"
+              placeholder="agent@ageroute.ci"
+              class="form-input-modal"
+            />
+          </div>
+          <button
+            id="btn-forgot-send"
+            class="btn-modal-primary"
+            [disabled]="forgotLoading()"
+            (click)="onForgotStep1()"
+          >
+            @if (forgotLoading()) {
+              <div class="spinner-sm"></div>
+            } @else {
+              <lucide-icon [img]="Mail" size="16"></lucide-icon>
+            }
+            <span>Envoyer le code</span>
+          </button>
+        }
+
+        <!-- ÉTAPE 1 : Saisie code OTP -->
+        @if (forgotStep() === 1 && !forgotSuccess()) {
+          <p class="modal-desc">
+            Un code à 6 chiffres a été envoyé à<br/>
+            <strong class="forgot-email-display">{{ forgotEmail() }}</strong>
+          </p>
+          <div class="form-group">
+            <label class="form-label">Code de vérification</label>
+            <input
+              type="text"
+              id="forgot-code"
+              [value]="forgotCode()"
+              (input)="forgotCode.set($any($event.target).value)"
+              (keyup.enter)="onForgotStep2()"
+              placeholder="000000"
+              maxlength="6"
+              class="form-input-modal otp-input"
+            />
+          </div>
+          <button
+            id="btn-forgot-verify"
+            class="btn-modal-primary"
+            [disabled]="forgotLoading()"
+            (click)="onForgotStep2()"
+          >
+            @if (forgotLoading()) {
+              <div class="spinner-sm"></div>
+            } @else {
+              <lucide-icon [img]="KeyRound" size="16"></lucide-icon>
+            }
+            <span>Vérifier le code</span>
+          </button>
+          <button class="btn-modal-ghost" (click)="forgotStep.set(0)">← Changer d'email</button>
+        }
+
+        <!-- ÉTAPE 2 : Nouveau mot de passe -->
+        @if (forgotStep() === 2 && !forgotSuccess()) {
+          <p class="modal-desc">Choisissez votre nouveau mot de passe (minimum 8 caractères).</p>
+          <div class="form-group">
+            <label class="form-label">Nouveau mot de passe</label>
+            <input
+              type="password"
+              id="forgot-new-password"
+              [value]="forgotNewPassword()"
+              (input)="forgotNewPassword.set($any($event.target).value)"
+              placeholder="Min. 8 caractères"
+              class="form-input-modal"
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirmer le mot de passe</label>
+            <input
+              type="password"
+              id="forgot-confirm-password"
+              [value]="forgotConfirm()"
+              (input)="forgotConfirm.set($any($event.target).value)"
+              (keyup.enter)="onForgotStep3()"
+              placeholder="Répétez le mot de passe"
+              class="form-input-modal"
+            />
+          </div>
+          <button
+            id="btn-forgot-reset"
+            class="btn-modal-primary"
+            [disabled]="forgotLoading()"
+            (click)="onForgotStep3()"
+          >
+            @if (forgotLoading()) {
+              <div class="spinner-sm"></div>
+            } @else {
+              <lucide-icon [img]="Lock" size="16"></lucide-icon>
+            }
+            <span>Réinitialiser le mot de passe</span>
+          </button>
+        }
+
+      </div>
+    </div>
+  </div>
+}

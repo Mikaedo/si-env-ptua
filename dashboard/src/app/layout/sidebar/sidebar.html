@@ -1,0 +1,41 @@
+<aside class="w-64 h-screen bg-navy-dark text-white flex flex-col shadow-xl fixed left-0 top-0">
+  <!-- Logo Section -->
+  <div class="h-16 flex items-center px-6 border-b border-gray-700 bg-navy">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded bg-orange flex items-center justify-center font-bold text-lg">
+        SI
+      </div>
+      <span class="font-bold text-xl tracking-wide">SI-ENV</span>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="flex-1 py-6 px-3 space-y-2">
+    <a routerLink="/" routerLinkActive="bg-navy-light text-navy font-medium" [routerLinkActiveOptions]="{exact: true}"
+       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white transition-colors group">
+      <lucide-icon [img]="LayoutDashboard" class="w-5 h-5 text-gray-400 group-hover:text-orange transition-colors"></lucide-icon>
+      <span>Tableau de Bord</span>
+    </a>
+
+    <a routerLink="/map" routerLinkActive="bg-navy-light text-navy font-medium"
+       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white transition-colors group">
+      <lucide-icon [img]="MapIcon" class="w-5 h-5 text-gray-400 group-hover:text-orange transition-colors"></lucide-icon>
+      <span>Cartographie</span>
+    </a>
+
+    <a routerLink="/projects" routerLinkActive="bg-navy-light text-navy font-medium"
+       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white transition-colors group">
+      <lucide-icon [img]="FileText" class="w-5 h-5 text-gray-400 group-hover:text-orange transition-colors"></lucide-icon>
+      <span>Projets & Rapports</span>
+    </a>
+  </nav>
+
+  <!-- Bottom Section -->
+  <div class="p-4 border-t border-gray-700">
+    <a routerLink="/settings"
+       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white transition-colors group">
+      <lucide-icon [img]="Settings" class="w-5 h-5 text-gray-400 group-hover:text-orange transition-colors"></lucide-icon>
+      <span>Paramètres</span>
+    </a>
+  </div>
+</aside>

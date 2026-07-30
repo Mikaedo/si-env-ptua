@@ -1,0 +1,142 @@
+<div class="space-y-4">
+
+  <!-- Admin consultation badge -->
+  @if (isAdmin()) {
+    <div class="badge-consultation" style="align-self:flex-start;">
+      <lucide-icon [img]="MapPin" size="13"></lucide-icon>
+      Mode consultation — lecture seule sur les signalements
+    </div>
+  }
+
+  <!-- ── KPI DONUTS ── -->
+  <div class="kpi-pbi-row">
+    @for (stat of quickStats; track stat.label) {
+      <div class="kpi-pbi-card">
+        <div class="kpi-pbi-header">
+          <div class="kpi-pbi-icon" [style.background]="stat.color + '18'" [style.color]="stat.color">
+            @if (stat.icon === 'bar') { <lucide-icon [img]="BarChart2" size="16"></lucide-icon> }
+            @if (stat.icon === 'clock') { <lucide-icon [img]="Clock" size="16"></lucide-icon> }
+            @if (stat.icon === 'alert') { <lucide-icon [img]="AlertTriangle" size="16"></lucide-icon> }
+            @if (stat.icon === 'check') { <lucide-icon [img]="CheckCircle" size="16"></lucide-icon> }
+          </div>
+          <span class="kpi-pbi-title">{{ stat.label }}</span>
+        </div>
+        <div class="kpi-pbi-body">
+          @if (stat.count === 0) {
+            <svg class="kpi-pbi-donut" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="42" class="donut-track" />
+            </svg>
+          } @else {
+            <svg class="kpi-pbi-donut" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="42" class="donut-track" />
+              <circle cx="50" cy="50" r="42" class="donut-fill"
+                [style.--c]="stat.color"
+                [style.stroke-dashoffset]="263.9 - (263.9 * stat.pct / 100)" />
+            </svg>
+          }
+          <div class="kpi-pbi-center">
+            <div class="kpi-pbi-value" [style.color]="stat.color">{{ stat.count }}</div>
+            <div class="kpi-pbi-pct">{{ stat.pct > 0 ? stat.pct.toFixed(0) + '%' : 'Aucun' }}</div>
+          </div>
+        </div>
+        <div class="kpi-pbi-footer">sur {{ allSignalements().length }} total</div>
+      </div>
+    }
+  </div>
+
+  <!-- Filtres + recherche -->
+  <div class="filter-bar">
+    <div class="search-wrapper">
+      <lucide-icon [img]="Search" size="15"></lucide-icon>
+      <input type="text" [value]="searchTerm()" (input)="searchTerm.set($any($event.target).value)"
+        placeholder="Rechercher par type, chantier..."
+        class="search-input" />
+    </div>
+    <app-custom-select
+      [options]="statutOptions"
+      [value]="filterStatut()"
+      placeholder="Tous statuts"
+      (valueChange)="filterStatut.set($event)"
+    />
+    <app-custom-select
+      [options]="criticiteOptions"
+      [value]="filterCriticite()"
+      placeholder="Toutes criticités"
+      (valueChange)="filterCriticite.set($event)"
+    />
+    <app-custom-select
+      [options]="chantierOptions"
+      [value]="filterChantier()"
+      placeholder="Tous chantiers"
+      (valueChange)="filterChantier.set($event)"
+    />
+    <div style="margin-left:auto; font-size:12.5px; color:#71717A; font-weight:600; white-space:nowrap; background:#F4F4F5; padding:6px 12px; border-radius:7px;">
+      {{ filteredSignalements.length }} résultat{{ filteredSignalements.length !== 1 ? 's' : '' }}
+    </div>
+  </div>
+
+  <!-- Tableau -->
+  <div class="card">
+    <div style="overflow-x:auto;">
+      <table class="si-table">
+        <thead>
+          <tr>
+            <th>Type de nuisance</th>
+            <th>Chantier</th>
+            <th>Criticité</th>
+            <th>Statut</th>
+            <th>Date</th>
+            <th style="width:40px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (s of filteredSignalements; track s.id) {
+            <tr (click)="goToDetail(s.id)">
+              <td>
+                <div style="font-size:13px; font-weight:600; color:#18181B;">{{ s.type_nuisance }}</div>
+                @if (s.description) {
+                  <div style="font-size:11.5px; color:#A1A1AA; margin-top:2px; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ s.description }}</div>
+                }
+              </td>
+              <td>
+                <span style="font-size:12.5px; color:#3F3F46; font-weight:500;">{{ s.chantier?.nom ?? '—' }}</span>
+              </td>
+              <td>
+                <span class="badge"
+                  [class.badge-red]="s.criticite === 'ELEVE'"
+                  [class.badge-orange]="s.criticite === 'MODERE'"
+                  [class.badge-green]="s.criticite === 'FAIBLE'">
+                  {{ s.criticite === 'ELEVE' ? '▲ Élevé' : s.criticite === 'MODERE' ? '● Modéré' : '▼ Faible' }}
+                </span>
+              </td>
+              <td>
+                <span style="display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600;"
+                  [style.color]="statutColors[s.statut]">
+                  <span class="dot" [style.background]="statutColors[s.statut]"></span>
+                  {{ statutLabels[s.statut] }}
+                </span>
+              </td>
+              <td style="font-size:12.5px; color:#71717A; white-space:nowrap;">{{ formatDate(s.cree_le) }}</td>
+              <td>
+                <lucide-icon [img]="ChevronRight" size="16" style="color:#D1D1D6;"></lucide-icon>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">
+                  <div class="empty-state-icon">
+                    <lucide-icon [img]="FileSearch" size="24" style="color:#D1D1D6;"></lucide-icon>
+                  </div>
+                  <div class="empty-state-text">
+                    @if (loading()) { Chargement en cours... } @else { Aucun signalement trouvé }
+                  </div>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

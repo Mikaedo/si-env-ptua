@@ -1,0 +1,43 @@
+>> Debut du script de classification...
+>> Calcul sur : cpu
+>> Categories detectees : ['faible', 'important', 'modere']
+>> Train: 619 images, Val: 179 images
+>> Chargement de MobileNetV2 pre-entraine...
+>> Debut de la boucle d'entrainement...
+  Epoch 1 - batch 10/78 - perte: 1.04Epoch 2/10 - perte moyenne : 0.7839
+Epoch 3/10 - perte moyenne : 0.6970
+Epoch 4/10 - perte moyenne : 0.5988
+Epoch 5/10 - perte moyenne : 0.5081
+Epoch 6/10 - perte moyenne : 0.3930
+Epoch 7/10 - perte moyenne : 0.3153
+Epoch 8/10 - perte moyenne : 0.2328
+Epoch 9/10 - perte moyenne : 0.1816
+Epoch 10/10 - perte moyenne : 0.1194
+>> Entrainement termine. Evaluation...
+
+===== RAPPORT DE CLASSIFICATION (F1-score par classe) =====
+              precision    recall  f1-score   support
+
+      faible       0.75      0.78      0.77       116
+   important       0.21      0.11      0.15        27
+      modere       0.32      0.39      0.35        36
+
+    accuracy                           0.60       179
+   macro avg       0.43      0.43      0.42       179
+weighted avg       0.58      0.60      0.59       179
+
+>> Matrice de confusion enregistree : matrice_confusion_classification.png
+ERREUR : x and y must have same first dimension, but have shapes (10,) and (1,)
+Traceback (most recent call last):
+  File "D:\etude_soutenance\SI-ENV\ia\3b_run_classification.py", line 104, in <module>
+    plt.tight_layout()
+  File "C:\Users\DELL\anaconda3\envs\sienv-ia\lib\site-packages\matplotlib\pyplot.py", line 3708, in plot
+    return gca().plot(
+  File "C:\Users\DELL\anaconda3\envs\sienv-ia\lib\site-packages\matplotlib\axes\_axes.py", line 1779, in plot
+    lines = [*self._get_lines(self, *args, data=data, **kwargs)]
+  File "C:\Users\DELL\anaconda3\envs\sienv-ia\lib\site-packages\matplotlib\axes\_base.py", line 296, in __call__
+    yield from self._plot_args(
+  File "C:\Users\DELL\anaconda3\envs\sienv-ia\lib\site-packages\matplotlib\axes\_base.py", line 486, in _plot_args
+    raise ValueError(f"x and y must have same first dimension, but "
+ValueError: x and y must have same first dimension, but have shapes (10,) and (1,)
+

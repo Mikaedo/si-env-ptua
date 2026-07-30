@@ -1,0 +1,301 @@
+<div class="space-y-4">
+
+  <!-- En-tête Administration -->
+  <div class="page-header" style="justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div class="flex items-center gap-4">
+      <div class="page-header-icon" style="background:linear-gradient(135deg,#003366,#004F9F);">
+        <lucide-icon [img]="Shield" size="22" style="color:white;"></lucide-icon>
+      </div>
+      <div>
+        <h1 class="page-header-title">{{ tabTitle }}</h1>
+        <p class="page-header-sub">{{ tabSubtitle }}</p>
+      </div>
+    </div>
+    <span class="badge badge-red">
+      <lucide-icon [img]="ShieldCheck" size="12"></lucide-icon>
+      Accès restreint — Admin
+    </span>
+  </div>
+
+  <!-- ==================== ONGLET : UTILISATEURS ==================== -->
+  @if (activeTab() === 'users') {
+    <div class="space-y-4 slide-in">
+
+      <!-- Ajout utilisateur -->
+      <div class="card" style="padding:22px 26px;">
+        <div class="section-label">
+          <lucide-icon [img]="UserPlus" size="13" style="color:#F37021;"></lucide-icon>
+          Créer un accès utilisateur
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+          <div style="flex:1; min-width:180px;">
+            <label class="form-label">Nom complet</label>
+            <input type="text" [value]="newUserNom()" (input)="newUserNom.set($any($event.target).value)"
+              placeholder="Ex : KONAN Aya" class="form-input" />
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label class="form-label">Adresse email</label>
+            <input type="email" [value]="newUserEmail()" (input)="newUserEmail.set($any($event.target).value)"
+              placeholder="adresse.email@ageroute.ci" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">Rôle d'accès</label>
+            <select [value]="newUserRole()" (change)="newUserRole.set($any($event.target).value)" class="form-select">
+              <option value="RESP_ENV">Responsable Environnement</option>
+              <option value="EXPERT_HSE">Expert HSE (Validation)</option>
+              <option value="SPEC_ENV">Spécialiste Suivi Env.</option>
+              <option value="SPEC_PAR">Spécialiste Suivi P.A.R</option>
+              <option value="ADMIN">Administrateur Système</option>
+            </select>
+          </div>
+          <button (click)="createUser()" [disabled]="creating() || !newUserEmail()" class="btn btn-primary"
+            [style.opacity]="creating() || !newUserEmail() ? '0.55' : '1'">
+            @if (creating()) { <div class="spinner"></div> Création... }
+            @else {
+              <lucide-icon [img]="UserPlus" size="15"></lucide-icon>
+              Envoyer l'invitation
+            }
+          </button>
+        </div>
+        <p style="font-size:12px; color:#A1A1AA; margin:12px 0 0; font-weight:500;">
+          L'utilisateur recevra un lien par email. La première connexion forcera la mise à jour du mot de passe.
+        </p>
+      </div>
+
+      <!-- Liste des utilisateurs -->
+      <div class="card">
+        <div style="padding:16px 22px; border-bottom:1px solid #F4F4F5; display:flex; align-items:center; justify-content:space-between;">
+          <div style="font-size:14px; font-weight:700; color:#18181B;">Utilisateurs enregistrés</div>
+          <span class="badge badge-gray">{{ users().length }} compte{{ users().length !== 1 ? 's' : '' }}</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="si-table">
+            <thead>
+              <tr>
+                <th>Utilisateur</th>
+                <th>Rôle d'accès</th>
+                <th>Statut du compte</th>
+                <th style="width:80px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (u of users(); track u.id) {
+                <tr style="cursor:default;">
+                  <td>
+                    <div style="display:flex; align-items:center; gap:11px;">
+                      <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,79,159,0.1);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#004F9F;flex-shrink:0;">
+                        {{ (u.nom || u.email).substring(0,2).toUpperCase() }}
+                      </div>
+                      <div>
+                        <div style="font-size:13px; font-weight:700; color:#18181B;">{{ u.nom || 'En attente d\'inscription' }}</div>
+                        <div style="font-size:11.5px; color:#71717A; margin-top:1px;">{{ u.email }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="badge badge-navy">{{ roleLabels[u.role] || u.role }}</span>
+                  </td>
+                  <td>
+                    @if (u.premiere_connexion) {
+                      <div style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#F37021;">
+                        <span class="dot dot-orange"></span> Invitation envoyée
+                      </div>
+                    } @else {
+                      <div style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#16A34A;">
+                        <span class="dot dot-green"></span> Compte actif
+                      </div>
+                    }
+                  </td>
+                  <td>
+                    <button (click)="deleteUser(u)" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#C62828;transition:all 0.15s;" onmouseenter="this.style.background='#FFEBEE'" onmouseleave="this.style.background='none'" title="Supprimer">
+                      <lucide-icon [img]="Trash2" size="14"></lucide-icon>
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr style="cursor:default;"><td colspan="4">
+                  <div class="empty-state">
+                    <div class="empty-state-icon"><lucide-icon [img]="Users" size="22" style="color:#D1D1D6;"></lucide-icon></div>
+                    <div class="empty-state-text">@if (loading()) { Chargement... } @else { Aucun utilisateur enregistré }</div>
+                  </div>
+                </td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== ONGLET : INTELLIGENCE ARTIFICIELLE ==================== -->
+  @if (activeTab() === 'ia') {
+    <div class="card slide-in" style="padding:28px;">
+
+      <!-- Infos modèle actif -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div style="padding:18px; border-radius:11px; background:#FAFAFA; border:1.5px solid #F0F0F1;">
+          <div class="kpi-label">Modèle Actif</div>
+          <div style="font-size:15px; font-weight:800; color:#18181B;">{{ model()?.nom || 'Aucun modèle' }}</div>
+        </div>
+        <div style="padding:18px; border-radius:11px; background:#FAFAFA; border:1.5px solid #F0F0F1;">
+          <div class="kpi-label">Inférence locale</div>
+          <div style="font-size:15px; font-weight:800; color:#18181B;">MobileNetV2 Backend</div>
+        </div>
+        <div style="padding:18px; border-radius:11px; background:#FAFAFA; border:1.5px solid #F0F0F1;">
+          <div class="kpi-label">Dernier déploiement</div>
+          <div style="font-size:15px; font-weight:800; color:#18181B;">{{ model()?.deploye_le ? formatDate(model()!.deploye_le!.toString()) : 'Jamais' }}</div>
+        </div>
+      </div>
+
+      <!-- Zone Upload -->
+      <div class="upload-zone"
+        (dragover)="$event.preventDefault(); dragOver.set(true)"
+        (dragleave)="dragOver.set(false)"
+        (drop)="onDrop($event)"
+        [class.drag-active]="dragOver()">
+        <div style="width:56px;height:56px;border-radius:14px;background:#EEF1F8;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+          <lucide-icon [img]="Cpu" size="28" style="color:#004F9F;"></lucide-icon>
+        </div>
+        <div style="font-size:16px; font-weight:800; color:#18181B; margin-bottom:8px; letter-spacing:-0.3px;">Déployer une nouvelle version du modèle</div>
+        <div style="font-size:13px; color:#71717A; margin-bottom:28px; max-width:420px; margin-left:auto; margin-right:auto; line-height:1.6;">
+          Glissez-déposez un fichier <code style="background:#F4F4F5; padding:2px 7px; border-radius:5px; font-size:12px; color:#C62828; font-weight:600;">.onnx</code> ici, ou cliquez pour sélectionner. Il sera téléchargé par les applications mobiles lors de la prochaine synchronisation.
+        </div>
+        @if (dragOver()) {
+          <div style="font-size:13px; color:#004F9F; font-weight:700; margin-bottom:16px;">Relâchez le fichier ici</div>
+        }
+        <label class="btn btn-primary" style="display:inline-flex; cursor:pointer;">
+          <lucide-icon [img]="Upload" size="16"></lucide-icon>
+          {{ modelUploading() ? 'Déploiement en cours...' : 'Sélectionner le fichier (.onnx)' }}
+          <input type="file" accept=".onnx" (change)="deployModel($event)" [disabled]="modelUploading()" style="display:none;" />
+        </label>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== ONGLET : CONFIGURATION ==================== -->
+  @if (activeTab() === 'config') {
+    <div class="slide-in">
+      @if (error()) {
+        <div class="error-banner" style="margin-bottom:16px;">
+          <lucide-icon [img]="AlertCircle" size="16"></lucide-icon>
+          {{ error() }}
+        </div>
+      }
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+
+        <!-- Chantiers -->
+        <div class="card" style="padding:22px 26px;">
+          <div class="section-label">
+            <lucide-icon [img]="Building2" size="13"></lucide-icon>
+            Configurer les chantiers
+          </div>
+          <div class="flex gap-2 mb-4">
+            <input [value]="newChantierNom()" (input)="newChantierNom.set($any($event.target).value)" placeholder="Nom du chantier" class="form-input" style="flex:2;" />
+            <input [value]="newChantierCommune()" (input)="newChantierCommune.set($any($event.target).value)" placeholder="Commune" class="form-input" style="flex:1;" />
+            <button (click)="createChantier()" class="btn btn-primary" style="flex-shrink:0; padding:9px 16px;">Ajouter</button>
+          </div>
+          <div>
+            @for (c of chantiers(); track c.id) {
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid #F4F4F5;">
+                <div>
+                  <div style="font-size:13px; font-weight:600; color:#18181B;">{{ c.nom }}</div>
+                  <div style="font-size:11.5px; color:#A1A1AA; margin-top:1px;">{{ c.commune || 'Commune non renseignée' }}</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span class="badge badge-gray">{{ c.commune }}</span>
+                  <button (click)="deleteChantier(c)" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#C62828;transition:all 0.15s;" onmouseenter="this.style.background='#FFEBEE'" onmouseleave="this.style.background='none'" title="Supprimer">
+                    <lucide-icon [img]="Trash2" size="14"></lucide-icon>
+                  </button>
+                </div>
+              </div>
+            }
+            @if (!chantiers().length) {
+              <div style="padding:16px 0; text-align:center; font-size:12.5px; color:#A1A1AA;">Aucun chantier configuré</div>
+            }
+          </div>
+        </div>
+
+        <!-- Seuils d'alerte -->
+        <div class="card" style="padding:22px 26px;">
+          <div class="section-label">
+            <lucide-icon [img]="BellRing" size="13"></lucide-icon>
+            Seuils d'alerte
+          </div>
+          <div class="grid grid-cols-3 gap-2 mb-3">
+            <input [value]="newSeuilNom()" (input)="newSeuilNom.set($any($event.target).value)" placeholder="Nom du seuil" class="form-input" />
+            <select [value]="newSeuilIndicateur()" (change)="newSeuilIndicateur.set($any($event.target).value)" class="form-select">
+              <option value="NO2">NO₂</option>
+              <option value="NDVI">NDVI</option>
+              <option value="NDWI">NDWI</option>
+              <option value="RISQUE_PLUIE">Risque pluie</option>
+            </select>
+            <input type="number" [value]="newSeuilValeur()" (input)="newSeuilValeur.set($any($event.target).value)" placeholder="Seuil" class="form-input" />
+          </div>
+          <button (click)="createSeuil()" class="btn btn-primary" style="margin-bottom:14px; font-size:12.5px; padding:8px 16px;">
+            <lucide-icon [img]="Plus" size="14"></lucide-icon>
+            Ajouter le seuil
+          </button>
+          <div>
+            @for (seuil of seuils(); track seuil.id) {
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid #F4F4F5;">
+                <div>
+                  <div style="font-size:13px; font-weight:600; color:#18181B;">{{ seuil.nom }}</div>
+                  <div style="font-size:11.5px; color:#71717A; margin-top:1px;">{{ seuil.indicateur }}</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span class="badge badge-orange">Seuil : {{ seuil.seuil }}</span>
+                  <button (click)="deleteSeuil(seuil)" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#C62828;transition:all 0.15s;" onmouseenter="this.style.background='#FFEBEE'" onmouseleave="this.style.background='none'" title="Supprimer">
+                    <lucide-icon [img]="Trash2" size="14"></lucide-icon>
+                  </button>
+                </div>
+              </div>
+            }
+            @if (!seuils().length) {
+              <div style="padding:16px 0; text-align:center; font-size:12.5px; color:#A1A1AA;">Aucun seuil configuré</div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== ONGLET : LOGS SYSTEME ==================== -->
+  @if (activeTab() === 'logs') {
+    <div class="card slide-in">
+      <div style="padding:16px 22px; border-bottom:1px solid #F4F4F5; background:#FAFAFA; display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; color:#18181B;">
+          <lucide-icon [img]="ScrollText" size="16" style="color:#A1A1AA;"></lucide-icon>
+          Audit des journaux système
+        </div>
+        <span class="badge badge-gray">{{ logs().length }} entrée{{ logs().length !== 1 ? 's' : '' }}</span>
+      </div>
+
+      <div style="max-height:600px; overflow-y:auto; font-family:monospace;">
+        @for (log of logs(); track $index) {
+          <div style="padding:12px 22px; border-bottom:1px solid #F8F8F8; display:flex; gap:14px; font-size:12.5px; transition:background 0.1s;" onmouseenter="this.style.background='#FAFAFA'" onmouseleave="this.style.background='transparent'">
+            <div style="width:70px; flex-shrink:0; padding-top:1px;">
+              <span style="display:inline-block; padding:3px 8px; border-radius:5px; font-size:10.5px; font-weight:800; font-family:monospace; text-transform:uppercase; letter-spacing:0.3px;"
+                [style.background]="log.niveau === 'ERROR' ? '#FFEBEE' : log.niveau === 'WARNING' ? '#FEF3E8' : '#F4F4F5'"
+                [style.color]="log.niveau === 'ERROR' ? '#C62828' : log.niveau === 'WARNING' ? '#F37021' : '#71717A'">
+                {{ log.niveau }}
+              </span>
+            </div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:600; color:#27272A; margin-bottom:3px; font-family:var(--font-sans);">{{ log.message }}</div>
+              <div style="font-size:11px; color:#A1A1AA; display:flex; gap:8px; font-family:var(--font-sans);">
+                <span>{{ formatDate(log.cree_le) }}</span>
+                <span>•</span>
+                <span>Source : {{ log.utilisateur || 'SYSTEM' }}</span>
+              </div>
+            </div>
+          </div>
+        } @empty {
+          <div class="empty-state">
+            <div class="empty-state-icon"><lucide-icon [img]="ScrollText" size="22" style="color:#D1D1D6;"></lucide-icon></div>
+            <div class="empty-state-text">Aucun journal généré.</div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

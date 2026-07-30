@@ -1,0 +1,113 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.12, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\DELL\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: D:\etude_soutenance\SI-ENV\backend
+plugins: anyio-4.14.2
+collecting ... collected 32 items
+
+tests/test_functional.py::TestT01AuthentificationJWT::test_login_retourne_jeton PASSED [  3%]
+tests/test_functional.py::TestT01AuthentificationJWT::test_jeton_permet_acces_me PASSED [  6%]
+tests/test_functional.py::TestT01AuthentificationJWT::test_jeton_invalide_rejete PASSED [  9%]
+tests/test_functional.py::TestT01AuthentificationJWT::test_login_mauvais_mdp PASSED [ 12%]
+tests/test_functional.py::TestT02CreationSignalementOffline::test_creation_signalement PASSED [ 15%]
+tests/test_functional.py::TestT02CreationSignalementOffline::test_doublon_uuid_retourne_existant PASSED [ 18%]
+tests/test_functional.py::TestT03SynchronisationDifferÚe::test_sync_signalement_vers_backend PASSED [ 21%]
+tests/test_functional.py::TestT03SynchronisationDifferÚe::test_sync_avec_donnees_ia PASSED [ 25%]
+tests/test_functional.py::TestT04DiagnosticIA::test_signalement_avec_ia_reponse_rapide PASSED [ 28%]
+tests/test_functional.py::TestT05RapportPGES::test_stats_pour_rapport PASSED [ 31%]
+tests/test_functional.py::TestT06CarteFiltres::test_filtre_par_statut PASSED [ 34%]
+tests/test_functional.py::TestT06CarteFiltres::test_filtre_par_criticite PASSED [ 37%]
+tests/test_functional.py::TestT06CarteFiltres::test_filtre_par_type_nuisance PASSED [ 40%]
+tests/test_functional.py::TestT07AlerteSeuil::test_liste_alertes PASSED  [ 43%]
+tests/test_functional.py::TestT07AlerteSeuil::test_accuser_reception_alerte PASSED [ 46%]
+tests/test_functional.py::TestT08AnalyseSatellite::test_endpoint_satellite_disponible PASSED [ 50%]
+tests/test_functional.py::TestT09RBAC::test_agent_non_admin_ne_peut_pas_creer_utilisateur PASSED [ 53%]
+tests/test_functional.py::TestT09RBAC::test_admin_peut_creer_utilisateur PASSED [ 56%]
+tests/test_functional.py::TestT09RBAC::test_acces_sans_jeton_rejete PASSED [ 59%]
+tests/test_functional.py::TestT10DockerCompose::test_docker_compose_existe PASSED [ 62%]
+tests/test_functional.py::TestT10DockerCompose::test_docker_compose_trois_conteneurs PASSED [ 65%]
+tests/test_functional.py::TestT11SignalementManuelToutesNuisances::test_creation_tous_types[Dechets de chantier] PASSED [ 68%]
+tests/test_functional.py::TestT11SignalementManuelToutesNuisances::test_creation_tous_types[Eaux usees] PASSED [ 71%]
+tests/test_functional.py::TestT11SignalementManuelToutesNuisances::test_creation_tous_types[Poussieres] PASSED [ 75%]
+tests/test_functional.py::TestT11SignalementManuelToutesNuisances::test_creation_tous_types[Bruit] PASSED [ 78%]
+tests/test_functional.py::TestT11SignalementManuelToutesNuisances::test_creation_tous_types[Vegetation invasive] PASSED [ 81%]
+tests/test_functional.py::TestT11SignalementManuelToutesNuisances::test_creation_tous_types[Eau stagnante] PASSED [ 84%]
+tests/test_functional.py::TestT11SignalementManuelToutesNuisances::test_creation_tous_types[Dechets menagers] PASSED [ 87%]
+tests/test_functional.py::TestT11SignalementManuelToutesNuisances::test_creation_tous_types[Emanations chimiques] PASSED [ 90%]
+tests/test_functional.py::TestT12IndiceRisquePluieRelief::test_endpoint_risque_disponible PASSED [ 93%]
+tests/test_functional.py::TestT12IndiceRisquePluieRelief::test_calcul_indice_simple PASSED [ 96%]
+tests/test_functional.py::TestT12IndiceRisquePluieRelief::test_seuils_risque PASSED [100%]
+
+============================== warnings summary ===============================
+C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+app\config.py:12
+  D:\etude_soutenance\SI-ENV\backend\app\config.py:12: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class Settings(BaseSettings):
+
+app\schemas.py:22
+  D:\etude_soutenance\SI-ENV\backend\app\schemas.py:22: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class UtilisateurOut(BaseModel):
+
+app\schemas.py:86
+  D:\etude_soutenance\SI-ENV\backend\app\schemas.py:86: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SignalementOut(BaseModel):
+
+app\schemas.py:109
+  D:\etude_soutenance\SI-ENV\backend\app\schemas.py:109: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ActionCorrectiveOut(BaseModel):
+
+app\schemas.py:125
+  D:\etude_soutenance\SI-ENV\backend\app\schemas.py:125: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ChantierOut(BaseModel):
+
+app\schemas.py:135
+  D:\etude_soutenance\SI-ENV\backend\app\schemas.py:135: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class AlerteOut(BaseModel):
+
+app\main.py:35
+  D:\etude_soutenance\SI-ENV\backend\app\main.py:35: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\fastapi\applications.py:4675
+C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\fastapi\applications.py:4675
+  C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\fastapi\applications.py:4675: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)  # ty: ignore[deprecated]
+
+tests\conftest.py:56
+  D:\etude_soutenance\SI-ENV\backend\tests\conftest.py:56: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_functional.py: 53 warnings
+  C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\sql\schema.py:3623: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+tests/test_functional.py: 25 warnings
+  D:\etude_soutenance\SI-ENV\backend\app\auth.py:44: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    expiration = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+
+tests/test_functional.py::TestT05RapportPGES::test_stats_pour_rapport
+tests/test_functional.py::TestT05RapportPGES::test_stats_pour_rapport
+tests/test_functional.py::TestT05RapportPGES::test_stats_pour_rapport
+  D:\etude_soutenance\SI-ENV\backend\app\routers\stats_router.py:40: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    date_ref = datetime.utcnow() - timedelta(days=i * 30)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 32 passed, 92 warnings in 13.63s =======================

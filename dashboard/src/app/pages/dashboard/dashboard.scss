@@ -1,0 +1,167 @@
+:host {
+  display: block;
+}
+
+/* ── KPI POWER BI STYLE ── */
+.kpi-pbi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .kpi-pbi-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+.kpi-pbi-card {
+  background: #fff;
+  border: 1px solid #E4E4E7;
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+.kpi-pbi-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  border-color: #D4D4D8;
+}
+
+.kpi-pbi-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.kpi-pbi-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.kpi-pbi-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #3F3F46;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi-pbi-body {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kpi-pbi-donut {
+  width: 110px;
+  height: 110px;
+  transform: rotate(-90deg);
+}
+.kpi-pbi-donut .donut-track {
+  fill: none;
+  stroke: #F4F4F5;
+  stroke-width: 8;
+}
+.kpi-pbi-donut .donut-fill {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 263.9;
+  transition: stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kpi-pbi-center {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.kpi-pbi-value {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+}
+.kpi-pbi-pct {
+  font-size: 11px;
+  font-weight: 600;
+  color: #A1A1AA;
+  margin-top: 3px;
+}
+
+.kpi-pbi-footer {
+  font-size: 11px;
+  color: #A1A1AA;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Dark map background */
+.leaflet-container {
+  background: #1a1a2e !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+
+.leaflet-popup-content {
+  margin: 12px 14px;
+}
+
+/* Zone tooltip */
+.zone-tooltip {
+  background: rgba(26, 26, 46, 0.95) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 4px 10px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+}
+.zone-tooltip::before {
+  border-top-color: rgba(26, 26, 46, 0.95) !important;
+}
+
+/* Map legend overlay */
+.map-zone-legend {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 500;
+  background: rgba(26, 26, 46, 0.92);
+  backdrop-filter: blur(8px);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.map-zone-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+  font-family: Inter, sans-serif;
+  white-space: nowrap;
+}
+.map-zone-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}

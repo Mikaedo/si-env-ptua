@@ -1,0 +1,141 @@
+ 
+MINISTERE DE L’EQUIPEMENT ET DE L’ENTRETIEN ROUTIER  
+----------------------  
+AGENCE DE GESTION DES ROUTES  
+ 
+ 
+ 
+ 
+pLan de gestion 
+environnementale et sociale 
+(PGES)  
+ 
+SITE DE REINSTALLATION DE 17 
+HECTARES DANS LA COMMUNE 
+D’ANYAMA  
+Juin 2020  
+Rapport final  
+ 
+ 
+PREPARE PAR  
+ 
+ 
+ 
+PROJET DE TRANSPORT URBAIN D'ABIDJAN  
+------------------      PTUA    -------------------  
+
+Etude d’Impact Environnemental et Social – Plan de Gestion Environnementale et Sociale (PGES)  
+CECAF International                                                        1 AGEROUTE  
+ SIGLES ET ABREVIATIONS  
+ 
+AGEROUTE  :    Agence de Gestion des Routes  
+AGEF  :    Agence de Gestion Foncière  
+ANDE  :    Agence Nationale De l’Environnement  
+BAD  :     Banque Africaine de Développement  
+DBA  :     Décibel Audible  
+DBI :      Déchets Industriels Banals  
+DI :      Déchets Inertes  
+DMA  :     Déchets Ménagers et Assimilés   
+EIES  :     Etude d’Impact Environnemental et Social  
+EES :      Evaluation Environnementale et Sociale  
+EP :      Eaux Pluviales  
+HIMO  :     Haute Intensité d e Main d’œuvre  
+HSE :     Hygiène Sécurité Environnement  
+EPI :      Equipement de Protection Individuelle  
+PGES  :    Plan de Gestion Environnementale et Sociale  
+PTUA  :    Projet de Transport Urbain d’Abidjan  
+SICTA  :    Société Ivoirienne de Contrôle Technique Automobiles  
+SO :      Sauvegarde Opérationnelle  
+SODECI :    Société de Distribution d’Eau de la Côte d’Ivoire  
+VRD  :     Voiries et Réseaux Divers  
+ 
+Etude d’Impact Environnemental et Social – Plan de Gestion Environnementale et Sociale (PGES)  
+CECAF International                                                        2 AGEROUTE  
+ TABLE DE MATIERES  
+ 
+SIGLES ET ABREVIATIONS  ................................ ................................ ................................ ...................  1 
+TABLE DE MATIERES  ................................ ................................ ................................ ............................  2 
+LISTE DES TABLEAUX  ................................ ................................ ................................ ...........................  3 
+1. CONTEXTE ET O BJECTIFS DU PGES  ................................ ................................ ..............................  4 
+2. IMPACTS POSITIFS ET NÉGATIFS  ................................ ................................ ................................ ... 4 
+2.1 Phase préparatoire  ................................ ................................ ................................ .............................  4 
+2.1.1 Impact s positifs  ................................ ................................ ................................ ...............................  4 
+3.1.2 Impacts négatifs  ................................ ................................ ................................ ..............................  5 
+2.2 Phase de  construction  ................................ ................................ ................................ ........................  6 
+2.2.1 Impacts positifs  ................................ ................................ ................................ ...............................  6 
+2.2.2 Impacts négatifs  ................................ ................................ ................................ ..............................  6 
+2.3 Impacts du projet en phase d’exploitation  ................................ ................................ ..........................  8 
+2.3.1 Impacts positifs  ................................ ................................ ................................ ...............................  8 
+2.3.1 Impacts négatifs  ................................ ................................ ................................ ..............................  8 
+3. PROGRAMME  D’ATTÉNUATION ET DE BONIFICATION  ................................ ................................ .. 8 
+3.1 Mesure de bonification des impacts positifs  ................................ ................................ .......................  8 
+3.2 Mesures d’atténuation et de compensation des impacts des impacts négatifs  ................................ .. 9 
+3.2.1 Mesure d’atténuation des impacts en phase préparatoire  ................................ ...............................  9 
+3.2.2 Mesure d’atténuation en phase de construction  ................................ ................................ ............  11 
+3.2.3 Mesure d’atténuation en phase d’exploitation  ................................ ................................ ...............  12 
+4. PROGRAMME DE SUIVI  ................................ ................................ ................................ ...................  14 
+4.1. Surveillance environnementale et sociale  ................................ ................................ .......................  14 
+4.2. Suivi environnemental et social  ................................ ................................ ................................ ....... 14 
+4.3 acteurs et organisation de la mise en œuvre  ................................ ................................ ...................  15 
+4.4 Indicateurs de suivi  ................................ ................................ ................................ ..........................  15 
+4.5 Coûts estimatif de la surveillance et du suivi  ................................ ................................ ....................  16 
+5. CONSULTATIONS PUBLIQUES  ................................ ................................ ................................ ....... 19 
+5.1 OPINION DU DIRECTEUR TECHNIQUE DE LA MAIRI E D’ANYAMA  ................................ ................................ . 19 
+5.2 OPINION DU CHEF DE SE CTEUR DE LA CONSTRUC TION ET DE L ’URBANISME D ’ANYAMA  ...............................  19 
+5.3 OPINIONS DES EXPLOITA NTS DU SITE  ................................ ................................ ................................ .... 20 
+6. MATRICE DU PLAN DE GESTION ENVIRONNEMENTAL ET SOCIAL (PGES)  ..............................  20 
+ 
+ 
+Etude d’Impact Environnemental et Social – Plan de Gestion Environnementale et Sociale (PGES)  
+CECAF International                                                        3 AGEROUTE  
+ LISTE DE S TABLEAUX  
+ 
+Tableau 1:  Indicateurs de suivi ................................ ................................ ................................ ..............  16 
+Tableau 2: Plan de suivi environnemental  ................................ ................................ .............................  17 
+Tableau 3: Matrice du PGES  ................................ ................................ ................................ .................  21 
+ 
+Etude d’Impact Environnemental et Social – Plan de Gestion Environnementale et Sociale (PGES)  
+CECAF International                                                        4 AGEROUTE  
+ 1. CONTEXTE ET OBJECTIFS DU PGES  
+ 
+Les infrastructures routières des villes ivoiriennes comptent parmi les plus performantes de la sous -
+région. Cependant face à l'urbanisation galopante et la détérioration des infrastructures existantes, le taux 
+de desserte en voies de communication est dev enu insuffisant.   
+ 
+Aussi est -il aujourd’hui un gageur de circuler à l’intérieur de cette ville aux heures de pointes dans la 
+quasi -totalité des communes qui la composent. Cette situation est à l’origine de nombreux accidents et 
+du ralentissement des activ ités économiques.  
+ 
+Depuis la sortie de cette crise, l’Etat ivoirien à travers le Ministère de l’Equipement et de l’Entretien 
+Routier, a initié une politique de modernisation des infrastructures routières du pays avec la réalisation 
+de nombreux projets de r éhabilitation des voies existantes et la création de nouvelles routes.  
+ 
+Ces projets de voies font partie de la requête de financement adressée à la Banque Africain de 
+Développement (BAD) scindé en deux phases et devaient permettre d’améliorer le cadre de vie des 
+populations et améliorer la mobilité urbaine.  
+ 
+Afin de résorber la question de réinstallation des ménages suscitée par la mise en œuvre de ces projets, 
+le PTUA a procédé à la sécurisation de réserves foncières avec l’Agence de Gestion Foncière (AGE F) 
+aux alentours du District Autonome d’Abidjan.  A cet effet, le site de 17 hectares situé dans la commune 
+d’Anyama quartier «  Zonsonkoi Extension  »  
+ 
+Le site visé par la réinstallation est situé dans une zone urbaine ayant déjà subie humaines (extension 
+des quartiers).  
+ 
+Ce PGES vise à assurer la réalisation correcte, et dans les délais prévus du projet en respectant les 
+principes de gestion environnementale et sociale (atténuation des impacts négatifs et la bonification des 
+impacts positifs). Les objectifs sont entre autr es de : (i) s’assurer que les activités du projet sont entreprises 
+en conformité avec toutes les exigences légales et réglementaires ; (ii) s’assurer que les enjeux 
+environnementaux du projet sont bien compris et mis en œuvre.  
+ 
+2. IMPACTS POSITIFS ET NÉGA TIFS  
+ 
+2.1 Phase préparatoire  
+ 
+2.1.1 Impacts positifs  
+ 
+ Création d’emplois temporaires  
+Le projet dans sa phase préparatoire créera des emplois à travers les différentes activités prévues. Si la 
+main d’œuvre qualifiée (le chef de chantier, les conducteurs des engins, etc) provient essentiellement du 
+personnel de l’entreprise, cependant celle non qualifiée pourra être recruter sur place. Ce qui permettra 
+de réduire ainsi le taux de chômage.  

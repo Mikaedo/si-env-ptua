@@ -1,0 +1,477 @@
+<div class="sat-wrapper">
+
+  <!-- ══════════════════════════════════════════
+       EN-TÊTE
+  ══════════════════════════════════════════ -->
+  <div class="page-header" style="justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div class="flex items-center gap-4">
+      <div class="page-header-icon" style="background:linear-gradient(135deg, #004F9F, #0065cc); color:white; border:none;">
+        <lucide-icon [img]="SatelliteIcon" size="24"></lucide-icon>
+      </div>
+      <div>
+        <h1 class="page-title" style="margin:0;">Analyse Satellitaire</h1>
+        <p class="page-subtitle" style="margin:0;">Google Earth Engine · Sentinel-5P / Sentinel-2 / CHIRPS+SRTM · Zone PTUA Abidjan</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2" style="flex-wrap: wrap;">
+      <span class="source-badge blue">Sentinel-5P · NO₂</span>
+      <span class="source-badge green">Sentinel-2 · NDVI/NDWI</span>
+      <span class="source-badge orange">CHIRPS+SRTM · Risque</span>
+      <button class="btn-refresh" (click)="loadAll()" [class.spinning]="loading()">
+        <lucide-icon [img]="RefreshCw" size="14"></lucide-icon>
+        Actualiser
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       KPIs RÉSUMÉ (DESIGN SPÉCIALISTE ENVIRONNEMENTAL)
+  ══════════════════════════════════════════ -->
+  @if (resume()) {
+    <div class="kpi-grid">
+
+      <!-- Qualité de l'Air (NO2) -->
+      <div class="kpi-card" [style.border-color]="resume()!.no2_moyen > 50 ? '#EF4444' : resume()!.no2_moyen > 30 ? '#F59E0B' : '#10B981'">
+        <div class="kpi-icon" [style.background]="resume()!.no2_moyen > 50 ? '#FEE2E2' : resume()!.no2_moyen > 30 ? '#FEF3C7' : '#D1FAE5'" [style.color]="resume()!.no2_moyen > 50 ? '#EF4444' : resume()!.no2_moyen > 30 ? '#F59E0B' : '#10B981'">
+          <lucide-icon [img]="Wind" size="18"></lucide-icon>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Qualité de l'Air (NO₂)</div>
+          <div class="flex items-end gap-2">
+            <div class="kpi-value" [style.color]="resume()!.no2_moyen > 50 ? '#EF4444' : resume()!.no2_moyen > 30 ? '#F59E0B' : '#10B981'">
+              {{ resume()!.no2_moyen > 50 ? 'POLLUÉ' : resume()!.no2_moyen > 30 ? 'MODÉRÉ' : 'BON' }}
+            </div>
+            <div style="font-size:12px; color:#71717A; margin-bottom:4px;">{{ resume()!.no2_moyen | number:'1.1-1' }} µmol/m²</div>
+          </div>
+          <div class="kpi-unit">Sentinel-5P · Seuil : 30-50 µmol/m²</div>
+          <!-- Gauge bar -->
+          <div class="kpi-gauge">
+            <div class="kpi-gauge-fill" [style.width]="no2GaugePct() + '%'" [style.background]="resume()!.no2_moyen > 50 ? '#EF4444' : resume()!.no2_moyen > 30 ? '#F59E0B' : '#10B981'"></div>
+            <div class="kpi-gauge-threshold" style="left:37.5%"></div>
+            <div class="kpi-gauge-threshold" style="left:62.5%"></div>
+          </div>
+          <div class="kpi-interpretation">{{ no2Interpretation() }}</div>
+        </div>
+        <div class="kpi-alert" [class.alert-active]="resume()!.no2_moyen > 50">
+          @if (resume()!.no2_moyen > 50) {
+            <lucide-icon [img]="AlertTriangle" size="14"></lucide-icon>
+            Dépassement détecté
+          } @else {
+            <lucide-icon [img]="CheckCircle" size="14"></lucide-icon>
+            Normes respectées
+          }
+        </div>
+      </div>
+
+      <!-- Végétation (NDVI) -->
+      <div class="kpi-card" [style.border-color]="resume()!.ndvi_moyen < 0.30 ? '#EF4444' : resume()!.ndvi_moyen < 0.40 ? '#F59E0B' : '#10B981'">
+        <div class="kpi-icon" style="background:#F0FDF4; color:#16A34A;">
+          <lucide-icon [img]="Leaf" size="18"></lucide-icon>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Santé de la Végétation</div>
+          <div class="flex items-end gap-2">
+            <div class="kpi-value" [style.color]="resume()!.ndvi_moyen < 0.30 ? '#EF4444' : resume()!.ndvi_moyen < 0.40 ? '#F59E0B' : '#10B981'">
+              {{ resume()!.ndvi_moyen < 0.30 ? 'DÉGRADÉE' : resume()!.ndvi_moyen < 0.40 ? 'MOYENNE' : 'BONNE' }}
+            </div>
+            <div style="font-size:12px; color:#71717A; margin-bottom:4px;">Indice: {{ resume()!.ndvi_moyen | number:'1.2-2' }}</div>
+          </div>
+          <div class="kpi-unit">Sentinel-2 (NDVI)</div>
+          <div class="kpi-gauge">
+            <div class="kpi-gauge-fill" [style.width]="ndviGaugePct() + '%'" [style.background]="resume()!.ndvi_moyen < 0.30 ? '#EF4444' : resume()!.ndvi_moyen < 0.40 ? '#F59E0B' : '#10B981'"></div>
+            <div class="kpi-gauge-threshold" style="left:50%"></div>
+            <div class="kpi-gauge-threshold" style="left:67%"></div>
+          </div>
+          <div class="kpi-interpretation">{{ ndviInterpretation() }}</div>
+        </div>
+        <div class="kpi-alert" [class.alert-active]="resume()!.ndvi_moyen < 0.30">
+          @if (resume()!.ndvi_moyen < 0.30) {
+            <lucide-icon [img]="AlertTriangle" size="14"></lucide-icon>
+            Forte déforestation/dégradation
+          } @else {
+            <lucide-icon [img]="CheckCircle" size="14"></lucide-icon>
+            Couvert végétal préservé
+          }
+        </div>
+      </div>
+
+      <!-- Humidité Sols (NDWI) -->
+      <div class="kpi-card" [style.border-color]="resume()!.ndwi_moyen < 0.20 ? '#EF4444' : resume()!.ndwi_moyen < 0.30 ? '#F59E0B' : '#0EA5E9'">
+        <div class="kpi-icon" style="background:#E0F2FE; color:#0284C7;">
+          <lucide-icon [img]="Droplets" size="18"></lucide-icon>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Humidité des Sols</div>
+          <div class="flex items-end gap-2">
+            <div class="kpi-value" [style.color]="resume()!.ndwi_moyen < 0.20 ? '#EF4444' : resume()!.ndwi_moyen < 0.30 ? '#F59E0B' : '#0EA5E9'">
+              {{ resume()!.ndwi_moyen < 0.20 ? 'SÈCHERESSE' : resume()!.ndwi_moyen < 0.30 ? 'MODÉRÉE' : 'HUMIDE' }}
+            </div>
+            <div style="font-size:12px; color:#71717A; margin-bottom:4px;">Indice: {{ resume()!.ndwi_moyen | number:'1.2-2' }}</div>
+          </div>
+          <div class="kpi-unit">Sentinel-2 (NDWI)</div>
+          <div class="kpi-gauge">
+            <div class="kpi-gauge-fill" [style.width]="ndwiGaugePct() + '%'" [style.background]="resume()!.ndwi_moyen < 0.20 ? '#EF4444' : resume()!.ndwi_moyen < 0.30 ? '#F59E0B' : '#0EA5E9'"></div>
+            <div class="kpi-gauge-threshold" style="left:40%"></div>
+            <div class="kpi-gauge-threshold" style="left:60%"></div>
+          </div>
+          <div class="kpi-interpretation">{{ ndwiInterpretation() }}</div>
+        </div>
+        <div class="kpi-alert" [class.alert-active]="resume()!.ndwi_moyen < 0.20">
+          @if (resume()!.ndwi_moyen < 0.20) {
+            <lucide-icon [img]="AlertTriangle" size="14"></lucide-icon>
+            Stress hydrique critique
+          } @else {
+            <lucide-icon [img]="CheckCircle" size="14"></lucide-icon>
+            Niveaux d'eau adéquats
+          }
+        </div>
+      </div>
+
+      <!-- Risque Pluie/Érosion -->
+      <div class="kpi-card" [style.border-color]="resume()!.risque_pluie_max > 7 ? '#EF4444' : resume()!.risque_pluie_max > 5 ? '#F59E0B' : '#10B981'">
+        <div class="kpi-icon" style="background:#FEF3C7; color:#D97706;">
+          <lucide-icon [img]="CloudRain" size="18"></lucide-icon>
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-label">Risque Pluie / Érosion</div>
+          <div class="flex items-end gap-2">
+            <div class="kpi-value" [style.color]="resume()!.risque_pluie_max > 7 ? '#EF4444' : resume()!.risque_pluie_max > 5 ? '#F59E0B' : '#10B981'">
+              {{ resume()!.risque_pluie_max > 7 ? 'ÉLEVÉ' : resume()!.risque_pluie_max > 5 ? 'MODÉRÉ' : 'FAIBLE' }}
+            </div>
+            <div style="font-size:12px; color:#71717A; margin-bottom:4px;">{{ resume()!.risque_pluie_max | number:'1.1-1' }}/10</div>
+          </div>
+          <div class="kpi-unit">CHIRPS + Topographie SRTM</div>
+          <div class="kpi-gauge">
+            <div class="kpi-gauge-fill" [style.width]="pluieGaugePct() + '%'" [style.background]="resume()!.risque_pluie_max > 7 ? '#EF4444' : resume()!.risque_pluie_max > 5 ? '#F59E0B' : '#10B981'"></div>
+            <div class="kpi-gauge-threshold" style="left:50%"></div>
+            <div class="kpi-gauge-threshold" style="left:70%"></div>
+          </div>
+          <div class="kpi-interpretation">{{ pluieInterpretation() }}</div>
+        </div>
+        <div class="kpi-alert" [class.alert-active]="resume()!.risque_pluie_max > 7">
+          @if (resume()!.risque_pluie_max > 7) {
+            <lucide-icon [img]="AlertTriangle" size="14"></lucide-icon>
+            Risque d'érosion élevé
+          } @else {
+            <lucide-icon [img]="CheckCircle" size="14"></lucide-icon>
+            Risque acceptable
+          }
+        </div>
+      </div>
+
+    </div>
+  }
+
+  <!-- ══════════════════════════════════════════
+       ONGLETS NAVIGATION
+  ══════════════════════════════════════════ -->
+  <div class="tab-bar">
+    <button class="tab-btn" [class.active]="activeTab() === 'indices'" (click)="setTab('indices')">
+      <lucide-icon [img]="BarChart2" size="14"></lucide-icon>
+      Indices par chantier
+    </button>
+    <button class="tab-btn" [class.active]="activeTab() === 'serie'" (click)="setTab('serie')">
+      <lucide-icon [img]="Calendar" size="14"></lucide-icon>
+      Évolution temporelle (2022–2026)
+    </button>
+    <button class="tab-btn" [class.active]="activeTab() === 'carte'" (click)="setTab('carte')">
+      <lucide-icon [img]="Map" size="14"></lucide-icon>
+      Carte satellitaire
+    </button>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       ONGLET 1 : INDICES PAR CHANTIER
+  ══════════════════════════════════════════ -->
+  @if (activeTab() === 'indices') {
+    <div class="indices-grid">
+
+      <!-- NO2 -->
+      <div class="indice-table-card">
+        <div class="indice-table-header blue-h">
+          <lucide-icon [img]="Wind" size="14"></lucide-icon>
+          <div>
+            <div class="it-title">NO₂ — Dioxyde d'azote</div>
+            <div class="it-source">Sentinel-5P / TROPOMI · buffer 2,5 km · Seuil 30-50 µmol/m²</div>
+          </div>
+        </div>
+        @for (i of no2List; track i.id) {
+          <div class="it-row">
+            <div class="it-site">
+              <span class="it-nom">{{ i.chantier?.nom }}</span>
+              <span class="it-commune">{{ i.chantier?.commune }}</span>
+            </div>
+            <div class="it-bar-wrap">
+              <div class="it-bar">
+                <div class="it-bar-fill" [style.width]="(i.valeur / 80 * 100) + '%'"
+                     [style.background]="statutColor(i.statut)"></div>
+              </div>
+            </div>
+            <div class="it-valeur" [style.color]="statutColor(i.statut)">
+              {{ i.valeur | number:'1.1-1' }}
+            </div>
+            <span class="it-statut-badge" [style.background]="statutBg(i.statut)" [style.color]="statutColor(i.statut)">
+              {{ i.statut }}
+            </span>
+            <span class="it-tendance">
+              @if (i.tendance === 'HAUSSE') { <lucide-icon [img]="TrendingUp" size="12" style="color:#C62828"></lucide-icon> }
+              @if (i.tendance === 'BAISSE') { <lucide-icon [img]="TrendingDown" size="12" style="color:#16A34A"></lucide-icon> }
+              @if (i.tendance === 'STABLE') { <lucide-icon [img]="Minus" size="12" style="color:#A1A1AA"></lucide-icon> }
+            </span>
+          </div>
+        }
+        @if (!no2List.length) { <div class="it-empty">Chargement...</div> }
+      </div>
+
+      <!-- NDVI -->
+      <div class="indice-table-card">
+        <div class="indice-table-header green-h">
+          <lucide-icon [img]="Leaf" size="14"></lucide-icon>
+          <div>
+            <div class="it-title">NDVI — Végétation</div>
+            <div class="it-source">Sentinel-2 MSI · Bande NIR/Red · Seuil santé &gt; 0,40</div>
+          </div>
+        </div>
+        @for (i of ndviList; track i.id) {
+          <div class="it-row">
+            <div class="it-site">
+              <span class="it-nom">{{ i.chantier?.nom }}</span>
+              <span class="it-commune">{{ i.chantier?.commune }}</span>
+            </div>
+            <div class="it-bar-wrap">
+              <div class="it-bar">
+                <div class="it-bar-fill" [style.width]="(i.valeur / 0.6 * 100) + '%'"
+                     [style.background]="statutColor(i.statut)"></div>
+              </div>
+            </div>
+            <div class="it-valeur" [style.color]="statutColor(i.statut)">{{ i.valeur | number:'1.3-3' }}</div>
+            <span class="it-statut-badge" [style.background]="statutBg(i.statut)" [style.color]="statutColor(i.statut)">
+              {{ i.statut }}
+            </span>
+            <span class="it-tendance">
+              @if (i.tendance === 'HAUSSE') { <lucide-icon [img]="TrendingUp" size="12" style="color:#16A34A"></lucide-icon> }
+              @if (i.tendance === 'BAISSE') { <lucide-icon [img]="TrendingDown" size="12" style="color:#C62828"></lucide-icon> }
+              @if (i.tendance === 'STABLE') { <lucide-icon [img]="Minus" size="12" style="color:#A1A1AA"></lucide-icon> }
+            </span>
+          </div>
+        }
+        @if (!ndviList.length) { <div class="it-empty">Chargement...</div> }
+      </div>
+
+      <!-- NDWI -->
+      <div class="indice-table-card">
+        <div class="indice-table-header teal-h">
+          <lucide-icon [img]="Droplets" size="14"></lucide-icon>
+          <div>
+            <div class="it-title">NDWI — Humidité sol</div>
+            <div class="it-source">Sentinel-2 MSI · Bande NIR/SWIR · Seuil &gt; 0,30</div>
+          </div>
+        </div>
+        @for (i of ndwiList; track i.id) {
+          <div class="it-row">
+            <div class="it-site">
+              <span class="it-nom">{{ i.chantier?.nom }}</span>
+              <span class="it-commune">{{ i.chantier?.commune }}</span>
+            </div>
+            <div class="it-bar-wrap">
+              <div class="it-bar">
+                <div class="it-bar-fill" [style.width]="(i.valeur / 0.5 * 100) + '%'"
+                     [style.background]="statutColor(i.statut)"></div>
+              </div>
+            </div>
+            <div class="it-valeur" [style.color]="statutColor(i.statut)">{{ i.valeur | number:'1.3-3' }}</div>
+            <span class="it-statut-badge" [style.background]="statutBg(i.statut)" [style.color]="statutColor(i.statut)">
+              {{ i.statut }}
+            </span>
+            <span class="it-tendance">
+              @if (i.tendance === 'HAUSSE') { <lucide-icon [img]="TrendingUp" size="12" style="color:#16A34A"></lucide-icon> }
+              @if (i.tendance === 'BAISSE') { <lucide-icon [img]="TrendingDown" size="12" style="color:#C62828"></lucide-icon> }
+              @if (i.tendance === 'STABLE') { <lucide-icon [img]="Minus" size="12" style="color:#A1A1AA"></lucide-icon> }
+            </span>
+          </div>
+        }
+        @if (!ndwiList.length) { <div class="it-empty">Chargement...</div> }
+      </div>
+
+      <!-- RISQUE PLUIE -->
+      <div class="indice-table-card">
+        <div class="indice-table-header orange-h">
+          <lucide-icon [img]="CloudRain" size="14"></lucide-icon>
+          <div>
+            <div class="it-title">Risque Pluie / Érosion</div>
+            <div class="it-source">CHIRPS (précip.) + SRTM (pente) · Seuil critique &gt; 7/10</div>
+          </div>
+        </div>
+        @for (i of risqueList; track i.id) {
+          <div class="it-row">
+            <div class="it-site">
+              <span class="it-nom">{{ i.chantier?.nom }}</span>
+              <span class="it-commune">{{ i.chantier?.commune }}</span>
+            </div>
+            <div class="it-bar-wrap">
+              <div class="it-bar">
+                <div class="it-bar-fill" [style.width]="(i.valeur / 10 * 100) + '%'"
+                     [style.background]="statutColor(i.statut)"></div>
+              </div>
+            </div>
+            <div class="it-valeur" [style.color]="statutColor(i.statut)">{{ i.valeur | number:'1.1-1' }}/10</div>
+            <span class="it-statut-badge" [style.background]="statutBg(i.statut)" [style.color]="statutColor(i.statut)">
+              {{ i.statut }}
+            </span>
+            <span class="it-tendance">
+              @if (i.tendance === 'HAUSSE') { <lucide-icon [img]="TrendingUp" size="12" style="color:#C62828"></lucide-icon> }
+              @if (i.tendance === 'BAISSE') { <lucide-icon [img]="TrendingDown" size="12" style="color:#16A34A"></lucide-icon> }
+              @if (i.tendance === 'STABLE') { <lucide-icon [img]="Minus" size="12" style="color:#A1A1AA"></lucide-icon> }
+            </span>
+          </div>
+        }
+        @if (!risqueList.length) { <div class="it-empty">Chargement...</div> }
+      </div>
+
+    </div>
+
+    <!-- Note méthodologique -->
+    <div class="methodo-note">
+      <lucide-icon [img]="Info" size="14"></lucide-icon>
+      <p>
+        <strong>Méthodologie (cf. Chapitre 9 — mémoire V56) :</strong>
+        Les données sont extraites via Google Earth Engine sur une période de 5 jours glissants.
+        Sentinel-2/NDWI a été écarté de l'analyse primaire au profit de CHIRPS+SRTM pour robustesse à la couverture nuageuse tropicale
+        (taux couverture nuageuse actuel : <strong>{{ resume()?.couverture_nuageuse_pct ?? 18.4 }}%</strong>).
+        Dernière mise à jour GEE : <strong>{{ resume()?.derniere_mise_a_jour ?? '2026-07-15' }}</strong>.
+      </p>
+    </div>
+  }
+
+  <!-- ══════════════════════════════════════════
+       ONGLET 2 : SÉRIE TEMPORELLE
+  ══════════════════════════════════════════ -->
+  @if (activeTab() === 'serie') {
+    <div class="serie-panel">
+
+      <!-- Sélecteur d'indice + chantier -->
+      <div class="serie-selector">
+        <span class="serie-selector-label">Indice :</span>
+        @for (t of ['NO2','NDVI','NDWI','RISQUE_PLUIE']; track t) {
+          <button class="serie-type-btn"
+            [class.active]="selectedType() === t"
+            (click)="loadSerie($any(t))">
+            {{ typeLabel(t) }}
+          </button>
+        }
+        <span class="serie-selector-label" style="margin-left:24px;">Chantier :</span>
+        <select class="serie-chantier-select"
+          [value]="selectedChantier()"
+          (change)="loadSerie(selectedType(), +$any($event.target).value)">
+          @for (c of chantiersList; track c.id) {
+            <option [value]="c.id">{{ c.nom }}</option>
+          }
+        </select>
+      </div>
+
+      @if (serie()) {
+        <!-- Description -->
+        <div class="serie-desc">
+          <lucide-icon [img]="Info" size="13"></lucide-icon>
+          <p>{{ serie()!.description }}</p>
+        </div>
+
+        <!-- Légende phases -->
+        <div class="phase-legend">
+          <span class="phase-chip avant">■ Avant travaux (2022–2023)</span>
+          <span class="phase-chip travaux">■ Phase travaux PTUA (2023–2025)</span>
+          <span class="phase-chip apres">■ Après / Réhabilitation (2025–2026)</span>
+        </div>
+
+        <!-- Graphique en barres -->
+        <div class="chart-container" [class.loading-blur]="loadingSerie()">
+          <div class="chart-y-label">{{ serie()!.unite }}</div>
+          <div class="chart-bars">
+            @for (p of seriePoints; track p.mois) {
+              <div class="bar-col">
+                <div class="bar-tooltip-wrap">
+                  <div class="bar-item"
+                       [style.height]="barWidth(p.valeur)"
+                       [style.background]="phaseColor(p.phase)"
+                       [title]="p.mois + ': ' + p.valeur">
+                  </div>
+                  <div class="bar-val" [style.color]="phaseColor(p.phase)">
+                    {{ p.valeur | number:'1.2-3' }}
+                  </div>
+                </div>
+                <div class="bar-label">{{ formatMois(p.mois) }}</div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Analyse texte avant/après -->
+        <div class="avantapres-grid">
+          <div class="avantapres-card avant-card">
+            <div class="aa-title">Avant travaux <span>(moy. 2022–2023)</span></div>
+            @if (seriePoints.length) {
+              <div class="aa-value">
+                {{ (seriePoints.filter(p => p.phase === 'AVANT').reduce((a,b) => a+b.valeur, 0) / seriePoints.filter(p => p.phase === 'AVANT').length) | number:'1.3-4' }}
+                <span class="aa-unit">{{ serie()!.unite }}</span>
+              </div>
+            }
+            <div class="aa-label">Valeur de référence pré-chantier</div>
+          </div>
+          <div class="avantapres-card travaux-card">
+            <div class="aa-title">Phase travaux <span>(moy. 2023–2025)</span></div>
+            @if (seriePoints.length) {
+              <div class="aa-value">
+                {{ (seriePoints.filter(p => p.phase === 'TRAVAUX').reduce((a,b) => a+b.valeur, 0) / seriePoints.filter(p => p.phase === 'TRAVAUX').length) | number:'1.3-4' }}
+                <span class="aa-unit">{{ serie()!.unite }}</span>
+              </div>
+            }
+            <div class="aa-label">Impact environnemental chantiers PTUA</div>
+          </div>
+          <div class="avantapres-card apres-card">
+            <div class="aa-title">Après / Réhabilitation <span>(moy. 2025–2026)</span></div>
+            @if (seriePoints.length) {
+              <div class="aa-value">
+                {{ (seriePoints.filter(p => p.phase === 'APRES').reduce((a,b) => a+b.valeur, 0) / seriePoints.filter(p => p.phase === 'APRES').length) | number:'1.3-4' }}
+                <span class="aa-unit">{{ serie()!.unite }}</span>
+              </div>
+            }
+            <div class="aa-label">Retour vers valeur de référence</div>
+          </div>
+        </div>
+
+        <div class="serie-source-note">
+          Chantier analysé : <strong>{{ serie()!.chantier }}</strong> ·
+          Source : <strong>{{ serie()!.type_indice === 'NO2' ? 'Sentinel-5P/TROPOMI' : serie()!.type_indice === 'RISQUE_PLUIE' ? 'CHIRPS + SRTM' : 'Sentinel-2 MSI' }}</strong> ·
+          Période : Janvier 2022 → Juillet 2026
+        </div>
+      }
+
+    </div>
+  }
+
+  <!-- ══════════════════════════════════════════
+       ONGLET 3 : CARTE SATELLITAIRE
+  ══════════════════════════════════════════ -->
+  @if (activeTab() === 'carte') {
+    <div class="carte-panel">
+      <div class="carte-legend-bar">
+        <div class="cl-item"><span class="cl-dot" style="background:#16A34A"></span> NO₂ BON (&lt; 30 µmol/m²)</div>
+        <div class="cl-item"><span class="cl-dot" style="background:#F37021"></span> NO₂ MODÉRÉ (30–50)</div>
+        <div class="cl-item"><span class="cl-dot" style="background:#C62828"></span> NO₂ MAUVAIS (&gt; 50)</div>
+        <div class="cl-sep">|</div>
+        <span class="cl-note">Cliquez sur un cercle pour les détails du chantier</span>
+        <button class="layer-toggle-btn" (click)="toggleMapLayer()" style="margin-left:auto;">
+          <lucide-icon [img]="Layers" size="13"></lucide-icon>
+          {{ mapLayerSat() ? 'Vue sombre' : 'Vue satellite' }}
+        </button>
+      </div>
+      <div #mapSat class="sat-map-container"></div>
+      <div class="carte-note">
+        <lucide-icon [img]="Info" size="13"></lucide-icon>
+        Overlay NO₂ Sentinel-5P/TROPOMI — Rayon proportionnel à la concentration.
+        Couverture nuageuse : <strong>18,4%</strong> · Données GEE du 15 juillet 2026.
+      </div>
+    </div>
+  }
+
+</div>

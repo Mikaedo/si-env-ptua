@@ -1,0 +1,287 @@
+<div class="space-y-4">
+
+  @if (error()) {
+    <div class="error-banner">
+      <lucide-icon [img]="ShieldAlert" size="16"></lucide-icon>
+      {{ error() }}
+    </div>
+  }
+
+  <!-- En-tête MGP -->
+  <div class="page-header" style="justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div class="flex items-center gap-4">
+      <div class="page-header-icon" style="background:linear-gradient(135deg,#F37021,#D16709);">
+        <lucide-icon [img]="ShieldAlert" size="22" style="color:white;"></lucide-icon>
+      </div>
+      <div>
+        <h1 class="page-header-title">Mécanisme de Gestion des Plaintes</h1>
+        <p class="page-header-sub">Suivi des plaintes des populations riveraines — PAP / BAD</p>
+      </div>
+    </div>
+    <div class="badge badge-navy" style="font-size:13px; padding:8px 16px;">
+      {{ filteredPlaintes.length }} plainte{{ filteredPlaintes.length !== 1 ? 's' : '' }}
+    </div>
+  </div>
+
+  <!-- KPI Donuts -->
+  <div class="kpi-pbi-row">
+    @for (stat of quickStats; track stat.label) {
+      <div class="kpi-pbi-card">
+        <div class="kpi-pbi-header">
+          <div class="kpi-pbi-icon" [style.background]="stat.color + '18'" [style.color]="stat.color">
+            @if (stat.icon === 'bar') { <lucide-icon [img]="BarChart2" size="16"></lucide-icon> }
+            @if (stat.icon === 'clock') { <lucide-icon [img]="Clock" size="16"></lucide-icon> }
+            @if (stat.icon === 'alert') { <lucide-icon [img]="AlertTriangle" size="16"></lucide-icon> }
+            @if (stat.icon === 'check') { <lucide-icon [img]="CheckCircle" size="16"></lucide-icon> }
+          </div>
+          <span class="kpi-pbi-title">{{ stat.label }}</span>
+        </div>
+        <div class="kpi-pbi-body">
+          @if (stat.count === 0) {
+            <svg class="kpi-pbi-donut" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="42" class="donut-track" />
+            </svg>
+          } @else {
+            <svg class="kpi-pbi-donut" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="42" class="donut-track" />
+              <circle cx="50" cy="50" r="42" class="donut-fill"
+                [style.--c]="stat.color"
+                [style.stroke-dashoffset]="263.9 - (263.9 * stat.pct / 100)" />
+            </svg>
+          }
+          <div class="kpi-pbi-center">
+            <div class="kpi-pbi-value" [style.color]="stat.color">{{ stat.count }}</div>
+            <div class="kpi-pbi-pct">{{ stat.pct > 0 ? stat.pct.toFixed(0) + '%' : 'Aucun' }}</div>
+          </div>
+        </div>
+        <div class="kpi-pbi-footer">sur {{ plaintes().length }} total</div>
+      </div>
+    }
+  </div>
+
+  <!-- Nouvelle plainte -->
+  @if (canManage) {
+  <div class="card" style="padding:20px 24px;">
+    <div class="section-label">
+      <lucide-icon [img]="Plus" size="13"></lucide-icon>
+      Enregistrer une nouvelle plainte
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div>
+        <label class="form-label">Nom du plaignant</label>
+        <input type="text" [value]="newNom()" (input)="newNom.set($any($event.target).value)"
+          placeholder="Ex : Kouame Aya" class="form-input" />
+      </div>
+      <div>
+        <label class="form-label">Contact</label>
+        <input type="text" [value]="newContact()" (input)="newContact.set($any($event.target).value)"
+          placeholder="Téléphone ou localisation" class="form-input" />
+      </div>
+      <div>
+        <label class="form-label">Description de la plainte</label>
+        <input type="text" [value]="newDescription()" (input)="newDescription.set($any($event.target).value)"
+          placeholder="Nature du problème signalé" class="form-input" />
+      </div>
+      <div>
+        <label class="form-label">Chantier concerné</label>
+        <div class="flex gap-2">
+          <app-custom-select
+            [options]="chantierOptions"
+            [value]="newChantierId()"
+            placeholder="Sélectionner..."
+            (valueChange)="newChantierId.set($event)"
+          />
+          <button (click)="createPlainte()" [disabled]="saving()" class="btn btn-orange" style="flex-shrink:0; padding:9px 16px;">
+            @if (saving()) {
+              <div class="spinner"></div>
+            } @else {
+              Ajouter
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Filtres + Recherche -->
+  <div class="filter-bar">
+    <div class="search-wrapper" style="min-width:240px; flex:1;">
+      <lucide-icon [img]="Search" size="15"></lucide-icon>
+      <input type="text" [value]="searchTerm()" (input)="searchTerm.set($any($event.target).value)"
+        placeholder="Rechercher par nom, contact, description..."
+        class="search-input" />
+    </div>
+    <div class="flex items-center gap-2">
+      <app-custom-select
+        [options]="statutOptions"
+        [value]="filterStatut()"
+        placeholder="Toutes"
+        (valueChange)="filterStatut.set($event)"
+      />
+    </div>
+    <div style="font-size:12.5px; color:#71717A; font-weight:500;">
+      {{ filteredPlaintes.length }} résultat{{ filteredPlaintes.length !== 1 ? 's' : '' }}
+    </div>
+  </div>
+
+  <!-- Liste -->
+  <div class="space-y-3">
+    @for (p of filteredPlaintes; track p.id) {
+      <div class="alert-strip" style="flex-direction:column; align-items:stretch; gap:0; padding:0; cursor:pointer;" (click)="openDetail(p)"
+           onmouseenter="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.07)'" onmouseleave="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)'">
+        <!-- Bande statut gauche -->
+        <div class="accent-bar" [style.background]="statutColors[p.statut] || '#A1A1AA'"></div>
+
+        <div style="padding:18px 22px;">
+          <!-- Top row -->
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#FEF3E8,#FCE0C2); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <lucide-icon [img]="User" size="16" style="color:#D16709;"></lucide-icon>
+              </div>
+              <div>
+                <div style="font-size:14px; font-weight:700; color:#18181B;">{{ p.nom_plaignant }}</div>
+                <div style="font-size:12px; color:#71717A; margin-top:3px; display:flex; align-items:center; gap:5px;">
+                  <lucide-icon [img]="Phone" size="11"></lucide-icon>
+                  {{ p.contact || 'Contact non renseigné' }}
+                </div>
+              </div>
+            </div>
+            <span class="badge"
+              [class.badge-orange]="p.statut === 'OUVERTE'"
+              [class.badge-blue]="p.statut === 'EN_COURS'"
+              [class.badge-green]="p.statut === 'RESOLU'"
+              [class.badge-gray]="p.statut === 'REJETE'">
+              {{ p.statut === 'OUVERTE' ? 'Ouverte' : p.statut === 'EN_COURS' ? 'En cours' : p.statut === 'RESOLU' ? 'Résolue' : 'Rejetée' }}
+            </span>
+          </div>
+
+          <!-- Description -->
+          <div style="font-size:13px; color:#52525B; background:#F8F8F9; border:1px solid #F0F0F1; border-radius:8px; padding:11px 14px; line-height:1.65; margin-bottom:12px;">
+            {{ p.description }}
+          </div>
+
+          <!-- Footer row -->
+          <div style="font-size:11.5px; color:#A1A1AA; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+            <span style="display:flex; align-items:center; gap:4px; font-weight:500;">
+              <lucide-icon [img]="Clock" size="11"></lucide-icon> {{ formatDate(p.cree_le) }}
+            </span>
+            @if (p.chantier_id) {
+              <span style="display:flex; align-items:center; gap:4px; color:#71717A;">
+                <lucide-icon [img]="Building2" size="11"></lucide-icon>
+                {{ chantiers().find(c => c.id === p.chantier_id)?.nom ?? 'Chantier #' + p.chantier_id }}
+              </span>
+            }
+            <div style="margin-left:auto;">
+              @if (canManage) {
+                <select [value]="p.statut" (click)="$event.stopPropagation()" (change)="updateStatut(p.id, $any($event.target).value)" class="form-select" style="font-size:12px; padding:6px 10px;">
+                  <option value="OUVERTE">Ouverte</option>
+                  <option value="EN_COURS">En cours</option>
+                  <option value="RESOLU">Résolue</option>
+                  <option value="REJETE">Rejetée</option>
+                </select>
+              } @else {
+                <span class="badge badge-gray" style="font-size:11px;">Lecture seule</span>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    } @empty {
+      <div class="card">
+        <div class="empty-state">
+          <div class="empty-state-icon" style="width:64px;height:64px;border-radius:16px;">
+            <lucide-icon [img]="ShieldAlert" size="28" style="color:#D1D1D6;"></lucide-icon>
+          </div>
+          <div class="empty-state-text" style="font-size:14px;">
+            @if (loading()) { Chargement... } @else { Aucune plainte enregistrée }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- ====== MODALE DÉTAIL PLAINTE ====== -->
+@if (selectedPlainte(); as p) {
+  <div style="position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px;"
+       (click)="closeDetail()">
+    <div style="background:white; border-radius:20px; max-width:520px; width:100%; box-shadow:0 24px 64px rgba(0,0,0,0.25); overflow:hidden;"
+         (click)="$event.stopPropagation()">
+
+      <!-- Header modale -->
+      <div style="padding:24px 28px; border-bottom:1px solid #F4F4F5; display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"
+           [style.background]="p.statut === 'OUVERTE' ? '#FFF8F2' : p.statut === 'EN_COURS' ? '#F0F8FF' : p.statut === 'RESOLU' ? '#F0FDF4' : '#FAFAFA'">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div style="width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#FEF3E8,#FCE0C2);">
+            <lucide-icon [img]="User" size="24" style="color:#D16709;"></lucide-icon>
+          </div>
+          <div>
+            <div style="font-size:16px; font-weight:800; color:#18181B; letter-spacing:-0.3px;">{{ p.nom_plaignant }}</div>
+            <div style="font-size:12px; color:#71717A; margin-top:3px; font-weight:500;">Plainte #{{ p.id }}</div>
+          </div>
+        </div>
+        <button (click)="closeDetail()" style="background:none; border:none; cursor:pointer; padding:4px; color:#A1A1AA;"
+                onmouseenter="this.style.color='#18181B'" onmouseleave="this.style.color='#A1A1AA'">
+          <lucide-icon [img]="X" size="20"></lucide-icon>
+        </button>
+      </div>
+
+      <!-- Body modale -->
+      <div style="padding:24px 28px; display:flex; flex-direction:column; gap:14px;">
+
+        <!-- Contact -->
+        <div style="display:flex; align-items:center; gap:10px; padding:14px 16px; background:#F8F8F9; border-radius:10px;">
+          <lucide-icon [img]="Phone" size="16" style="color:#004F9F; flex-shrink:0;"></lucide-icon>
+          <div>
+            <div style="font-size:11px; color:#A1A1AA; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Contact</div>
+            <div style="font-size:14px; font-weight:700; color:#18181B;">{{ p.contact || 'Non renseigné' }}</div>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div style="padding:14px 16px; background:#F8F8F9; border-radius:10px;">
+          <div style="font-size:11px; color:#A1A1AA; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Description</div>
+          <div style="font-size:13.5px; color:#3F3F46; line-height:1.65;">{{ p.description }}</div>
+        </div>
+
+        <!-- Chantier -->
+        <div style="display:flex; align-items:center; gap:10px; padding:14px 16px; background:#F8F8F9; border-radius:10px;">
+          <lucide-icon [img]="Building2" size="16" style="color:#004F9F; flex-shrink:0;"></lucide-icon>
+          <div>
+            <div style="font-size:11px; color:#A1A1AA; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Chantier concerné</div>
+            <div style="font-size:14px; font-weight:700; color:#18181B;">{{ chantierNom }}</div>
+          </div>
+        </div>
+
+        <!-- Date -->
+        <div style="display:flex; align-items:center; gap:10px; padding:14px 16px; background:#F8F8F9; border-radius:10px;">
+          <lucide-icon [img]="Clock" size="16" style="color:#71717A; flex-shrink:0;"></lucide-icon>
+          <div>
+            <div style="font-size:11px; color:#A1A1AA; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Date d'enregistrement</div>
+            <div style="font-size:14px; font-weight:700; color:#18181B;">{{ formatDate(p.cree_le) }}</div>
+          </div>
+        </div>
+
+        <!-- Statut + action -->
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:#F8F8F9; border-radius:10px;">
+          <div>
+            <div style="font-size:11px; color:#A1A1AA; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Statut actuel</div>
+            <div style="font-size:13px; font-weight:700; margin-top:4px;" [style.color]="statutColors[p.statut] || '#A1A1AA'">
+              {{ p.statut === 'OUVERTE' ? 'Ouverte' : p.statut === 'EN_COURS' ? 'En cours' : p.statut === 'RESOLU' ? 'Résolue' : 'Rejetée' }}
+            </div>
+          </div>
+          @if (canManage) {
+            <select [value]="p.statut" (change)="updateStatut(p.id, $any($event.target).value)" class="form-select" style="font-size:12px; padding:8px 12px;">
+              <option value="OUVERTE">Ouverte</option>
+              <option value="EN_COURS">En cours</option>
+              <option value="RESOLU">Résolue</option>
+              <option value="REJETE">Rejetée</option>
+            </select>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}

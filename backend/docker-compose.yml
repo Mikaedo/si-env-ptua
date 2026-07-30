@@ -1,0 +1,52 @@
+# docker-compose.yml
+# -------------------
+# Deploiement complet SI-ENV : 3 conteneurs (backend, db, nginx).
+#
+# Pour l'utiliser (si Docker Desktop est installe) :
+#     docker compose up -d
+# La base sera accessible sur localhost:5433, l'API sur localhost:8000, le dashboard sur localhost:80.
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: sienv_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sienv
+    ports:
+      - "5433:5432"
+    volumes:
+      - sienv_data:/var/lib/postgresql/data
+
+  backend:
+    build: .
+    container_name: sienv_backend
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/sienv
+      SECRET_KEY: dev-secret-key
+      ACCESS_TOKEN_EXPIRE_MINUTES: "60"
+      GEE_CACHE_FILE: /app/gee_series_cache.json
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./gee-service-account.json:/app/gee-service-account.json:ro
+      - ./gee_series_cache.json:/app/gee_series_cache.json:ro
+    depends_on:
+      - db
+
+  nginx:
+    image: nginx:1.27
+    container_name: sienv_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+
+volumes:
+  sienv_data:

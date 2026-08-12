@@ -1,0 +1,35 @@
+name: Publier backend vers Hugging Face
+
+# Publication automatique du backend vers Hugging Face Spaces lors d'un push
+# sur main touchant backend/ ou le Dockerfile de deploiement.
+#
+# Prerequis dans Settings → Secrets and variables → Actions :
+#   Secrets  : HF_TOKEN         (jeton Hugging Face avec droit write)
+#   Vars     : HF_USER          (nom d'utilisateur HF)
+#              HF_SPACE         (nom du Space, ex. si-env-backend)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "deploy/huggingface/**"
+      - ".github/workflows/publier-huggingface.yml"
+  workflow_dispatch:
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    if: ${{ vars.HF_USER != '' && vars.HF_SPACE != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rendre le script executable
+        run: chmod +x deploy/huggingface/publier.sh
+
+      - name: Publier
+        env:
+          HF_USER: ${{ vars.HF_USER }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: ./deploy/huggingface/publier.sh

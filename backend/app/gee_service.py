@@ -22,6 +22,14 @@ import ee
 logger = logging.getLogger("gee_service")
 
 # ─── Authentification ─────────────────────────────────────
+# Deux voies d'authentification, dans cet ordre :
+#   1. GEE_SERVICE_ACCOUNT_JSON : contenu JSON de la cle, passe en variable
+#      d'environnement. Voie retenue pour les hebergeurs qui exposent les
+#      secrets ainsi (Hugging Face Spaces, Railway, Fly, etc.), et qui evite
+#      d'embarquer la cle dans l'image ou dans le depot git.
+#   2. gee-service-account.json a la racine du backend : voie historique pour
+#      le developpement local. Le fichier est monte en volume par docker-compose
+#      et n'est jamais copie dans l'image (.dockerignore).
 _SERVICE_ACCOUNT_KEY = os.path.join(os.path.dirname(os.path.dirname(__file__)), "gee-service-account.json")
 _initialized = False
 
@@ -31,13 +39,27 @@ def _init_ee():
     if _initialized:
         return
     try:
-        if os.path.exists(_SERVICE_ACCOUNT_KEY):
+        json_env = os.getenv("GEE_SERVICE_ACCOUNT_JSON")
+        if json_env:
+            # ee.ServiceAccountCredentials attend un chemin sur disque, pas un
+            # buffer memoire : on ecrit le contenu dans un fichier temporaire.
+            import tempfile
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".json",
+                                             delete=False, encoding="utf-8") as f:
+                f.write(json_env)
+                chemin = f.name
+            info = json.loads(json_env)
+            credentials = ee.ServiceAccountCredentials(info["client_email"], chemin)
+            ee.Initialize(credentials)
+            logger.info("GEE initialise via variable d'environnement (compte %s)",
+                        info["client_email"])
+        elif os.path.exists(_SERVICE_ACCOUNT_KEY):
             credentials = ee.ServiceAccountCredentials(None, _SERVICE_ACCOUNT_KEY)
             ee.Initialize(credentials)
-            logger.info("GEE initialisé avec service account")
+            logger.info("GEE initialise via fichier local de cle")
         else:
             ee.Initialize()
-            logger.info("GEE initialisé avec credentials par défaut")
+            logger.info("GEE initialise avec credentials par defaut")
         _initialized = True
     except Exception as e:
         logger.error(f"Erreur init GEE: {e}")

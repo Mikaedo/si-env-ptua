@@ -1,0 +1,122 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "nom": "4e Pont (Yopougon-Attecoube-Adjame)",
+        "projet": "4EME_PONT",
+        "longueur_km": 7.2,
+        "source": "PTUA.ci - Viaduc Baie du Banco"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-4.085, 5.345],
+          [-4.065, 5.352],
+          [-4.045, 5.362],
+          [-4.028, 5.368],
+          [-4.015, 5.358],
+          [-4.008, 5.345]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nom": "Rocade Y4 (Cocody-Abobo-Anyama-Ebimpe)",
+        "projet": "Y4",
+        "longueur_km": 26.5,
+        "source": "PTUA.ci - Voie Express Peripherique"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-4.02, 5.35],
+          [-4.0, 5.375],
+          [-3.985, 5.40],
+          [-3.97, 5.43],
+          [-3.955, 5.46],
+          [-3.945, 5.48]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nom": "Bd Latrille - Prolongement (Petro-Ivoire CHU Angre)",
+        "projet": "LATRILLE",
+        "longueur_km": 7.3,
+        "source": "PTUA.ci - Boulevard Charles Bauza Donwahi"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-4.0, 5.335],
+          [-3.99, 5.345],
+          [-3.982, 5.355],
+          [-3.972, 5.365],
+          [-3.963, 5.372]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nom": "Sortie Est (Route Prison Civile - Agboville)",
+        "projet": "SORTIE_EST",
+        "longueur_km": 23.0,
+        "source": "PTUA.ci - Voie Express Sortie Est"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-4.0, 5.378],
+          [-3.97, 5.385],
+          [-3.94, 5.392],
+          [-3.91, 5.40],
+          [-3.88, 5.408],
+          [-3.868, 5.413]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nom": "Sortie Ouest (Route de Dabou - Songon)",
+        "projet": "SORTIE_OUEST",
+        "longueur_km": 19.0,
+        "source": "PTUA.ci - Voie Express Sortie Ouest"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-4.08, 5.332],
+          [-4.10, 5.325],
+          [-4.12, 5.318],
+          [-4.14, 5.312],
+          [-4.16, 5.306],
+          [-4.178, 5.301]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nom": "3 Echangeurs Bd Coffi Gadeau (ex-Mitterrand)",
+        "projet": "ECHANGEURS_CG",
+        "longueur_km": 3.5,
+        "source": "PTUA.ci - JICA - Carrefour Ecole de Police, Bd de France, 2e tronc"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-4.02, 5.337],
+          [-4.01, 5.348],
+          [-4.0, 5.358],
+          [-3.992, 5.363]
+        ]
+      }
+    }
+  ]
+}

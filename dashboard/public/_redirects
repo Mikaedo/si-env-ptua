@@ -1,0 +1,4 @@
+# Cloudflare Pages : reecriture SPA.
+# Angular gere sa propre navigation ; toute URL non trouvee (rafraichissement
+# d'une route enfant) doit servir index.html et laisser le routeur decider.
+/*    /index.html   200

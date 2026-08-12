@@ -13,8 +13,27 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 from .config import settings
 
+
+def _nettoyer_url(url: str) -> str:
+    """Robustifie la chaine de connexion avant de la passer au driver.
+
+    Les secrets copies depuis une interface web arrivent regulierement avec un
+    retour a la ligne ou des guillemets rescapes du copier-coller. psycopg2
+    remonte alors des erreurs opaques (« invalid sslmode value ») qui pointent
+    en apparence vers un parametre de connexion alors que le probleme est
+    purement typographique.
+    """
+    if not url:
+        return url
+    url = url.strip()
+    if (url.startswith('"') and url.endswith('"')) or \
+       (url.startswith("'") and url.endswith("'")):
+        url = url[1:-1]
+    return url
+
+
 # Le moteur de connexion. pool_pre_ping verifie que la connexion est vivante.
-engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
+engine = create_engine(_nettoyer_url(settings.DATABASE_URL), pool_pre_ping=True)
 
 # Fabrique de sessions : chaque requete HTTP ouvrira sa propre session.
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

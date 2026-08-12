@@ -48,28 +48,36 @@ jobs:
           cur.execute("SELECT version()")
           print("Serveur :", cur.fetchone()[0])
 
-          # PostGIS actif : afficher la version et le schema d'installation
-          cur.execute("SELECT postgis_version()")
-          print("PostGIS :", cur.fetchone()[0])
+          # search_path courant
+          cur.execute("SHOW search_path")
+          print("search_path courant :", cur.fetchone()[0])
+
+          # Ou est installe PostGIS ?
           cur.execute(
               "SELECT n.nspname FROM pg_extension e "
               "JOIN pg_namespace n ON e.extnamespace = n.oid "
               "WHERE e.extname = 'postgis'"
           )
-          schema = cur.fetchone()[0]
+          row = cur.fetchone()
+          if not row:
+              print("!! Extension postgis absente de la base", file=sys.stderr)
+              sys.exit(2)
+          schema = row[0]
           print(f"Schema d'installation de PostGIS : {schema}")
 
-          # Test decisif : les fonctions ST_* sont-elles resolues sans prefixe ?
-          # C'est ce dont dependent app/gee_service.py et seed.py.
-          try:
-              cur.execute("SELECT ST_AsText(ST_SetSRID(ST_MakePoint(-4.048, 5.372), 4326))")
-              print("Fonctions ST_* accessibles :", cur.fetchone()[0])
-          except psycopg2.errors.UndefinedFunction as e:
-              conn.rollback()
-              print(f"!! Fonctions ST_* NON accessibles depuis le search_path : {e}", file=sys.stderr)
-              print(f"   PostGIS est installe dans le schema '{schema}'.", file=sys.stderr)
-              print("   Il faudra ajouter ce schema au search_path.", file=sys.stderr)
-              sys.exit(2)
+          # Ajoute ce schema au search_path pour la session, puis re-teste
+          cur.execute(f'SET search_path TO {schema}, public, extensions')
+          cur.execute("SELECT postgis_version()")
+          print("PostGIS :", cur.fetchone()[0])
+
+          cur.execute("SELECT ST_AsText(ST_SetSRID(ST_MakePoint(-4.048, 5.372), 4326))")
+          print("Fonctions ST_* accessibles :", cur.fetchone()[0])
+
+          if schema not in ("public", "extensions"):
+              print(
+                  f"\n>>> A APPLIQUER : ajouter '?options=-c%20search_path%3D{schema}%2Cpublic%2Cextensions'\n"
+                  f"    a la DATABASE_URL pour que chaque nouvelle connexion voie PostGIS."
+              )
 
           # Combien de tables sont deja creees ?
           cur.execute(

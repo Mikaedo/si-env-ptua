@@ -1,0 +1,52 @@
+name: Bootstrap Supabase (creation tables + seed)
+
+# A lancer une fois manuellement pour peupler Supabase :
+#   - execute Base.metadata.create_all (11 tables SI-ENV)
+#   - execute le seed idempotent (6 comptes de demo + 6 chantiers PTUA)
+# Rejouable sans risque : seed.py est idempotent, create_all est un no-op sur
+# les tables existantes.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Installer les dependances backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Executer le seed sur Supabase
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_KEY: bootstrap-only
+        run: |
+          python -c "from seed import executer_seed; executer_seed()"
+
+      - name: Verifier le contenu
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_KEY: bootstrap-only
+        run: |
+          python <<'PY'
+          from app.database import SessionLocal
+          from app import models
+          db = SessionLocal()
+          print(f"  utilisateurs : {db.query(models.Utilisateur).count()}")
+          print(f"  chantiers    : {db.query(models.Chantier).count()}")
+          print(f"  signalements : {db.query(models.Signalement).count()}")
+          print(f"  alertes      : {db.query(models.Alerte).count()}")
+          db.close()
+          PY

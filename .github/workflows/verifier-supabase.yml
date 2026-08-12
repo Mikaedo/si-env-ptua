@@ -28,12 +28,18 @@ jobs:
           python <<'PY'
           import os, sys, psycopg2
 
-          if not os.getenv("DATABASE_URL"):
+          url = (os.getenv("DATABASE_URL") or "").strip()
+          if not url:
               print("!! DATABASE_URL manquant dans les secrets", file=sys.stderr)
               sys.exit(1)
+          # Retire les guillemets accidentels autour de la valeur, sequelle
+          # frequente d'un copier-coller depuis un pilote SGBD.
+          if (url.startswith('"') and url.endswith('"')) or \
+             (url.startswith("'") and url.endswith("'")):
+              url = url[1:-1]
 
           try:
-              conn = psycopg2.connect(os.environ["DATABASE_URL"])
+              conn = psycopg2.connect(url)
           except Exception as e:
               print(f"!! Connexion refusee : {e}", file=sys.stderr)
               sys.exit(1)

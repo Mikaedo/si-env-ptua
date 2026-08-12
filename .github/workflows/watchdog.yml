@@ -1,0 +1,160 @@
+name: Watchdog (keep-alive continu)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Empeche activement la mise en veille du backend HF (48 h) et la suspension
+# du projet Supabase (7 j) sur le tier gratuit.
+#
+# Strategie : plutot que de dependre du planificateur cron de GitHub Actions
+# (delai jusqu'a 30 min sous forte charge, sans garantie), on lance un job
+# unique qui tourne 5 h 50 min et fait le ping en boucle serree toutes les
+# 3 minutes. Un nouveau job demarre juste avant que le precedent finisse.
+# Resultat : couverture continue, sans trou.
+#
+# Retry avec backoff exponentiel, auto-restart du Space via API HF si detecte
+# endormi, et remontee d'une issue GitHub apres 3 echecs consecutifs pour
+# alerter par email sans intervention manuelle.
+#
+# Depot public → minutes GitHub Actions illimitees. Aucun impact budget.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    # Toutes les 6h. Le job dure 5h50, donc chevauchement d'~10 min qui garantit
+    # qu'il n'y a jamais de trou entre deux relais.
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      duree_minutes:
+        description: "Duree du watchdog en minutes (max 350)"
+        required: false
+        default: "350"
+
+concurrency:
+  # Un seul watchdog actif a la fois. Si un nouveau demarre alors que
+  # l'ancien tourne encore, l'ancien est prolonge, pas duplique.
+  group: watchdog
+  cancel-in-progress: false
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    if: ${{ vars.HF_USER != '' && vars.HF_SPACE != '' }}
+    steps:
+      - name: Boucle de surveillance
+        env:
+          HF_USER: ${{ vars.HF_USER }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DUREE: ${{ github.event.inputs.duree_minutes || '350' }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -u
+          debut=$(date +%s)
+          fin=$((debut + DUREE * 60))
+          hf_url="https://${HF_USER}-${HF_SPACE}.hf.space/"
+          hf_restart="https://huggingface.co/api/spaces/${HF_USER}/${HF_SPACE}/restart"
+          sb_ping="${SUPABASE_URL}/rest/v1/"
+          echecs_hf=0
+          echecs_sb=0
+          n=0
+
+          # Une passe de ping sur HF, avec retry x3 et auto-restart si necessaire.
+          ping_hf() {
+            local code temps
+            for essai in 1 2 3; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' \
+                --max-time 90 --connect-timeout 20 "$hf_url" || echo "000")
+              temps=$(date +%H:%M:%S)
+              if [ "$code" -ge 200 ] && [ "$code" -lt 500 ]; then
+                echo "  [$temps] HF     ok (HTTP $code, essai $essai)"
+                echecs_hf=0
+                return 0
+              fi
+              echo "  [$temps] HF     KO (HTTP $code, essai $essai) — retry dans $((essai*10))s"
+              sleep $((essai * 10))
+            done
+            echecs_hf=$((echecs_hf + 1))
+            echo "  ! HF injoignable apres 3 essais (echecs consecutifs : $echecs_hf)"
+            # Reveil dur : appel a l'API restart du Space (necessite HF_TOKEN)
+            if [ -n "$HF_TOKEN" ]; then
+              echo "  → tentative de restart via API HF"
+              curl -s -o /dev/null -w "    HTTP %{http_code}\n" \
+                -X POST -H "Authorization: Bearer $HF_TOKEN" "$hf_restart" || true
+            fi
+            return 1
+          }
+
+          # Une passe de ping sur Supabase, avec retry x3.
+          ping_sb() {
+            local code temps
+            for essai in 1 2 3; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' \
+                --max-time 30 --connect-timeout 10 \
+                -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY" \
+                "$sb_ping" || echo "000")
+              temps=$(date +%H:%M:%S)
+              if [ "$code" -ge 200 ] && [ "$code" -lt 500 ]; then
+                echo "  [$temps] Supa   ok (HTTP $code, essai $essai)"
+                echecs_sb=0
+                return 0
+              fi
+              echo "  [$temps] Supa   KO (HTTP $code, essai $essai) — retry dans $((essai*5))s"
+              sleep $((essai * 5))
+            done
+            echecs_sb=$((echecs_sb + 1))
+            echo "  ! Supabase injoignable apres 3 essais (echecs consecutifs : $echecs_sb)"
+            return 1
+          }
+
+          # Ouvre une issue d'alerte apres 3 echecs consecutifs. La ferme si
+          # deja ouverte pour eviter le bruit ; le mail GitHub arrive quand
+          # meme a chaque creation.
+          alerter() {
+            local composant="$1" echecs="$2"
+            local titre="[Watchdog] $composant injoignable ($echecs echecs consecutifs)"
+            local corps="Le watchdog n'a pas pu joindre $composant apres 3 tentatives, "
+            corps+="repetees $echecs fois de suite.
+
+            Voir le run : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Ce message a ete genere automatiquement. Une nouvelle issue sera "
+            corps+="creee au prochain seuil de 3 echecs consecutifs supplementaires."
+            gh issue create --title "$titre" --body "$corps" --label "watchdog" \
+              --repo "${{ github.repository }}" 2>/dev/null || true
+          }
+
+          echo "=== Watchdog demarre pour $DUREE minutes ==="
+          echo "  cible HF     : $hf_url"
+          echo "  cible Supa   : $sb_ping"
+          echo
+
+          while [ "$(date +%s)" -lt "$fin" ]; do
+            n=$((n + 1))
+            echo "── passe $n ─────────────────────────────"
+            ping_hf || true
+            ping_sb || true
+
+            # Seuil d'alerte : 3 echecs consecutifs sur un composant.
+            if [ "$echecs_hf" -eq 3 ]; then
+              alerter "Hugging Face Space" "$echecs_hf"
+              echecs_hf=0
+            fi
+            if [ "$echecs_sb" -eq 3 ]; then
+              alerter "Supabase" "$echecs_sb"
+              echecs_sb=0
+            fi
+
+            # Marge de securite : ne pas dormir apres la fin prevue.
+            reste=$((fin - $(date +%s)))
+            if [ "$reste" -le 180 ]; then
+              echo "  fin de fenetre proche ($reste s), passage au relais"
+              break
+            fi
+            sleep 180
+          done
+
+          echo
+          echo "=== Watchdog termine apres $n passes ==="

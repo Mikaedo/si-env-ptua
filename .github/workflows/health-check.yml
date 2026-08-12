@@ -1,0 +1,161 @@
+name: Health check profond
+
+# Le watchdog verifie que les serveurs REPONDENT. Ce workflow verifie qu'ils
+# FONCTIONNENT : login reel, requete base, presence du bucket photos. Il
+# execute la chaine complete que ferait un utilisateur.
+#
+# Toutes les heures + a la demande. Ouvre une issue avec le log si echec.
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    if: ${{ vars.HF_USER != '' && vars.HF_SPACE != '' }}
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer les clients
+        run: pip install --quiet requests psycopg2-binary
+
+      - name: Test bout-en-bout
+        env:
+          HF_URL: https://${{ vars.HF_USER }}-${{ vars.HF_SPACE }}.hf.space
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python <<'PY'
+          import os, sys, time, requests, psycopg2
+
+          echecs = []
+
+          # 1. Racine du backend
+          t0 = time.time()
+          try:
+              r = requests.get(f"{os.environ['HF_URL']}/", timeout=60)
+              print(f"[OK  ] Backend racine : HTTP {r.status_code} en {time.time()-t0:.1f}s")
+              if r.status_code >= 500:
+                  echecs.append(f"Backend racine HTTP {r.status_code}")
+          except Exception as e:
+              print(f"[FAIL] Backend racine : {e}")
+              echecs.append(f"Backend racine : {e}")
+
+          # 2. Documentation Swagger (verifie le routage FastAPI)
+          t0 = time.time()
+          try:
+              r = requests.get(f"{os.environ['HF_URL']}/docs", timeout=60)
+              print(f"[OK  ] /docs         : HTTP {r.status_code} en {time.time()-t0:.1f}s")
+              if r.status_code != 200:
+                  echecs.append(f"/docs HTTP {r.status_code}")
+          except Exception as e:
+              print(f"[FAIL] /docs         : {e}")
+              echecs.append(f"/docs : {e}")
+
+          # 3. Login sur un compte de demonstration (valide auth + JWT + hash bcrypt)
+          t0 = time.time()
+          try:
+              r = requests.post(
+                  f"{os.environ['HF_URL']}/auth/login",
+                  data={"username": "spec.env@ageroute.ci", "password": "spec123"},
+                  timeout=30,
+              )
+              if r.status_code == 200 and "access_token" in r.json():
+                  print(f"[OK  ] Login demo    : HTTP 200 en {time.time()-t0:.1f}s")
+                  token = r.json()["access_token"]
+              else:
+                  print(f"[FAIL] Login demo    : HTTP {r.status_code} ({r.text[:120]})")
+                  echecs.append(f"Login demo HTTP {r.status_code}")
+                  token = None
+          except Exception as e:
+              print(f"[FAIL] Login demo    : {e}")
+              echecs.append(f"Login demo : {e}")
+              token = None
+
+          # 4. Liste des chantiers (verifie DB + PostGIS + serialisation geom)
+          if token:
+              t0 = time.time()
+              try:
+                  r = requests.get(
+                      f"{os.environ['HF_URL']}/chantiers",
+                      headers={"Authorization": f"Bearer {token}"},
+                      timeout=30,
+                  )
+                  chantiers = r.json() if r.status_code == 200 else []
+                  print(f"[OK  ] /chantiers    : HTTP {r.status_code}, {len(chantiers)} chantiers, {time.time()-t0:.1f}s")
+                  if r.status_code != 200 or len(chantiers) < 6:
+                      echecs.append(f"/chantiers HTTP {r.status_code} ({len(chantiers)} lignes, attendu 6)")
+              except Exception as e:
+                  print(f"[FAIL] /chantiers    : {e}")
+                  echecs.append(f"/chantiers : {e}")
+
+          # 5. Base directe : SELECT count des utilisateurs (contourne HF si en cause)
+          t0 = time.time()
+          try:
+              conn = psycopg2.connect(os.environ["DATABASE_URL"].strip(), connect_timeout=10)
+              cur = conn.cursor()
+              cur.execute("SET search_path TO public, topology, extensions")
+              cur.execute("SELECT count(*) FROM utilisateurs")
+              n = cur.fetchone()[0]
+              print(f"[OK  ] DB directe    : {n} utilisateurs en {time.time()-t0:.1f}s")
+              cur.close(); conn.close()
+              if n < 6:
+                  echecs.append(f"DB : {n} utilisateurs (attendu >= 6)")
+          except Exception as e:
+              print(f"[FAIL] DB directe    : {e}")
+              echecs.append(f"DB directe : {e}")
+
+          # 6. Bucket photos accessible
+          t0 = time.time()
+          try:
+              r = requests.get(
+                  f"{os.environ['SUPABASE_URL']}/storage/v1/bucket/photos",
+                  headers={"apikey": os.environ["SUPABASE_KEY"],
+                           "Authorization": f"Bearer {os.environ['SUPABASE_KEY']}"},
+                  timeout=15,
+              )
+              print(f"[OK  ] Bucket photos : HTTP {r.status_code} en {time.time()-t0:.1f}s")
+              if r.status_code != 200:
+                  echecs.append(f"Bucket photos HTTP {r.status_code}")
+          except Exception as e:
+              print(f"[FAIL] Bucket photos : {e}")
+              echecs.append(f"Bucket photos : {e}")
+
+          print()
+          if echecs:
+              print(f"=== {len(echecs)} echec(s) ===")
+              for e in echecs:
+                  print(f"  - {e}")
+              # Ecrit le rapport dans un fichier pour l'etape suivante
+              with open("rapport_echec.md", "w", encoding="utf-8") as f:
+                  f.write("## Health check en echec\n\n")
+                  for e in echecs:
+                      f.write(f"- {e}\n")
+              sys.exit(1)
+          else:
+              print("=== Tout est vert ===")
+          PY
+
+      - name: Ouvrir une issue en cas d'echec
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -f rapport_echec.md ]; then
+            corps=$(cat rapport_echec.md)
+          else
+            corps="Health check echoue sans rapport detaille."
+          fi
+          corps="$corps
+
+          Log complet : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          gh issue create \
+            --title "[Health check] $(date -u +%Y-%m-%d\ %H:%M) UTC — stack degradee" \
+            --body "$corps" \
+            --label "health-check" \
+            --repo "${{ github.repository }}" || true

@@ -1,0 +1,57 @@
+name: Tests backend (pytest)
+
+# Execute les 32 tests fonctionnels de tests/test_functional.py a chaque
+# push sur main et sur chaque pull request. Sans reproduction fidele en
+# integration continue, la suite ne servirait qu'a rassurer un instant : elle
+# est desormais rejouee a chaque changement, ce qui satisfait le critere
+# academique de reproductibilite (memoire, §6.2).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-tests.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-tests.yml"
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Installer les dependances
+        # onnxruntime et earthengine-api ne sont pas necessaires aux tests :
+        # ils exigent des artefacts (modeles ONNX, cle GEE) absents en CI.
+        # On installe requirements.txt tel quel : les tests n'importent ni
+        # ONNX ni GEE, donc leur presence dans le venv est benigne.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lancer pytest
+        env:
+          DATABASE_URL: sqlite:///./test_sienv.db
+          SECRET_KEY: ci-secret-key
+        run: |
+          rm -f test_sienv.db
+          pytest tests -v --tb=short
+
+      - name: Synthese
+        if: always()
+        run: pytest tests --collect-only -q | tail -5

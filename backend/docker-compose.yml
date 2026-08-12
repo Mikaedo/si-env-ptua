@@ -34,6 +34,12 @@ services:
     volumes:
       - ./gee-service-account.json:/app/gee-service-account.json:ro
       - ./gee_series_cache.json:/app/gee_series_cache.json:ro
+      # Photos des signalements : le stockage local est dans un volume nomme,
+      # sinon les fichiers etaient perdus a chaque reconstruction de l'image
+      # (le code stocke un chemin, seul l'octet reel disparaissait). Ce volume
+      # ne concerne que le mode de stockage local ; en production le backend
+      # d'objet est Supabase Storage (cf. app/services/photo_storage.py).
+      - sienv_uploads:/app/uploads
     depends_on:
       - db
 
@@ -50,3 +56,4 @@ services:
 
 volumes:
   sienv_data:
+  sienv_uploads:

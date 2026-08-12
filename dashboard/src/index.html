@@ -11,6 +11,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
+  <!--
+    Configuration d'execution.
+    Ce fichier est cree pendant le build par la plateforme de deploiement
+    (Cloudflare Pages, cf. dashboard/scripts/generer_config.js). Sa presence
+    permet de pointer le meme bundle Angular vers plusieurs environnements
+    sans recompiler. Voir src/environments/environment.prod.ts pour le repli.
+  -->
+  <script src="assets/config.js"></script>
   <app-root></app-root>
 </body>
 </html>

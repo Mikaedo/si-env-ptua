@@ -38,6 +38,13 @@ ia/runs_detection/
 # GEE cache et credentials
 gee_series_cache.json
 gee-service-account.json
+gee_indices_cache.json
+backend/cache/
+
+# Bases de test locales et certificat racine specifique au poste de dev
+backend/test_sienv.db
+backend/avast-root-ca.pem
+backend/uploads/
 
 # IDE
 .idea/

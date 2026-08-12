@@ -6,7 +6,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copier le code et la clé GEE
+# Copier uniquement le code applicatif : la cle GEE, les caches locaux et
+# les uploads sont explicitement exclus par .dockerignore. En prod la cle
+# arrive via la variable d'environnement GEE_SERVICE_ACCOUNT_JSON ; en dev
+# le fichier est monte en volume par docker-compose.
 COPY . .
 
 # Exposer le port

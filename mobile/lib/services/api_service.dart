@@ -131,6 +131,21 @@ class ApiService {
     }
   }
 
+  /// Sonde legere de joignabilite du serveur, utilisee par la synchronisation
+  /// automatique en arriere-plan (section 4.6 du memoire) : elle interroge le
+  /// point de sante racine avec un delai court, sans jeton ni corps de reponse
+  /// a analyser, pour ne pas consommer de donnees inutilement sur le terrain.
+  Future<bool> reseauDisponible() async {
+    try {
+      final res = await http
+          .get(Uri.parse(kApiBaseUrl.replaceFirst(RegExp(r'/api/?$'), '/')))
+          .timeout(const Duration(seconds: 4));
+      return res.statusCode < 500;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<List<Chantier>> getChantiers() async {
     final res = await http.get(Uri.parse('$kApiBaseUrl/chantiers'), headers: _headers);
     if (res.statusCode == 200) {

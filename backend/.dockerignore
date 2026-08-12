@@ -9,3 +9,14 @@ tests/
 .env
 venv/
 .venv/
+# Cle privee Google Earth Engine : jamais copiee dans l'image.
+# En dev, elle est montee en volume par docker-compose.
+# En prod, le contenu JSON est passe en secret via GEE_SERVICE_ACCOUNT_JSON.
+gee-service-account.json
+# Photos utilisateur : leur presence gonflerait l'image et ecraserait
+# le volume monte sur /app/uploads.
+uploads/
+# Caches locaux non reproductibles.
+cache/
+gee_indices_cache.json
+gee_series_cache.json

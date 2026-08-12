@@ -20,11 +20,9 @@ from geoalchemy2.shape import to_shape
 
 from .. import models, schemas, auth
 from ..database import get_db
+from ..services import photo_storage
 
 router = APIRouter(prefix="/signalements", tags=["Signalements"])
-
-PHOTO_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads", "photos")
-os.makedirs(PHOTO_DIR, exist_ok=True)
 
 
 def _geom_payload(geom):
@@ -204,19 +202,14 @@ def upload_photo(signalement_id: int,
     if not s:
         raise HTTPException(status_code=404, detail="Signalement introuvable")
 
-    filename = f"sig_{signalement_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{file.filename}"
-    filepath = os.path.join(PHOTO_DIR, filename)
-    with open(filepath, "wb") as f:
-        f.write(file.file.read())
+    nom = photo_storage.nom_unique(signalement_id, file.filename or "photo.jpg")
+    chemin = photo_storage.backend.enregistrer(nom, file.file.read())
 
-    photo = models.Photo(
-        chemin=filename,
-        signalement_id=signalement_id,
-    )
+    photo = models.Photo(chemin=chemin, signalement_id=signalement_id)
     db.add(photo)
     db.commit()
     db.refresh(photo)
-    return {"id": photo.id, "chemin": filename, "signalement_id": signalement_id}
+    return {"id": photo.id, "chemin": chemin, "signalement_id": signalement_id}
 
 
 @router.get("/{signalement_id}/photos")

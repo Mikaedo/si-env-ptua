@@ -70,6 +70,34 @@ def au_demarrage():
     # 2) Cree toutes les tables definies dans models.py (si absentes)
     Base.metadata.create_all(bind=engine)
 
+    # 2 bis) Micro-migration : create_all n'ajoute pas les colonnes manquantes
+    # aux tables existantes. On ajoute ici les colonnes recentes de facon
+    # idempotente pour eviter d'introduire Alembic sur un projet de cette
+    # taille. Chaque ALTER est protege par IF NOT EXISTS (PostgreSQL) ou par
+    # un try/catch pour SQLite.
+    def _ajouter_colonne_si_absente(nom_table: str, nom_col: str, definition: str):
+        with engine.connect() as conn:
+            dialecte = conn.dialect.name
+            if dialecte == "postgresql":
+                try:
+                    conn.execute(text(
+                        f'ALTER TABLE {nom_table} ADD COLUMN IF NOT EXISTS {nom_col} {definition}'
+                    ))
+                    conn.commit()
+                except Exception as e:  # pragma: no cover
+                    logger.warning("ALTER %s.%s : %s", nom_table, nom_col, e)
+            else:
+                # SQLite ne connait pas IF NOT EXISTS pour ADD COLUMN.
+                try:
+                    conn.execute(text(f'ALTER TABLE {nom_table} ADD COLUMN {nom_col} {definition}'))
+                    conn.commit()
+                except Exception:
+                    pass  # deja presente, on ignore
+
+    _ajouter_colonne_si_absente(
+        "utilisateurs", "twofa_email_actif", "BOOLEAN NOT NULL DEFAULT FALSE"
+    )
+
     # 3) Seed idempotent, uniquement si demande explicitement. Utile pour un
     # premier bootstrap sur une base neuve (Supabase, HF Spaces).
     if os.getenv("SEED_ON_STARTUP", "").lower() in ("1", "true", "yes"):

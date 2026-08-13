@@ -10,62 +10,87 @@ l'affichage des alertes existaient mais rien ne les reliait : aucune Alerte
 n'etait jamais creee automatiquement a partir d'une mesure reelle.
 """
 import os
-import smtplib
 from datetime import datetime, timedelta
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
 from sqlalchemy.orm import Session
 
 from .. import models
 from . import journal_service
+from .email_service import envoyer_email
 
 DEDUP_WINDOW_HOURS = 24
 
 
 def _send_alert_email(destinataires: list[str], alerte: models.Alerte) -> None:
-    """Envoie l'alerte par email (Gmail SMTP), ou logue si non configure."""
-    smtp_user = os.getenv("SMTP_USER", "")
-    smtp_pass = os.getenv("SMTP_PASSWORD", "")
-    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    email_from = os.getenv("EMAIL_FROM", smtp_user)
-
-    if not smtp_user or not smtp_pass or not destinataires:
+    """Envoie l'alerte a la liste de destinataires via le service email
+    (Resend en prod, SMTP en dev). Un envoi par destinataire pour respecter
+    la contrainte Resend « un seul To par requete »."""
+    if not destinataires:
         print(f"[SI-ENV ALERTE] {alerte.niveau} - {alerte.message} "
-              f"(email non envoye : SMTP non configure ou aucun destinataire)")
+              f"(aucun destinataire configure)")
         return
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"[SI-ENV AGEROUTE] Alerte {alerte.niveau} : {alerte.message}"
-    msg["From"] = email_from
-    msg["To"] = ", ".join(destinataires)
+    dashboard_url = os.getenv("FRONTEND_URL", "https://si-env-ptua.pages.dev")
+    couleur = "#B91C1C" if alerte.niveau in ("CRITIQUE", "ERROR") else "#D97706"
+    libelle_niveau = alerte.niveau or "WARNING"
 
-    html_body = f"""
-    <html><body style="font-family:Arial,sans-serif;background:#f4f4f5;padding:30px">
-      <div style="max-width:480px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;border:1px solid #e4e4e7">
-        <div style="background:#B91C1C;padding:24px;text-align:center">
-          <h1 style="color:white;font-size:20px;margin:0">SI-ENV · AGEROUTE</h1>
-          <p style="color:rgba(255,255,255,0.85);font-size:12px;margin:6px 0 0">Alerte {alerte.niveau}</p>
-        </div>
-        <div style="padding:32px">
-          <p style="color:#18181B;font-size:15px;margin:0 0 12px">{alerte.message}</p>
-          <p style="color:#71717A;font-size:13px;margin:0">Valeur mesuree : {alerte.valeur}</p>
-        </div>
-      </div>
-    </body></html>
-    """
-    msg.attach(MIMEText(html_body, "html"))
+    sujet = f"[SI-ENV] Alerte {libelle_niveau} : {alerte.message[:60]}"
 
-    try:
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            server.ehlo()
-            server.starttls()
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(email_from, destinataires, msg.as_string())
-        print(f"[SI-ENV SMTP] Alerte envoyee a {destinataires}")
-    except Exception as e:
-        print(f"[SI-ENV SMTP ERREUR] {e}")
+    texte = (
+        f"SI-ENV AGEROUTE\n"
+        f"Alerte {libelle_niveau}\n"
+        f"-------------------\n\n"
+        f"{alerte.message}\n\n"
+        f"Valeur mesuree : {alerte.valeur}\n"
+        f"Date : {alerte.cree_le.strftime('%d/%m/%Y %H:%M UTC') if alerte.cree_le else '-'}\n\n"
+        f"Consultez le tableau de bord pour reagir :\n{dashboard_url}\n\n"
+        f"--\nAGEROUTE - Projet de Transport Urbain d'Abidjan\n"
+    )
+
+    html = f"""<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#0F172A;line-height:1.55">
+  <span style="display:none;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden">
+    Alerte {libelle_niveau} SI-ENV : {alerte.message[:80]}
+  </span>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:32px 16px">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.06);border:1px solid #E2E8F0">
+        <tr><td style="background:{couleur};padding:28px 32px;text-align:center">
+          <div style="color:#FFFFFF;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.4px;opacity:0.9">SI-ENV &middot; AGEROUTE</div>
+          <div style="color:#FFFFFF;font-size:22px;font-weight:800;margin-top:8px">Alerte {libelle_niveau}</div>
+        </td></tr>
+        <tr><td style="padding:32px 36px 24px">
+          <p style="margin:0 0 18px;font-size:15px;color:#0F172A;font-weight:600">{alerte.message}</p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px">
+            <tr>
+              <td style="padding:12px 14px;background:#F8FAFC;border-radius:8px;font-size:12px;color:#64748B;width:50%">
+                <div style="text-transform:uppercase;font-size:10px;letter-spacing:0.8px;margin-bottom:4px">Valeur mesuree</div>
+                <div style="font-size:16px;font-weight:700;color:#0F172A">{alerte.valeur}</div>
+              </td>
+              <td style="width:10px"></td>
+              <td style="padding:12px 14px;background:#F8FAFC;border-radius:8px;font-size:12px;color:#64748B;width:50%">
+                <div style="text-transform:uppercase;font-size:10px;letter-spacing:0.8px;margin-bottom:4px">Date</div>
+                <div style="font-size:13px;font-weight:600;color:#0F172A">{alerte.cree_le.strftime('%d/%m/%Y %H:%M') if alerte.cree_le else '-'}</div>
+              </td>
+            </tr>
+          </table>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto" align="center">
+            <tr><td style="background:#004F9F;border-radius:10px">
+              <a href="{dashboard_url}/alertes" style="display:inline-block;padding:12px 28px;color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;border-radius:10px">Consulter les alertes</a>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="background:#F8FAFC;padding:18px 32px;border-top:1px solid #E2E8F0;text-align:center">
+          <div style="font-size:11px;color:#94A3B8">AGEROUTE &middot; Projet de Transport Urbain d'Abidjan &middot; Cellule de Coordination</div>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>"""
+
+    for dest in destinataires:
+        envoyer_email(dest, sujet, html, texte)
 
 
 def _resoudre_chantier_id(db: Session, chantier_id_statique: int, nom_indicatif: str) -> int | None:

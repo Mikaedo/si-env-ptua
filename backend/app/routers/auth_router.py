@@ -153,7 +153,9 @@ def _send_reset_email(email: str, code: str):
 
 
 @router.post("/register", response_model=schemas.UtilisateurOut)
-def register(data: schemas.UtilisateurCreate, db: Session = Depends(get_db),
+def register(data: schemas.UtilisateurCreate,
+             background_tasks: BackgroundTasks,
+             db: Session = Depends(get_db),
              courant: models.Utilisateur = Depends(auth.utilisateur_courant)):
     if courant.role != models.RoleEnum.ADMIN:
         raise HTTPException(status_code=403, detail="Seul l'administrateur peut creer des utilisateurs")
@@ -175,7 +177,92 @@ def register(data: schemas.UtilisateurCreate, db: Session = Depends(get_db),
     ))
     db.commit()
     db.refresh(utilisateur)
+
+    # Notification e-mail au nouvel utilisateur pour l'informer qu'un compte a
+    # ete cree a son nom. Envoi en arriere-plan pour ne pas ralentir la
+    # reponse HTTP a l'administrateur.
+    background_tasks.add_task(_envoyer_email_bienvenue, utilisateur, courant)
+
     return utilisateur
+
+
+def _envoyer_email_bienvenue(utilisateur: models.Utilisateur,
+                             admin: models.Utilisateur) -> None:
+    """Envoie un email de bienvenue au nouvel utilisateur."""
+    dashboard_url = os.getenv("FRONTEND_URL", "https://si-env-ptua.pages.dev")
+    libelles_role = {
+        "ADMIN": "Administrateur",
+        "RESP_ENV": "Responsable Environnement",
+        "EXPERT_HSE": "Expert HSE",
+        "SPEC_ENV": "Spécialiste Suivi Environnemental",
+        "SPEC_PAR": "Spécialiste Suivi du P.A.R",
+    }
+    libelle = libelles_role.get(utilisateur.role.value if hasattr(utilisateur.role, "value")
+                                 else str(utilisateur.role), str(utilisateur.role))
+    nom_affiche = utilisateur.nom or utilisateur.email.split("@")[0]
+
+    sujet = "[SI-ENV] Bienvenue - votre compte a ete cree"
+
+    texte = (
+        f"SI-ENV AGEROUTE\n\n"
+        f"Bonjour {nom_affiche},\n\n"
+        f"Un compte SI-ENV vient de vous etre attribue par {admin.email}.\n\n"
+        f"  Email        : {utilisateur.email}\n"
+        f"  Role         : {libelle}\n\n"
+        f"Pour vous connecter la premiere fois, rendez-vous sur :\n"
+        f"{dashboard_url}\n\n"
+        f"Il vous sera demande de definir votre mot de passe.\n\n"
+        f"--\n"
+        f"AGEROUTE - Projet de Transport Urbain d'Abidjan\n"
+    )
+
+    html = f"""<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#0F172A;line-height:1.55">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:32px 16px">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.06);border:1px solid #E2E8F0">
+        <tr><td style="background:linear-gradient(135deg,#004F9F 0%,#003063 100%);padding:32px 32px 28px;text-align:center">
+          <div style="display:inline-block;width:56px;height:56px;line-height:56px;border-radius:14px;background:rgba(255,255,255,0.14);color:#FFFFFF;font-size:26px;font-weight:800;margin-bottom:12px">SE</div>
+          <div style="color:#FFFFFF;font-size:20px;font-weight:700;letter-spacing:0.3px">SI-ENV</div>
+          <div style="color:rgba(255,255,255,0.72);font-size:12px;margin-top:4px">Système d'Information Environnemental &middot; PTUA</div>
+        </td></tr>
+        <tr><td style="padding:36px 36px 24px">
+          <h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#0F172A">Bienvenue {nom_affiche}</h1>
+          <p style="margin:0 0 24px;font-size:14px;color:#475569">
+            L'administrateur AGEROUTE ({admin.email}) vient de vous créer un
+            compte sur le Système d'Information Environnemental du PTUA.
+          </p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;background:#F8FAFC;border-radius:10px;border:1px solid #E2E8F0">
+            <tr>
+              <td style="padding:12px 16px;font-size:12px;color:#64748B;border-bottom:1px solid #E2E8F0;width:35%">Adresse e-mail</td>
+              <td style="padding:12px 16px;font-size:13px;font-weight:600;color:#0F172A;border-bottom:1px solid #E2E8F0">{utilisateur.email}</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 16px;font-size:12px;color:#64748B">Rôle attribué</td>
+              <td style="padding:12px 16px;font-size:13px;font-weight:600;color:#0F172A">{libelle}</td>
+            </tr>
+          </table>
+          <p style="margin:0 0 20px;font-size:14px;color:#475569">
+            Rendez-vous sur le tableau de bord et cliquez sur « Première
+            connexion » pour définir votre mot de passe.
+          </p>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto" align="center">
+            <tr><td style="background:#F37021;border-radius:10px">
+              <a href="{dashboard_url}" style="display:inline-block;padding:12px 28px;color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;border-radius:10px">Accéder au tableau de bord</a>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="background:#F8FAFC;padding:18px 32px;border-top:1px solid #E2E8F0;text-align:center">
+          <div style="font-size:12px;color:#64748B;font-weight:600">AGEROUTE &middot; Agence de Gestion des Routes</div>
+          <div style="font-size:11px;color:#94A3B8;margin-top:4px">Projet de Transport Urbain d'Abidjan &middot; Cellule de Coordination</div>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>"""
+
+    envoyer_email(utilisateur.email, sujet, html, texte)
 
 
 @router.post("/login", response_model=schemas.Token)

@@ -30,6 +30,13 @@ def envoyer_email(destinataire: str, sujet: str, html: str, texte: str) -> bool:
     Le journal reflete precisement quel backend a ete utilise et pourquoi,
     pour faciliter le diagnostic en production (cf. logs Render).
     """
+    # Resend et beaucoup de MTA exigent une adresse strictement en minuscules
+    # (la partie locale d'un email est theoriquement sensible a la casse mais
+    # aucun fournisseur grand public ne la respecte). On normalise ici pour
+    # eviter les 403 "validation_error" quand un utilisateur s'est inscrit
+    # avec des majuscules.
+    destinataire = destinataire.strip().lower()
+
     cle_resend = (os.getenv("RESEND_API_KEY") or "").strip()
     if cle_resend:
         return _envoyer_via_resend(cle_resend, destinataire, sujet, html, texte)

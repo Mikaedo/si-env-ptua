@@ -11,6 +11,7 @@ Sources :
   - NDWI : COPERNICUS/S2_SR_HARMONIZED (Sentinel-2, bands B8/B11)
   - Risque pluie : UCSB-CHG/CHIRPS_DAILY + USGS/SRTMGL1_003 (pente)
 """
+import json
 import os
 import time
 import logging

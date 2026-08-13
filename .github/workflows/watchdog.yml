@@ -34,7 +34,6 @@ jobs:
   watchdog:
     runs-on: ubuntu-latest
     timeout-minutes: 355
-    if: ${{ secrets.RENDER_URL != '' }}
     steps:
       - name: Boucle de surveillance
         env:

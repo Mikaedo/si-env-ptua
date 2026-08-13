@@ -14,7 +14,6 @@ on:
 jobs:
   verifier:
     runs-on: ubuntu-latest
-    if: ${{ secrets.RENDER_URL != '' }}
     steps:
       - uses: actions/setup-python@v5
         with:

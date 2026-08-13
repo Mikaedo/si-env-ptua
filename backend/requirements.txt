@@ -19,3 +19,6 @@ earthengine-api==0.1.409
 # PHOTO_STORAGE=supabase, cf. app/services/photo_storage.py.
 supabase==2.5.0
 requests==2.32.3
+# Rate limiting embarque (SlowAPI, memoire) : evite les acces massifs sur les
+# endpoints sensibles sans dependre d'un service tiers (Cloudflare, Kong...).
+slowapi==0.1.9

@@ -11,7 +11,6 @@ Endpoints d'authentification :
 - POST /auth/verify-code    : verifier le code recu
 - POST /auth/reset-password : definir un nouveau mot de passe avec le code
 """
-import random
 import os
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
@@ -20,11 +19,9 @@ from sqlalchemy.orm import Session
 from .. import models, schemas, auth
 from ..database import get_db
 from ..services.email_service import envoyer_email
+from ..services import otp_service
 
 router = APIRouter(prefix="/auth", tags=["Authentification"])
-
-# Stockage temporaire des codes de reinitialisation (en production : Redis)
-_codes_reset: dict = {}
 
 
 def _send_reset_email(email: str, code: str):
@@ -266,13 +263,16 @@ def _envoyer_email_bienvenue(utilisateur: models.Utilisateur,
 
 
 @router.post("/login", response_model=schemas.Token)
-def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(form: OAuth2PasswordRequestForm = Depends(),
+          background_tasks: BackgroundTasks = None,
+          db: Session = Depends(get_db)):
     utilisateur = db.query(models.Utilisateur).filter(
         models.Utilisateur.email == form.username).first()
-
     if not utilisateur:
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
 
+    # Premiere connexion (mot de passe non defini) : on retourne un jeton
+    # d'acces immediat pour que le client puisse appeler /auth/first-login.
     if utilisateur.mot_de_passe_hash is None:
         token = auth.creer_token({"sub": str(utilisateur.id), "role": utilisateur.role.value})
         return {
@@ -285,13 +285,105 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     if not auth.verifier_mot_de_passe(form.password, utilisateur.mot_de_passe_hash):
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
 
-    token = auth.creer_token({"sub": str(utilisateur.id), "role": utilisateur.role.value})
+    # 2FA activee : on ne remet pas encore de jeton. On genere un code, on
+    # l'envoie par email, et le client devra completer via /auth/2fa/verifier.
+    if utilisateur.twofa_email_actif:
+        code = otp_service.emettre(db, utilisateur.email, motif="twofa", duree_min=10)
+        if background_tasks is not None:
+            background_tasks.add_task(_envoyer_email_2fa, utilisateur.email, code)
+        return {
+            "access_token": "",
+            "token_type": "bearer",
+            "premiere_connexion": False,
+            "role": utilisateur.role.value,
+            "twofa_requis": True,
+            "twofa_email": utilisateur.email,
+        }
+
+    access = auth.creer_token({"sub": str(utilisateur.id), "role": utilisateur.role.value})
+    refresh = auth.emettre_refresh_token(db, utilisateur)
     return {
-        "access_token": token,
+        "access_token": access,
         "token_type": "bearer",
         "premiere_connexion": utilisateur.premiere_connexion,
         "role": utilisateur.role.value,
+        "refresh_token": refresh,
     }
+
+
+@router.post("/2fa/verifier", response_model=schemas.Token)
+def verifier_2fa(data: schemas.TwoFactorVerify, db: Session = Depends(get_db)):
+    """Finalise la connexion apres saisie du code 2FA recu par email."""
+    if not otp_service.verifier(db, data.email, data.code, motif="twofa"):
+        raise HTTPException(status_code=400, detail="Code 2FA incorrect ou expire")
+    utilisateur = db.query(models.Utilisateur).filter(
+        models.Utilisateur.email == data.email.lower()).first()
+    if not utilisateur:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+    access = auth.creer_token({"sub": str(utilisateur.id), "role": utilisateur.role.value})
+    refresh = auth.emettre_refresh_token(db, utilisateur)
+    return {
+        "access_token": access, "token_type": "bearer",
+        "premiere_connexion": utilisateur.premiere_connexion,
+        "role": utilisateur.role.value, "refresh_token": refresh,
+    }
+
+
+@router.post("/2fa/configurer")
+def configurer_2fa(data: schemas.TwoFactorConfig,
+                   db: Session = Depends(get_db),
+                   courant: models.Utilisateur = Depends(auth.utilisateur_courant)):
+    """Active ou desactive la 2FA par email pour l'utilisateur connecte."""
+    courant.twofa_email_actif = bool(data.actif)
+    db.commit()
+    return {"twofa_email_actif": courant.twofa_email_actif}
+
+
+@router.post("/refresh", response_model=schemas.Token)
+def refresh_access(data: schemas.RefreshInput, db: Session = Depends(get_db)):
+    """Emet un nouvel access token a partir d'un refresh token valide."""
+    access, utilisateur = auth.echanger_refresh_token(db, data.refresh_token)
+    return {
+        "access_token": access, "token_type": "bearer",
+        "premiere_connexion": utilisateur.premiere_connexion,
+        "role": utilisateur.role.value, "refresh_token": data.refresh_token,
+    }
+
+
+@router.post("/logout")
+def logout(data: schemas.RefreshInput, db: Session = Depends(get_db)):
+    """Revoque un refresh token (deconnexion cote client)."""
+    auth.revoquer_refresh_token(db, data.refresh_token)
+    return {"message": "Deconnexion effectuee"}
+
+
+def _envoyer_email_2fa(email: str, code: str) -> None:
+    """Email court dedie au code 2FA (different du reset mot de passe)."""
+    dashboard_url = os.getenv("FRONTEND_URL", "https://si-env-ptua.pages.dev")
+    sujet = "[SI-ENV] Code de verification en deux etapes"
+    texte = (
+        f"SI-ENV AGEROUTE\n\n"
+        f"Code de verification en deux etapes : {code}\n\n"
+        f"Valable 10 minutes. Si vous n'avez pas tente de vous connecter,\n"
+        f"changez immediatement votre mot de passe.\n\n"
+        f"{dashboard_url}\n"
+    )
+    html = f"""<!DOCTYPE html>
+<html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#F1F5F9;padding:32px 16px;color:#0F172A">
+<table role="presentation" width="100%"><tr><td align="center">
+<table role="presentation" width="480" style="background:#FFFFFF;border-radius:14px;overflow:hidden;border:1px solid #E2E8F0">
+  <tr><td style="background:#004F9F;padding:24px;text-align:center;color:#FFFFFF">
+    <div style="font-size:11px;letter-spacing:1.2px;opacity:0.85">SI-ENV &middot; AGEROUTE</div>
+    <div style="font-size:18px;font-weight:700;margin-top:6px">Verification en deux etapes</div>
+  </td></tr>
+  <tr><td style="padding:32px;text-align:center">
+    <div style="font-size:38px;font-weight:800;color:#004F9F;letter-spacing:10px;font-family:monospace">{code}</div>
+    <p style="margin:18px 0 0;font-size:12px;color:#64748B">Valable 10 minutes</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>"""
+    envoyer_email(email, sujet, html, texte)
 
 
 @router.get("/me", response_model=schemas.UtilisateurOut)
@@ -334,31 +426,44 @@ def forgot_password(
     utilisateur = db.query(models.Utilisateur).filter(models.Utilisateur.email == data.email).first()
     if not utilisateur:
         raise HTTPException(status_code=404, detail="Aucun compte associe a cet email")
-    code = str(random.randint(100000, 999999))
-    _codes_reset[data.email] = code
-    # Envoi asynchrone en arrière-plan (ne bloque pas la réponse)
+    # Code emis et persiste en base : survit aux redemarrages du service.
+    code = otp_service.emettre(db, data.email, motif="reset", duree_min=10)
     background_tasks.add_task(_send_reset_email, data.email, code)
     return {"message": "Code de réinitialisation envoyé par email"}
 
 
 @router.post("/verify-code")
-def verify_code(data: schemas.VerifyCode):
-    code_attendu = _codes_reset.get(data.email)
-    if not code_attendu or code_attendu != data.code:
+def verify_code(data: schemas.VerifyCode, db: Session = Depends(get_db)):
+    """Verifie sans consommer : usage informationnel. Le vrai reset consomme."""
+    # On requete sans marquer consomme_le : c'est reset-password qui le fait
+    from datetime import datetime
+    otp = db.query(models.OtpCode).filter(
+        models.OtpCode.email == data.email.strip().lower(),
+        models.OtpCode.motif == "reset",
+        models.OtpCode.code == data.code.strip(),
+        models.OtpCode.consomme_le.is_(None),
+        models.OtpCode.expire_le >= datetime.utcnow(),
+    ).first()
+    if not otp:
         raise HTTPException(status_code=400, detail="Code incorrect ou expire")
     return {"message": "Code verifie"}
 
 
 @router.post("/reset-password")
 def reset_password(data: schemas.ResetPassword, db: Session = Depends(get_db)):
-    code_attendu = _codes_reset.get(data.email)
-    if not code_attendu or code_attendu != data.code:
+    # verifier() consomme le code atomiquement, pas de course entre verify et reset.
+    if not otp_service.verifier(db, data.email, data.code, motif="reset"):
         raise HTTPException(status_code=400, detail="Code incorrect ou expire")
-    utilisateur = db.query(models.Utilisateur).filter(models.Utilisateur.email == data.email).first()
+    utilisateur = db.query(models.Utilisateur).filter(
+        models.Utilisateur.email == data.email).first()
     if not utilisateur:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
     utilisateur.mot_de_passe_hash = auth.hasher_mot_de_passe(data.nouveau_mot_de_passe)
     utilisateur.premiere_connexion = False
+    # Revoque tous les refresh tokens : force la reconnexion partout ou l'ancien
+    # mot de passe etait potentiellement en usage (session compromise).
+    db.query(models.RefreshToken).filter(
+        models.RefreshToken.utilisateur_id == utilisateur.id
+    ).update({"revoque": True})
     db.commit()
-    _codes_reset.pop(data.email, None)
     return {"message": "Mot de passe reinitialise avec succes"}

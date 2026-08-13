@@ -73,11 +73,56 @@ class Token(BaseModel):
     token_type: str = "bearer"
     premiere_connexion: bool = False
     role: Optional[str] = None
+    # Refresh token opaque : le client le renvoie sur /auth/refresh pour
+    # obtenir un nouvel access sans re-saisir le mot de passe.
+    refresh_token: Optional[str] = None
+    # 2FA : quand le compte a la 2FA activee, /auth/login renvoie ces deux
+    # champs sans access_token, et le client doit poster le code sur
+    # /auth/2fa/verifier pour obtenir enfin le vrai jeton.
+    twofa_requis: bool = False
+    twofa_email: Optional[EmailStr] = None
 
 
 class LoginInput(BaseModel):
     email: EmailStr
     mot_de_passe: str
+
+
+class RefreshInput(BaseModel):
+    refresh_token: str
+
+
+class TwoFactorVerify(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class TwoFactorConfig(BaseModel):
+    actif: bool
+
+
+# ---------- Erreurs applicatives ----------
+class ErreurAppOut(BaseModel):
+    id: int
+    survenue_le: datetime
+    methode: Optional[str] = None
+    chemin: Optional[str] = None
+    utilisateur: Optional[str] = None
+    ip_source: Optional[str] = None
+    type_erreur: Optional[str] = None
+    message: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ---------- Pagination ----------
+class Page(BaseModel):
+    """Enveloppe standard pour les listes paginees."""
+    total: int
+    page: int
+    taille: int
+    resultats: list
 
 
 # ---------- Signalement ----------

@@ -46,6 +46,8 @@ class Utilisateur(Base):
     premiere_connexion = Column(Boolean, default=True)
     telephone = Column(String(30))
     cree_le = Column(DateTime, default=datetime.utcnow)
+    # Authentification a deux facteurs par email. Optionnelle par utilisateur.
+    twofa_email_actif = Column(Boolean, default=False, nullable=False)
 
     signalements = relationship("Signalement", back_populates="auteur")
 
@@ -164,3 +166,64 @@ class Journal(Base):
     utilisateur = Column(String(120), nullable=True)
     ip_source = Column(String(64), nullable=True)
     cree_le = Column(DateTime, default=datetime.utcnow)
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Ajouts pro pour rapprocher le SI-ENV d'une application moderne
+# ═════════════════════════════════════════════════════════════════════════
+
+class OtpCode(Base):
+    """Codes a usage unique pour reinitialisation de mot de passe et 2FA.
+
+    Remplace le dictionnaire en memoire du prototype, qui perdait ses codes
+    au redemarrage du service. Chaque code a un motif ('reset' ou 'twofa'),
+    une date d'expiration, et est marque consomme apres verification.
+    """
+    __tablename__ = "otp_codes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(120), index=True, nullable=False)
+    code = Column(String(12), nullable=False)
+    motif = Column(String(20), default="reset")  # reset | twofa
+    expire_le = Column(DateTime, nullable=False)
+    consomme_le = Column(DateTime, nullable=True)
+    cree_le = Column(DateTime, default=datetime.utcnow)
+
+
+class ErreurApp(Base):
+    """Erreur applicative capturee par le middleware.
+
+    Sert de Sentry embarque : chaque exception non geree est stockee ici
+    pour consultation par l'administrateur, sans dependre d'un service tiers.
+    """
+    __tablename__ = "erreurs_app"
+
+    id = Column(Integer, primary_key=True, index=True)
+    survenue_le = Column(DateTime, default=datetime.utcnow, index=True)
+    methode = Column(String(10))
+    chemin = Column(String(255))
+    utilisateur = Column(String(120), nullable=True)
+    ip_source = Column(String(64), nullable=True)
+    type_erreur = Column(String(120))
+    message = Column(Text)
+    trace = Column(Text, nullable=True)
+
+
+class RefreshToken(Base):
+    """Jeton de rafraichissement stocke en base pour permettre la revocation.
+
+    Le JWT d'acces est court (15 min) pour limiter l'impact d'un vol ; le
+    refresh dure 7 jours et peut etre revoque a la deconnexion ou en cas de
+    compromission. Chaque refresh emet un nouvel access token sans nouvelle
+    saisie de mot de passe.
+    """
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    utilisateur_id = Column(Integer, ForeignKey("utilisateurs.id"), nullable=False)
+    jeton = Column(String(255), unique=True, index=True, nullable=False)
+    expire_le = Column(DateTime, nullable=False)
+    revoque = Column(Boolean, default=False)
+    cree_le = Column(DateTime, default=datetime.utcnow)
+
+

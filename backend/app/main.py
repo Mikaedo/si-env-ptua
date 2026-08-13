@@ -8,14 +8,18 @@ Il fait 3 choses :
 2. Active PostGIS et cree les tables si elles n'existent pas.
 3. Branche les routers (auth, signalements) et autorise le dashboard (CORS).
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 import os
 
 from .database import Base, engine
 from .routers import auth_router, signalements_router, chantiers_router, alertes_router, stats_router, satellite_router, rapports_router, plaintes_router, admin_router
+from .services import erreur_service
 
 # Cree l'application avec un titre visible dans la doc Swagger
 app = FastAPI(
@@ -23,6 +27,19 @@ app = FastAPI(
     description="API de suivi environnemental des chantiers du PTUA.",
     version="1.0.0",
 )
+
+# Rate limiting embarque. La cle est l'IP source (via l'entete X-Forwarded-For
+# pose par le reverse proxy Render), avec un plancher par defaut de 500
+# requetes/minute par IP pour ne pas bloquer les usages legitimes du
+# tableau de bord ou du mobile.
+limiter = Limiter(key_func=get_remote_address, default_limits=["500/minute"])
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Middleware de capture d'erreurs : chaque exception non geree est persistee
+# en base pour consultation admin (equivalent Sentry embarque, cf.
+# app/services/erreur_service.py).
+erreur_service.gestionnaire_exceptions(app)
 
 # CORS : autorise le tableau de bord Angular (localhost:4200) a appeler l'API.
 app.add_middleware(

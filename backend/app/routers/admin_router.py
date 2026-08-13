@@ -23,13 +23,50 @@ def _journal(db: Session, message: str, utilisateur: models.Utilisateur, niveau:
 
 
 @router.get("/users", response_model=list[schemas.UtilisateurOut])
-def lister_utilisateurs(db: Session = Depends(get_db), _: models.Utilisateur = Depends(_admin_only)):
-    return db.query(models.Utilisateur).order_by(models.Utilisateur.cree_le.desc()).all()
+def lister_utilisateurs(
+    db: Session = Depends(get_db),
+    _: models.Utilisateur = Depends(_admin_only),
+    page: int = 1, taille: int = 50,
+):
+    """Liste paginee des utilisateurs. Pagination simple offset/limite ;
+    convient a l'echelle du PTUA (quelques centaines de comptes max)."""
+    page = max(1, page); taille = min(max(1, taille), 200)
+    return (
+        db.query(models.Utilisateur)
+        .order_by(models.Utilisateur.cree_le.desc())
+        .offset((page - 1) * taille).limit(taille).all()
+    )
 
 
 @router.get("/logs", response_model=list[schemas.JournalOut])
-def lister_journaux(db: Session = Depends(get_db), _: models.Utilisateur = Depends(_admin_only)):
-    return db.query(models.Journal).order_by(models.Journal.cree_le.desc()).limit(500).all()
+def lister_journaux(
+    db: Session = Depends(get_db),
+    _: models.Utilisateur = Depends(_admin_only),
+    page: int = 1, taille: int = 100,
+):
+    page = max(1, page); taille = min(max(1, taille), 500)
+    return (
+        db.query(models.Journal)
+        .order_by(models.Journal.cree_le.desc())
+        .offset((page - 1) * taille).limit(taille).all()
+    )
+
+
+@router.get("/erreurs", response_model=list[schemas.ErreurAppOut])
+def lister_erreurs(
+    db: Session = Depends(get_db),
+    _: models.Utilisateur = Depends(_admin_only),
+    page: int = 1, taille: int = 50,
+):
+    """Historique des exceptions applicatives capturees par le middleware.
+    Utile pour identifier les problemes en production sans passer par les
+    logs Render (equivalent Sentry embarque)."""
+    page = max(1, page); taille = min(max(1, taille), 200)
+    return (
+        db.query(models.ErreurApp)
+        .order_by(models.ErreurApp.survenue_le.desc())
+        .offset((page - 1) * taille).limit(taille).all()
+    )
 
 
 @router.get("/model", response_model=dict)

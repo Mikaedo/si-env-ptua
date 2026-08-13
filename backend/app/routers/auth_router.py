@@ -43,32 +43,125 @@ def _send_reset_email(email: str, code: str):
         return
 
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = "[SI-ENV AGEROUTE] Code de réinitialisation de mot de passe"
-    msg["From"] = email_from
+    msg["Subject"] = "[SI-ENV] Code de reinitialisation de mot de passe"
+    msg["From"] = f"SI-ENV AGEROUTE <{email_from}>"
     msg["To"] = email
+    msg["Reply-To"] = email_from
 
-    html_body = f"""
-    <html><body style="font-family:Arial,sans-serif;background:#f4f4f5;padding:30px">
-      <div style="max-width:480px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;border:1px solid #e4e4e7">
-        <div style="background:#004F9F;padding:24px;text-align:center">
-          <h1 style="color:white;font-size:20px;margin:0">SI-ENV · AGEROUTE</h1>
-          <p style="color:rgba(255,255,255,0.8);font-size:12px;margin:6px 0 0">Système d'Information Environnemental — PTUA</p>
-        </div>
-        <div style="padding:32px">
-          <h2 style="color:#18181B;font-size:18px;margin:0 0 12px">Réinitialisation de mot de passe</h2>
-          <p style="color:#71717A;font-size:14px;margin:0 0 24px">Votre code de vérification à usage unique est :</p>
-          <div style="background:#EFF6FF;border:2px dashed #004F9F;border-radius:10px;padding:20px;text-align:center;margin-bottom:24px">
-            <span style="font-size:36px;font-weight:900;color:#004F9F;letter-spacing:8px">{code}</span>
-          </div>
-          <p style="color:#A1A1AA;font-size:12px;margin:0">Ce code est valable 10 minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>
-        </div>
-        <div style="background:#FAFAFA;padding:16px;text-align:center;border-top:1px solid #F4F4F5">
-          <p style="color:#A1A1AA;font-size:11px;margin:0">AGEROUTE — Projet de Transport Urbain d'Abidjan (PTUA)</p>
-        </div>
-      </div>
-    </body></html>
-    """
-    msg.attach(MIMEText(html_body, "html"))
+    dashboard_url = os.getenv("FRONTEND_URL", "https://si-env-ptua.pages.dev")
+
+    # Version texte pour les clients mail qui ne rendent pas le HTML
+    # (spam filters, terminaux, accessibilite).
+    texte = (
+        "SI-ENV AGEROUTE\n"
+        "Systeme d'Information Environnemental du PTUA\n"
+        "\n"
+        "Reinitialisation de mot de passe\n"
+        "---------------------------------\n"
+        "\n"
+        f"Votre code de verification a usage unique est : {code}\n"
+        "\n"
+        "Ce code est valable 10 minutes. Saisissez-le sur la page de\n"
+        "reinitialisation du tableau de bord :\n"
+        f"{dashboard_url}\n"
+        "\n"
+        "Si vous n'etes pas a l'origine de cette demande, ignorez ce\n"
+        "message : votre mot de passe actuel reste valable.\n"
+        "\n"
+        "--\n"
+        "AGEROUTE - Agence de Gestion des Routes\n"
+        "Projet de Transport Urbain d'Abidjan (PTUA)\n"
+        "Cellule de Coordination - Unite Sauvegardes\n"
+    )
+
+    html_body = f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Code de reinitialisation SI-ENV</title>
+</head>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0F172A;line-height:1.55">
+  <!-- Preheader invisible (aperçu dans la boîte de reception) -->
+  <span style="display:none;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden">
+    Votre code SI-ENV : {code}. Valable 10 minutes.
+  </span>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:32px 16px">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.06);border:1px solid #E2E8F0">
+
+          <!-- En-tete AGEROUTE -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#004F9F 0%,#003063 100%);padding:32px 32px 28px;text-align:center">
+              <div style="display:inline-block;width:56px;height:56px;line-height:56px;border-radius:14px;background:rgba(255,255,255,0.14);color:#FFFFFF;font-size:26px;font-weight:800;margin-bottom:12px">SE</div>
+              <div style="color:#FFFFFF;font-size:20px;font-weight:700;letter-spacing:0.3px">SI-ENV</div>
+              <div style="color:rgba(255,255,255,0.72);font-size:12px;margin-top:4px">Systeme d'Information Environnemental &middot; PTUA</div>
+            </td>
+          </tr>
+
+          <!-- Corps du message -->
+          <tr>
+            <td style="padding:36px 36px 20px">
+              <h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#0F172A">Reinitialisation de votre mot de passe</h1>
+              <p style="margin:0 0 24px;font-size:14px;color:#475569">
+                Vous avez demande a reinitialiser votre mot de passe. Saisissez le code
+                ci-dessous sur la page de reinitialisation du tableau de bord.
+              </p>
+
+              <!-- Bloc code -->
+              <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:#004F9F;margin-bottom:10px">Code de verification</div>
+                <div style="font-size:38px;font-weight:800;color:#004F9F;letter-spacing:10px;font-family:'SFMono-Regular',Menlo,Consolas,monospace">{code}</div>
+                <div style="font-size:12px;color:#64748B;margin-top:12px">Valable 10 minutes</div>
+              </div>
+
+              <!-- Bouton d'action -->
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 28px" align="center">
+                <tr>
+                  <td style="background:#F37021;border-radius:10px">
+                    <a href="{dashboard_url}" style="display:inline-block;padding:12px 28px;color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;border-radius:10px">Ouvrir le tableau de bord</a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 8px;font-size:12px;color:#94A3B8">
+                Si vous n'etes pas a l'origine de cette demande, ignorez simplement ce
+                message : votre mot de passe actuel reste valable.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Pied de page -->
+          <tr>
+            <td style="background:#F8FAFC;padding:20px 32px;border-top:1px solid #E2E8F0;text-align:center">
+              <div style="font-size:12px;color:#64748B;font-weight:600">AGEROUTE &middot; Agence de Gestion des Routes</div>
+              <div style="font-size:11px;color:#94A3B8;margin-top:4px">Projet de Transport Urbain d'Abidjan &middot; Cellule de Coordination</div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Mentions legales -->
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;margin-top:16px">
+          <tr>
+            <td style="text-align:center;font-size:11px;color:#94A3B8;padding:0 24px">
+              Ce courriel a ete envoye automatiquement par le systeme SI-ENV. Merci de ne pas y repondre directement.
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+    # Ordre important : la version texte doit etre attachee AVANT le HTML.
+    # Les clients qui savent lire les deux choisissent la derniere ; ceux qui
+    # ne lisent que du texte prennent la premiere.
+    msg.attach(MIMEText(texte, "plain", "utf-8"))
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
 
     try:
         with smtplib.SMTP(smtp_host, smtp_port) as server:

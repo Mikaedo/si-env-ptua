@@ -13,7 +13,8 @@ import {
 } from 'lucide-angular';
 import * as L from 'leaflet';
 
-const API = 'http://localhost:8000';
+import { environment } from '../../../environments/environment';
+const API = environment.apiUrl;
 
 // ─── Types ───────────────────────────────────────────────
 interface IndicePoint {

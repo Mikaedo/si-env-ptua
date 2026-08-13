@@ -3,7 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { User, LoginResponse } from './models';
 
-const API_URL = 'http://localhost:8000';
+import { environment } from '../../environments/environment';
+const API_URL = environment.apiUrl;
 const TOKEN_KEY = 'sienv_token';
 const USER_KEY = 'sienv_user';
 

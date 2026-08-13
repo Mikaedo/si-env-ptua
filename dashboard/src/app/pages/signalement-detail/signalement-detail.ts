@@ -5,6 +5,7 @@ import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { ToastService } from '../../core/toast.service';
 import { Signalement } from '../../core/models';
+import { environment } from '../../../environments/environment';
 import { LucideAngularModule, ArrowLeft, MapPin, User, Calendar, Clock, CheckCircle, X, AlertTriangle, Building2, AlignLeft, Cpu, Image, Wrench, Info, Navigation, Smartphone } from 'lucide-angular';
 
 @Component({
@@ -91,8 +92,10 @@ export class SignalementDetail implements OnInit {
   }
 
   getPhotoUrl(chemin: string): string {
+    // Photo Supabase Storage : le backend a deja stocke l'URL absolue.
     if (chemin.startsWith('http')) return chemin;
-    return `http://localhost:8000/uploads/photos/${chemin}`;
+    // Photo servie par le backend (stockage local en dev).
+    return `${environment.apiUrl}/uploads/photos/${chemin}`;
   }
 
   formatDate(date: string): string {

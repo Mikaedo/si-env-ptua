@@ -4,7 +4,8 @@ import { Observable } from 'rxjs';
 import { Signalement, Chantier, Alerte, Plainte, NonConformite, IndiceSatellite, User, AlerteSeuil, Journal } from './models';
 import { AuthService } from './auth.service';
 
-const API_URL = 'http://localhost:8000';
+import { environment } from '../../environments/environment';
+const API_URL = environment.apiUrl;
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {

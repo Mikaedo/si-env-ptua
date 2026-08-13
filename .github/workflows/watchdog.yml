@@ -34,12 +34,12 @@ jobs:
   watchdog:
     runs-on: ubuntu-latest
     timeout-minutes: 355
-    if: ${{ vars.RENDER_URL != '' }}
+    if: ${{ secrets.RENDER_URL != '' }}
     steps:
       - name: Boucle de surveillance
         env:
-          RENDER_URL: ${{ vars.RENDER_URL }}
-          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_URL: ${{ secrets.RENDER_URL }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

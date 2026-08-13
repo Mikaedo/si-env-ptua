@@ -14,7 +14,7 @@ on:
 jobs:
   verifier:
     runs-on: ubuntu-latest
-    if: ${{ vars.RENDER_URL != '' }}
+    if: ${{ secrets.RENDER_URL != '' }}
     steps:
       - uses: actions/setup-python@v5
         with:
@@ -25,7 +25,7 @@ jobs:
 
       - name: Test bout-en-bout
         env:
-          RENDER_URL: ${{ vars.RENDER_URL }}
+          RENDER_URL: ${{ secrets.RENDER_URL }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

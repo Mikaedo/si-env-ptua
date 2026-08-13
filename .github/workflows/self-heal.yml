@@ -47,7 +47,7 @@ jobs:
       # ─── Etape 1 : restart doux via API Render ────────────────────────
       - name: Restart doux du service Render
         env:
-          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
           echo "→ POST /v1/services/${RENDER_SERVICE_ID}/restart"
@@ -64,7 +64,7 @@ jobs:
         id: check_apres_restart
         continue-on-error: true
         env:
-          RENDER_URL: ${{ vars.RENDER_URL }}
+          RENDER_URL: ${{ secrets.RENDER_URL }}
         run: |
           base="${RENDER_URL%/}"
           for essai in 1 2 3 4 5 6; do
@@ -83,7 +83,7 @@ jobs:
       - name: Nouveau deploiement force
         if: steps.check_apres_restart.outputs.vert == 'non'
         env:
-          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
           echo "→ POST /v1/services/${RENDER_SERVICE_ID}/deploys (clearCache=clear)"
@@ -102,7 +102,7 @@ jobs:
         if: steps.check_apres_restart.outputs.vert == 'non'
         continue-on-error: true
         env:
-          RENDER_URL: ${{ vars.RENDER_URL }}
+          RENDER_URL: ${{ secrets.RENDER_URL }}
         run: |
           base="${RENDER_URL%/}"
           for essai in 1 2 3 4 5 6 7 8; do

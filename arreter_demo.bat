@@ -14,7 +14,14 @@ echo ============================================================
 echo.
 
 echo [1/2] Retrait de la redirection USB...
-adb reverse --remove-all >nul 2>&1
+
+:: Meme detection que dans demarrer_demo.bat : adb dans le PATH sinon chemin standard.
+set "ADB=adb"
+where adb >nul 2>&1
+if errorlevel 1 (
+    if exist "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" set "ADB=%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
+)
+"%ADB%" reverse --remove-all >nul 2>&1
 echo   OK.
 
 echo.

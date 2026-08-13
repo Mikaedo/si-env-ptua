@@ -52,17 +52,41 @@ timeout /t 15 /nobreak >nul
 
 echo.
 echo [4/5] Redirection USB pour le mobile...
-adb devices >nul 2>&1
+
+:: Recherche automatique de adb.exe, meme si le PATH n'est pas configure.
+:: On tente d'abord la commande simple (PATH), sinon on cherche l'emplacement
+:: standard d'installation Android SDK, sinon on abandonne proprement.
+set "ADB=adb"
+where adb >nul 2>&1
 if errorlevel 1 (
-    echo   adb n'est pas installe ou le PATH est manquant. Le mobile ne sera pas relie.
-) else (
-    adb reverse tcp:8000 tcp:8000 >nul 2>&1
-    adb reverse tcp:80 tcp:80 >nul 2>&1
-    echo   tcp:8000 et tcp:80 rediriges vers votre PC.
-    echo.
-    echo   Lancement de l'application sur le telephone...
-    adb shell am start -n ci.ageroute.si_env/.MainActivity >nul 2>&1
+    if exist "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" (
+        set "ADB=%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
+    ) else if exist "%USERPROFILE%\AppData\Local\Android\Sdk\platform-tools\adb.exe" (
+        set "ADB=%USERPROFILE%\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+    ) else if exist "%PROGRAMFILES%\Android\Android Studio\plugins\android\lib\platform-tools\adb.exe" (
+        set "ADB=%PROGRAMFILES%\Android\Android Studio\plugins\android\lib\platform-tools\adb.exe"
+    ) else (
+        echo   adb.exe introuvable. Le mobile ne sera pas relie.
+        echo   Installez Android SDK Platform-Tools ou verifiez que Android Studio est present.
+        goto :apres_adb
+    )
 )
+
+"%ADB%" devices >nul 2>&1
+if errorlevel 1 (
+    echo   Aucun telephone detecte. Verifiez le cable USB et le debogage USB.
+    goto :apres_adb
+)
+
+"%ADB%" reverse tcp:8000 tcp:8000 >nul 2>&1
+"%ADB%" reverse tcp:80 tcp:80 >nul 2>&1
+echo   tcp:8000 et tcp:80 rediriges vers votre PC.
+
+echo.
+echo   Lancement de l'application sur le telephone...
+"%ADB%" shell am start -n ci.ageroute.si_env/.MainActivity >nul 2>&1
+
+:apres_adb
 
 echo.
 echo [5/5] Ouverture du tableau de bord dans votre navigateur...

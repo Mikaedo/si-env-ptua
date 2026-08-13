@@ -24,7 +24,14 @@ const Color kBlack = Color(0xFF0F172A);
 const Color kShadowColor = Color(0x0A000000);
 const Color kShadowLgColor = Color(0x0C000000);
 
-const String kApiBaseUrl = 'http://127.0.0.1:8000';
+// URL du backend. La valeur par defaut pointe vers le deploiement Render,
+// atteignable depuis n'importe quel telephone connecte a Internet. Pour
+// cibler une pile Docker locale (avec adb reverse), compiler avec :
+//   flutter build apk --release --dart-define="API_URL=http://127.0.0.1:8000"
+const String kApiBaseUrl = String.fromEnvironment(
+  'API_URL',
+  defaultValue: 'https://si-env-ptua.onrender.com',
+);
 
 const List<String> kChantiers = [
   '4eme Pont',

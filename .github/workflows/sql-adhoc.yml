@@ -1,0 +1,45 @@
+name: SQL ad-hoc (workflow_dispatch)
+
+# Petit outil manuel : execute un ORDRE SQL sur la base Supabase, sans passer
+# par le backend. Utile pour reparer un etat corrompu, ajuster une donnee de
+# demo, ou desactiver une fonctionnalite bloquante (ex. 2FA sur un compte
+# dont l'email n'existe pas).
+#
+# La requete est passee en input, ce qui garantit qu'elle est visible dans
+# l'historique GitHub Actions, avec l'utilisateur qui a declenche.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sql:
+        description: "Ordre SQL a executer (UPDATE / SELECT / etc.)"
+        required: true
+
+jobs:
+  executer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet psycopg2-binary
+      - env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SQL: ${{ github.event.inputs.sql }}
+        run: |
+          python <<'PY'
+          import os, psycopg2
+          url = (os.getenv("DATABASE_URL") or "").strip()
+          conn = psycopg2.connect(url)
+          cur = conn.cursor()
+          cur.execute(os.environ["SQL"])
+          if cur.description:
+              cols = [d[0] for d in cur.description]
+              print(" | ".join(cols))
+              for row in cur.fetchall():
+                  print(" | ".join(str(v) for v in row))
+          else:
+              print(f"rowcount: {cur.rowcount}")
+          conn.commit()
+          cur.close(); conn.close()
+          PY

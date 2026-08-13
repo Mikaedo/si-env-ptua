@@ -13,15 +13,13 @@ Endpoints d'authentification :
 """
 import random
 import os
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from .. import models, schemas, auth
 from ..database import get_db
+from ..services.email_service import envoyer_email
 
 router = APIRouter(prefix="/auth", tags=["Authentification"])
 
@@ -30,24 +28,12 @@ _codes_reset: dict = {}
 
 
 def _send_reset_email(email: str, code: str):
-    """Envoie le code OTP par Gmail SMTP (ou logue si non configuré)."""
-    smtp_user = os.getenv("SMTP_USER", "")
-    smtp_pass = os.getenv("SMTP_PASSWORD", "")
-    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    email_from = os.getenv("EMAIL_FROM", smtp_user)
+    """Envoie le code OTP via le service email (Resend prod / SMTP dev).
 
-    if not smtp_user or smtp_user == "votre.email@gmail.com" or not smtp_pass or smtp_pass == "votre_app_password_16_caracteres":
-        # Pas encore configuré — logue dans la console (visible dans uvicorn)
-        print(f"[SI-ENV SMTP non configuré] Code OTP pour {email}: {code}")
-        return
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = "[SI-ENV] Code de reinitialisation de mot de passe"
-    msg["From"] = f"SI-ENV AGEROUTE <{email_from}>"
-    msg["To"] = email
-    msg["Reply-To"] = email_from
-
+    Le service choisit lui-meme le backend en fonction des variables presentes
+    (RESEND_API_KEY prioritaire, sinon SMTP_USER/PASSWORD). En cas d'echec,
+    le code est journalise dans les logs Render pour recuperation manuelle.
+    """
     dashboard_url = os.getenv("FRONTEND_URL", "https://si-env-ptua.pages.dev")
 
     # Version texte pour les clients mail qui ne rendent pas le HTML
@@ -157,21 +143,12 @@ def _send_reset_email(email: str, code: str):
 </body>
 </html>"""
 
-    # Ordre important : la version texte doit etre attachee AVANT le HTML.
-    # Les clients qui savent lire les deux choisissent la derniere ; ceux qui
-    # ne lisent que du texte prennent la premiere.
-    msg.attach(MIMEText(texte, "plain", "utf-8"))
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
-
-    try:
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            server.ehlo()
-            server.starttls()
-            server.login(smtp_user, smtp_pass)
-            server.sendmail(email_from, email, msg.as_string())
-        print(f"[SI-ENV SMTP] Email envoyé à {email}")
-    except Exception as e:
-        print(f"[SI-ENV SMTP ERREUR] {e} — Code pour tests: {code}")
+    sujet = "[SI-ENV] Code de reinitialisation de mot de passe"
+    succes = envoyer_email(email, sujet, html_body, texte)
+    if not succes:
+        # Aucun backend n'a reussi : on trace le code pour permettre la
+        # reinitialisation manuelle depuis les logs de production.
+        print(f"[SI-ENV EMAIL] Envoi impossible pour {email} — Code pour tests: {code}")
 
 
 

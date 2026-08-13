@@ -14,7 +14,7 @@ on:
 jobs:
   verifier:
     runs-on: ubuntu-latest
-    if: ${{ vars.HF_USER != '' && vars.HF_SPACE != '' }}
+    if: ${{ vars.RENDER_URL != '' }}
     steps:
       - uses: actions/setup-python@v5
         with:
@@ -25,7 +25,7 @@ jobs:
 
       - name: Test bout-en-bout
         env:
-          HF_URL: https://${{ vars.HF_USER }}-${{ vars.HF_SPACE }}.hf.space
+          RENDER_URL: ${{ vars.RENDER_URL }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -33,12 +33,13 @@ jobs:
           python <<'PY'
           import os, sys, time, requests, psycopg2
 
+          base = os.environ['RENDER_URL'].rstrip('/')
           echecs = []
 
           # 1. Racine du backend
           t0 = time.time()
           try:
-              r = requests.get(f"{os.environ['HF_URL']}/", timeout=60)
+              r = requests.get(f"{base}/", timeout=60)
               print(f"[OK  ] Backend racine : HTTP {r.status_code} en {time.time()-t0:.1f}s")
               if r.status_code >= 500:
                   echecs.append(f"Backend racine HTTP {r.status_code}")
@@ -46,10 +47,10 @@ jobs:
               print(f"[FAIL] Backend racine : {e}")
               echecs.append(f"Backend racine : {e}")
 
-          # 2. Documentation Swagger (verifie le routage FastAPI)
+          # 2. Documentation Swagger
           t0 = time.time()
           try:
-              r = requests.get(f"{os.environ['HF_URL']}/docs", timeout=60)
+              r = requests.get(f"{base}/docs", timeout=60)
               print(f"[OK  ] /docs         : HTTP {r.status_code} en {time.time()-t0:.1f}s")
               if r.status_code != 200:
                   echecs.append(f"/docs HTTP {r.status_code}")
@@ -57,11 +58,12 @@ jobs:
               print(f"[FAIL] /docs         : {e}")
               echecs.append(f"/docs : {e}")
 
-          # 3. Login sur un compte de demonstration (valide auth + JWT + hash bcrypt)
+          # 3. Login sur un compte de demonstration
           t0 = time.time()
+          token = None
           try:
               r = requests.post(
-                  f"{os.environ['HF_URL']}/auth/login",
+                  f"{base}/auth/login",
                   data={"username": "spec.env@ageroute.ci", "password": "spec123"},
                   timeout=30,
               )
@@ -71,30 +73,26 @@ jobs:
               else:
                   print(f"[FAIL] Login demo    : HTTP {r.status_code} ({r.text[:120]})")
                   echecs.append(f"Login demo HTTP {r.status_code}")
-                  token = None
           except Exception as e:
               print(f"[FAIL] Login demo    : {e}")
               echecs.append(f"Login demo : {e}")
-              token = None
 
-          # 4. Liste des chantiers (verifie DB + PostGIS + serialisation geom)
+          # 4. Liste des chantiers (DB + PostGIS + serialisation geom)
           if token:
               t0 = time.time()
               try:
-                  r = requests.get(
-                      f"{os.environ['HF_URL']}/chantiers",
-                      headers={"Authorization": f"Bearer {token}"},
-                      timeout=30,
-                  )
+                  r = requests.get(f"{base}/chantiers",
+                                   headers={"Authorization": f"Bearer {token}"},
+                                   timeout=30)
                   chantiers = r.json() if r.status_code == 200 else []
-                  print(f"[OK  ] /chantiers    : HTTP {r.status_code}, {len(chantiers)} chantiers, {time.time()-t0:.1f}s")
+                  print(f"[OK  ] /chantiers    : HTTP {r.status_code}, {len(chantiers)} lignes, {time.time()-t0:.1f}s")
                   if r.status_code != 200 or len(chantiers) < 6:
                       echecs.append(f"/chantiers HTTP {r.status_code} ({len(chantiers)} lignes, attendu 6)")
               except Exception as e:
                   print(f"[FAIL] /chantiers    : {e}")
                   echecs.append(f"/chantiers : {e}")
 
-          # 5. Base directe : SELECT count des utilisateurs (contourne HF si en cause)
+          # 5. Base directe : contourne le backend si celui-ci est en cause
           t0 = time.time()
           try:
               conn = psycopg2.connect(os.environ["DATABASE_URL"].strip(), connect_timeout=10)
@@ -131,7 +129,6 @@ jobs:
               print(f"=== {len(echecs)} echec(s) ===")
               for e in echecs:
                   print(f"  - {e}")
-              # Ecrit le rapport dans un fichier pour l'etape suivante
               with open("rapport_echec.md", "w", encoding="utf-8") as f:
                   f.write("## Health check en echec\n\n")
                   for e in echecs:

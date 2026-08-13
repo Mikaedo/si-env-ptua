@@ -2,22 +2,14 @@ name: Self-heal (reparation automatique)
 
 # Declenche sur l'ouverture d'une issue par watchdog.yml ou health-check.yml.
 # Applique en cascade les reparations qu'un operateur ferait a la main :
-#   1. Restart doux du Space HF (l'endormissement le plus courant)
+#   1. Restart doux du service Render (via API /restart)
 #   2. Health check pour verifier
-#   3. Si echec : restart hard (factory) du Space
+#   3. Si echec : nouveau deploiement force (POST /v1/services/{id}/deploys)
 #   4. Health check
-#   5. Si echec : re-declenchement du deploiement HF complet
-#   6. Health check
-#   7. Si echec : re-seed Supabase (contourne une base corrompue)
-#   8. Health check final
-#
-# A chaque etape, commente l'issue avec le resultat. Ferme l'issue si tout est
-# vert a la fin. Ajoute un label 'self-heal-en-echec' si toutes les tentatives
-# ont echoue, ce qui declenche un second email de vigilance.
+#   5. Si echec : re-seed Supabase (contourne une base corrompue)
 #
 # Garde-fou anti-boucle : ne se declenche pas sur les issues qu'il a lui-meme
-# creees, et pose un label 'self-heal-tente' pour ne jamais se re-executer sur
-# la meme issue.
+# creees, pose un label 'self-heal-tente' pour ne jamais se re-executer.
 
 on:
   issues:
@@ -30,18 +22,12 @@ permissions:
 jobs:
   soigner:
     runs-on: ubuntu-latest
-    # Ne cibler que les issues creees par les workflows de surveillance,
-    # jamais celles ouvertes a la main ni celles marquees self-heal-*.
     if: >
       github.event.issue.user.login == 'github-actions[bot]' &&
       !contains(github.event.issue.labels.*.name, 'self-heal-tente') &&
       (contains(github.event.issue.labels.*.name, 'watchdog') ||
        contains(github.event.issue.labels.*.name, 'health-check'))
     steps:
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
       - name: Marquer l'issue pour eviter la boucle
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -58,36 +44,31 @@ jobs:
           gh issue comment "$NUM" --repo "${{ github.repository }}" --body \
             "🔧 Self-heal declenche. Cascade de reparation en cours."
 
-      - name: Installer requests
-        run: pip install --quiet requests
-
-      # ─── Etape 1 : restart doux du Space HF ────────────────────────────
-      - name: Restart doux du Space HF
-        id: restart_doux
+      # ─── Etape 1 : restart doux via API Render ────────────────────────
+      - name: Restart doux du service Render
         env:
-          HF_USER: ${{ vars.HF_USER }}
-          HF_SPACE: ${{ vars.HF_SPACE }}
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
-          echo "→ POST /api/spaces/${HF_USER}/${HF_SPACE}/restart"
+          echo "→ POST /v1/services/${RENDER_SERVICE_ID}/restart"
           code=$(curl -s -o /dev/null -w '%{http_code}' \
-            -X POST -H "Authorization: Bearer $HF_TOKEN" \
-            "https://huggingface.co/api/spaces/${HF_USER}/${HF_SPACE}/restart")
+            -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Accept: application/json" \
+            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/restart")
           echo "  HTTP $code"
-          echo "code=$code" >> "$GITHUB_OUTPUT"
 
-      - name: Attendre 45s le redemarrage
-        run: sleep 45
+      - name: Attendre 60s le redemarrage
+        run: sleep 60
 
-      # ─── Etape 2 : verification apres restart doux ────────────────────
-      - name: Health check apres restart doux
-        id: check_apres_doux
+      - name: Health check apres restart
+        id: check_apres_restart
         continue-on-error: true
         env:
-          HF_URL: https://${{ vars.HF_USER }}-${{ vars.HF_SPACE }}.hf.space
+          RENDER_URL: ${{ vars.RENDER_URL }}
         run: |
-          for essai in 1 2 3 4 5; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$HF_URL/docs")
+          base="${RENDER_URL%/}"
+          for essai in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$base/docs")
             echo "essai $essai : HTTP $code"
             if [ "$code" = "200" ]; then
               echo "vert=oui" >> "$GITHUB_OUTPUT"
@@ -98,77 +79,34 @@ jobs:
           echo "vert=non" >> "$GITHUB_OUTPUT"
           exit 1
 
-      # ─── Etape 3 : restart FACTORY (rebuild complet du conteneur) ─────
-      - name: Restart factory du Space HF
-        if: steps.check_apres_doux.outputs.vert == 'non'
+      # ─── Etape 2 : nouveau deploiement force ───────────────────────────
+      - name: Nouveau deploiement force
+        if: steps.check_apres_restart.outputs.vert == 'non'
         env:
-          HF_USER: ${{ vars.HF_USER }}
-          HF_SPACE: ${{ vars.HF_SPACE }}
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
-          echo "→ POST factory reboot"
+          echo "→ POST /v1/services/${RENDER_SERVICE_ID}/deploys (clearCache=clear)"
           curl -s -o /dev/null -w '  HTTP %{http_code}\n' \
-            -X POST -H "Authorization: Bearer $HF_TOKEN" \
-            "https://huggingface.co/api/spaces/${HF_USER}/${HF_SPACE}/restart?factory=true"
+            -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"clearCache":"clear"}' \
+            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys"
 
-      - name: Attendre 90s le rebuild
-        if: steps.check_apres_doux.outputs.vert == 'non'
-        run: sleep 90
+      - name: Attendre 180s le redeploiement
+        if: steps.check_apres_restart.outputs.vert == 'non'
+        run: sleep 180
 
-      - name: Health check apres factory
-        id: check_apres_factory
-        if: steps.check_apres_doux.outputs.vert == 'non'
+      - name: Health check apres redeploiement
+        id: check_apres_redeploy
+        if: steps.check_apres_restart.outputs.vert == 'non'
         continue-on-error: true
         env:
-          HF_URL: https://${{ vars.HF_USER }}-${{ vars.HF_SPACE }}.hf.space
+          RENDER_URL: ${{ vars.RENDER_URL }}
         run: |
-          for essai in 1 2 3 4 5; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$HF_URL/docs")
-            echo "essai $essai : HTTP $code"
-            if [ "$code" = "200" ]; then
-              echo "vert=oui" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            sleep 30
-          done
-          echo "vert=non" >> "$GITHUB_OUTPUT"
-          exit 1
-
-      # ─── Etape 4 : re-declencher le deploiement complet ────────────────
-      - name: Re-declencher publier-huggingface
-        id: republication
-        if: steps.check_apres_factory.outputs.vert == 'non'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh workflow run publier-huggingface.yml --repo "${{ github.repository }}" --ref main
-          sleep 15
-          # Recupere le dernier run declenche et attend jusqu'a 8 min
-          rid=$(gh run list --repo "${{ github.repository }}" --workflow=publier-huggingface.yml \
-                --limit 1 --json databaseId --jq '.[0].databaseId')
-          echo "run de republication : $rid"
-          for i in $(seq 1 48); do
-            statut=$(gh run view "$rid" --repo "${{ github.repository }}" --json status --jq '.status')
-            if [ "$statut" = "completed" ]; then break; fi
-            sleep 10
-          done
-          conc=$(gh run view "$rid" --repo "${{ github.repository }}" --json conclusion --jq '.conclusion')
-          echo "conclusion : $conc"
-          [ "$conc" = "success" ]
-
-      - name: Attendre 60s la stabilisation
-        if: steps.check_apres_factory.outputs.vert == 'non'
-        run: sleep 60
-
-      - name: Health check apres republication
-        id: check_apres_republication
-        if: steps.check_apres_factory.outputs.vert == 'non'
-        continue-on-error: true
-        env:
-          HF_URL: https://${{ vars.HF_USER }}-${{ vars.HF_SPACE }}.hf.space
-        run: |
+          base="${RENDER_URL%/}"
           for essai in 1 2 3 4 5 6 7 8; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$HF_URL/docs")
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$base/docs")
             echo "essai $essai : HTTP $code"
             if [ "$code" = "200" ]; then
               echo "vert=oui" >> "$GITHUB_OUTPUT"
@@ -179,10 +117,9 @@ jobs:
           echo "vert=non" >> "$GITHUB_OUTPUT"
           exit 1
 
-      # ─── Etape 5 : rejouer le seed Supabase ──────────────────────────
+      # ─── Etape 3 : re-seed Supabase ────────────────────────────────────
       - name: Re-declencher bootstrap-supabase
-        id: reseed
-        if: steps.check_apres_republication.outputs.vert == 'non'
+        if: steps.check_apres_redeploy.outputs.vert == 'non'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -203,30 +140,25 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NUM: ${{ github.event.issue.number }}
-          DOUX: ${{ steps.check_apres_doux.outputs.vert }}
-          FACTORY: ${{ steps.check_apres_factory.outputs.vert }}
-          REPUB: ${{ steps.check_apres_republication.outputs.vert }}
+          R: ${{ steps.check_apres_restart.outputs.vert }}
+          D: ${{ steps.check_apres_redeploy.outputs.vert }}
         run: |
-          if [ "$DOUX" = "oui" ]; then
-            resultat="✅ Reparation reussie a l'etape 1 (restart doux du Space HF)."
+          if [ "$R" = "oui" ]; then
+            resultat="✅ Reparation reussie a l'etape 1 (restart doux)."
             statut="ok"
-          elif [ "$FACTORY" = "oui" ]; then
-            resultat="✅ Reparation reussie a l'etape 2 (restart factory du Space HF)."
-            statut="ok"
-          elif [ "$REPUB" = "oui" ]; then
-            resultat="✅ Reparation reussie a l'etape 3 (republication complete du backend)."
+          elif [ "$D" = "oui" ]; then
+            resultat="✅ Reparation reussie a l'etape 2 (redeploiement force)."
             statut="ok"
           else
-            resultat="⚠️ Le self-heal n'a PAS pu retablir le service apres 4 tentatives. Intervention manuelle requise."
+            resultat="⚠️ Le self-heal n'a PAS pu retablir le service apres 3 tentatives. Intervention manuelle requise."
             statut="ko"
           fi
 
           corps="$resultat
 
-          - Etape 1 (restart doux HF) : $([ "$DOUX" = "oui" ] && echo '✅' || echo '❌')
-          - Etape 2 (restart factory HF) : $([ "$FACTORY" = "oui" ] && echo '✅' || ([ "$DOUX" = "oui" ] && echo 'non necessaire' || echo '❌'))
-          - Etape 3 (republication HF) : $([ "$REPUB" = "oui" ] && echo '✅' || echo 'non necessaire ou echec')
-          - Etape 4 (re-seed Supabase) : declenchee si les 3 precedentes ont echoue
+          - Etape 1 (restart doux Render) : $([ "$R" = "oui" ] && echo '✅' || echo '❌')
+          - Etape 2 (redeploiement force) : $([ "$D" = "oui" ] && echo '✅' || ([ "$R" = "oui" ] && echo 'non necessaire' || echo '❌'))
+          - Etape 3 (re-seed Supabase) : declenchee si les 2 precedentes ont echoue
 
           Log complet : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 

@@ -213,3 +213,25 @@ def ande_headers(ande_user):
 def bad_headers(bad_user):
     jeton = auth.creer_token({"sub": str(bad_user.id), "role": bad_user.role.value})
     return {"Authorization": f"Bearer {jeton}"}
+
+
+@pytest.fixture
+def spec_env_user(db_session):
+    """Specialiste du suivi environnemental, en charge du parametrage metier."""
+    user = models.Utilisateur(
+        nom="Spec Env Test",
+        email="spec.env@test.com",
+        mot_de_passe_hash=auth.hasher_mot_de_passe("spec123"),
+        role=models.RoleEnum.SPEC_ENV,
+        premiere_connexion=False,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+def spec_env_headers(spec_env_user):
+    jeton = auth.creer_token({"sub": str(spec_env_user.id), "role": spec_env_user.role.value})
+    return {"Authorization": f"Bearer {jeton}"}

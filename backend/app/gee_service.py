@@ -83,16 +83,11 @@ def _cache_set(key: str, data):
     _cache[key] = {"ts": time.time(), "data": data}
 
 
-# ─── Chantiers PTUA ───────────────────────────────────────
-CHANTIERS = [
-    {"id": 1, "nom": "Rocade Y4",           "commune": "Yopougon",        "lon": -4.048, "lat": 5.372},
-    {"id": 2, "nom": "4e Pont d'Abidjan",   "commune": "Plateau/Adjamé",  "lon": -4.009, "lat": 5.356},
-    {"id": 3, "nom": "Bd Latrille",          "commune": "Cocody",          "lon": -3.974, "lat": 5.348},
-    {"id": 4, "nom": "Sortie Est",           "commune": "Bingerville",     "lon": -3.881, "lat": 5.338},
-    {"id": 5, "nom": "Sortie Ouest",         "commune": "Yopougon/Songon", "lon": -4.103, "lat": 5.341},
-    {"id": 6, "nom": "Échangeurs CG",        "commune": "Plateau",         "lon": -4.016, "lat": 5.319},
-]
-
+# ─── Emprise d'analyse ────────────────────────────────────
+# Le referentiel des chantiers vit dans la table `chantiers` et non ici.
+# Ce module ne connait que des coordonnees : il recoit une emprise et en
+# extrait des indices, sans avoir a savoir combien de chantiers existent
+# ni comment ils s'appellent. Voir app/services/geo_service.py.
 BUFFER_M = 2500  # 2.5 km autour de chaque chantier
 
 
@@ -291,10 +286,17 @@ def get_serie_temporelle(
     chantier_id: int,
     start_date: str = "2022-01-01",
     end_date: str = "2026-07-31",
+    lon: float | None = None,
+    lat: float | None = None,
 ) -> list:
     """
     Série temporelle mensuelle pour un chantier donné.
     Retourne une liste de {mois, valeur, phase}.
+
+    Les coordonnées sont transmises par l'appelant, qui les lit dans la base.
+    L'identifiant du chantier ne sert plus qu'à nommer l'entrée de cache : le
+    faire résoudre ici obligerait ce module à connaître le référentiel des
+    chantiers, alors qu'il n'a besoin que d'une emprise géographique.
     """
     # 1) Vérifier le cache d'abord (pré-calculé dans gee_series_cache.json)
     cache_key = f"serie_{type_indice}_{chantier_id}_{start_date}_{end_date}"
@@ -309,8 +311,11 @@ def get_serie_temporelle(
 
     # 3) Initialiser GEE et préparer les données communes
     _init_ee()
-    chantier = next((c for c in CHANTIERS if c["id"] == chantier_id), CHANTIERS[0])
-    roi = _buffer_point(chantier["lon"], chantier["lat"])
+    if lon is None or lat is None:
+        raise ValueError(
+            "Les coordonnées du chantier doivent être fournies par l'appelant."
+        )
+    roi = _buffer_point(lon, lat)
 
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_dt = datetime.strptime(end_date, "%Y-%m-%d")

@@ -17,7 +17,16 @@ key_path = os.path.join(os.path.dirname(__file__), "gee-service-account.json")
 ee.Initialize(ee.ServiceAccountCredentials(None, key_path))
 
 sys.path.insert(0, os.path.dirname(__file__))
-from app.gee_service import get_serie_temporelle, CHANTIERS, _cache_get
+from app.gee_service import get_serie_temporelle, _cache_get
+from app.database import SessionLocal
+from app.services.geo_service import chantiers_geolocalises
+
+# Le referentiel des chantiers est lu en base : ce script suit donc
+# automatiquement les ajouts et retraits faits par le specialiste
+# environnemental, sans qu'il faille le remettre a jour a la main.
+_session = SessionLocal()
+CHANTIERS = chantiers_geolocalises(_session)
+_session.close()
 
 TYPES = ["NO2", "NDVI", "NDWI", "RISQUE_PLUIE"]
 CACHE_FILE = os.path.join(os.path.dirname(__file__), "gee_series_cache.json")
@@ -25,11 +34,12 @@ CACHE_FILE = os.path.join(os.path.dirname(__file__), "gee_series_cache.json")
 cache_data = {}
 
 for t in TYPES:
-    for cid in range(1, len(CHANTIERS) + 1):
+    for chantier in CHANTIERS:
+        cid = chantier["id"]
         cache_key = f"serie_{t}_{cid}_2022-01-01_2026-07-31"
-        print(f"Calculating {t} chantier {cid}...", end=" ", flush=True)
+        print(f"Calculating {t} pour {chantier['nom']}...", end=" ", flush=True)
         try:
-            pts = get_serie_temporelle(t, cid)
+            pts = get_serie_temporelle(t, cid, lon=chantier["lon"], lat=chantier["lat"])
             cache_data[cache_key] = pts
             print(f"OK ({len(pts)} points)")
         except Exception as e:

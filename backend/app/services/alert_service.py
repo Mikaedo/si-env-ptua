@@ -12,6 +12,7 @@ n'etait jamais creee automatiquement a partir d'une mesure reelle.
 import os
 from datetime import datetime, timedelta
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from .. import models
@@ -93,15 +94,17 @@ def _send_alert_email(destinataires: list[str], alerte: models.Alerte) -> None:
         envoyer_email(dest, sujet, html, texte)
 
 
-def _resoudre_chantier_id(db: Session, chantier_id_statique: int, nom_indicatif: str) -> int | None:
+def _resoudre_chantier_id(db: Session, chantier_id: int, nom_indicatif: str) -> int | None:
+    """Verifie que le chantier designe existe bien en base.
+
+    Cette fonction compensait autrefois un decalage : les indices satellite
+    reposaient sur une liste ecrite en dur, dont les identifiants ne
+    correspondaient pas necessairement aux lignes reelles de la table. Le
+    referentiel etant desormais unique, la correspondance est directe. Le repli
+    par nom subsiste pour les alertes issues d'anciens caches, ou le rapport a
+    un chantier disparu n'est plus garanti.
     """
-    Les indices satellite s'appuient sur une liste fixe de chantiers
-    (gee_service.CHANTIERS) dont les identifiants ne correspondent pas
-    toujours aux lignes reelles de la table `chantiers`. On tente une
-    correspondance par id, puis par nom, sinon on rattache l'alerte a
-    aucun chantier plutot que d'echouer sur une contrainte de cle etrangere.
-    """
-    chantier = db.query(models.Chantier).filter(models.Chantier.id == chantier_id_statique).first()
+    chantier = db.query(models.Chantier).filter(models.Chantier.id == chantier_id).first()
     if chantier:
         return chantier.id
     premier_mot = nom_indicatif.split()[0] if nom_indicatif else None
@@ -126,9 +129,18 @@ def evaluer_et_creer_alerte(
     regles metier existantes (MAUVAIS => alerte). Deduplique sur une fenetre
     de DEDUP_WINDOW_HOURS pour ne pas spammer a chaque appel de l'API.
     """
+    # Portee des seuils. Un seuil sans chantier vaut pour l'ensemble du
+    # programme ; un seuil rattache a un chantier ne concerne que celui-ci.
+    # Les deux se cumulent, un ouvrage sensible pouvant etre soumis a la fois
+    # a la regle generale et a une regle qui lui est propre.
+    chantier_reel = _resoudre_chantier_id(db, chantier_id_statique, chantier_nom)
     seuils = db.query(models.AlerteSeuil).filter(
         models.AlerteSeuil.indicateur == indicateur,
         models.AlerteSeuil.actif == True,  # noqa: E712
+        or_(
+            models.AlerteSeuil.chantier_id.is_(None),
+            models.AlerteSeuil.chantier_id == chantier_reel,
+        ),
     ).all()
 
     declenche = False
@@ -148,7 +160,7 @@ def evaluer_et_creer_alerte(
     if not declenche:
         return None
 
-    chantier_id = _resoudre_chantier_id(db, chantier_id_statique, chantier_nom)
+    chantier_id = chantier_reel
 
     fenetre = datetime.utcnow() - timedelta(hours=DEDUP_WINDOW_HOURS)
     filtre_chantier = (

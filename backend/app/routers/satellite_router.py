@@ -21,12 +21,16 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
 
+from sqlalchemy.orm import Session
+
 from .. import models, auth
+from ..database import get_db
 from ..gee_service import (
-    CHANTIERS, get_no2, get_ndvi, get_ndwi, get_risque_pluie,
+    get_no2, get_ndvi, get_ndwi, get_risque_pluie,
     get_cloud_cover_pct,
 )
 from ..gee_service import get_serie_temporelle as _fetch_serie_temporelle
+from ..services.geo_service import chantiers_geolocalises, chantier_geolocalise
 
 logger = logging.getLogger("satellite_router")
 router = APIRouter(prefix="/satellite", tags=["Satellite"])
@@ -149,16 +153,23 @@ def _tendance_label(t: str) -> str:
 
 @router.get("/chantiers", response_model=List[ChantierInfo])
 def get_chantiers(
+    db: Session = Depends(get_db),
     _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
                                                      models.RoleEnum.ANDE, models.RoleEnum.BAD))
 ):
-    """Liste des chantiers PTUA avec coordonnées GPS."""
-    return [ChantierInfo(**c) for c in CHANTIERS]
+    """Chantiers suivis par l'analyse satellitaire, lus dans la base.
+
+    La liste suit ce que le specialiste environnemental configure : un
+    chantier ajoute apparait aussitot dans les indices, un chantier retire
+    cesse d'etre interroge.
+    """
+    return [ChantierInfo(**c) for c in chantiers_geolocalises(db)]
 
 
 @router.get("/indices", response_model=List[IndicePoint])
 def get_tous_indices(
     type_indice: Optional[str] = Query(None, description="NO2 | NDWI | NDVI | RISQUE_PLUIE"),
+    db: Session = Depends(get_db),
     _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
                                                      models.RoleEnum.ANDE, models.RoleEnum.BAD))
 ):
@@ -168,7 +179,7 @@ def get_tous_indices(
     results = []
     idx = 1
 
-    for c in CHANTIERS:
+    for c in chantiers_geolocalises(db):
         try:
             if type_indice and type_indice.upper() not in ("NO2", "NDVI", "NDWI", "RISQUE_PLUIE"):
                 raise HTTPException(status_code=400, detail=f"Type '{type_indice}' inconnu")
@@ -224,7 +235,8 @@ def get_tous_indices(
 @router.get("/serie/{type_indice}", response_model=SerieTemporelle)
 def get_serie_temporelle(
     type_indice: str,
-    chantier_id: int = Query(1, description="ID du chantier (1-6)"),
+    chantier_id: int = Query(1, description="Identifiant du chantier suivi"),
+    db: Session = Depends(get_db),
     _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
                                                      models.RoleEnum.ANDE, models.RoleEnum.BAD))
 ):
@@ -236,13 +248,18 @@ def get_serie_temporelle(
     if t not in ("NO2", "NDVI", "NDWI", "RISQUE_PLUIE"):
         raise HTTPException(status_code=404, detail=f"Type '{t}' inconnu. Valeurs: NO2, NDVI, NDWI, RISQUE_PLUIE")
 
-    if chantier_id < 1 or chantier_id > len(CHANTIERS):
-        raise HTTPException(status_code=400, detail=f"chantier_id doit être entre 1 et {len(CHANTIERS)}")
-
-    chantier = next((c for c in CHANTIERS if c["id"] == chantier_id), CHANTIERS[0])
+    # La validation interroge la base plutot que de supposer des identifiants
+    # contigus : l'ancienne borne « entre 1 et 6 » devenait fausse des qu'un
+    # chantier etait supprime ou ajoute.
+    chantier = chantier_geolocalise(db, chantier_id)
+    if chantier is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Chantier inconnu ou non positionné sur la carte.",
+        )
 
     try:
-        points = _fetch_serie_temporelle(t, chantier_id)
+        points = _fetch_serie_temporelle(t, chantier_id, lon=chantier["lon"], lat=chantier["lat"])
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -260,6 +277,7 @@ def get_serie_temporelle(
 
 @router.get("/resume", response_model=ResumeSatellite)
 def get_resume(
+    db: Session = Depends(get_db),
     _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
                                                      models.RoleEnum.ANDE, models.RoleEnum.BAD))
 ):
@@ -271,7 +289,7 @@ def get_resume(
     ndwi_vals = []
     risque_vals = []
 
-    for c in CHANTIERS:
+    for c in chantiers_geolocalises(db):
         try:
             no2_vals.append(get_no2(c["lon"], c["lat"])["valeur"])
         except: pass

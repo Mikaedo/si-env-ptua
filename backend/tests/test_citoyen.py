@@ -110,6 +110,32 @@ class TestVerificationZone:
         ).json()
         assert corps["distance_m"] > corps["rayon_m"]
 
+    def test_un_chantier_lointain_mais_couvrant_l_emporte(
+        self, client, db_session, chantier_positionne
+    ):
+        """Le chantier retenu doit etre celui qui couvre, pas le plus proche.
+
+        Ce cas s'est presente en conditions reelles : un site a l'emprise tres
+        large englobait une position, mais un autre chantier, marginalement
+        plus proche et au perimetre etroit, etait selectionne le premier, ce
+        qui aboutissait a un refus alors qu'une zone valide existait.
+        """
+        db_session.add(models.Chantier(
+            nom="Site à emprise étendue",
+            commune="Abidjan",
+            geom=f"SRID=4326;POINT({LON_CHANTIER - 0.01} {LAT_CHANTIER})",
+            rayon_influence_m=50_000,
+        ))
+        db_session.commit()
+
+        reponse = client.post(
+            "/citoyen/verifier-zone",
+            json={"latitude": LAT_LOIN, "longitude": LON_LOIN},
+        )
+        corps = reponse.json()
+        assert corps["autorise"] is True
+        assert corps["chantier_nom"] == "Site à emprise étendue"
+
     def test_un_rayon_elargi_change_le_verdict(self, client, db_session, chantier_positionne):
         """Le perimetre depend du chantier, comme dans un PGES.
 

@@ -76,23 +76,53 @@ def _coordonnees_chantier(chantier: models.Chantier) -> tuple[float, float] | No
             return None
 
 
-def chantier_le_plus_proche(
+def _distances_aux_chantiers(
     db: Session, latitude: float, longitude: float
-) -> tuple[models.Chantier | None, float]:
-    """Retourne le chantier le plus proche d'une position et la distance.
-
-    La distance vaut l'infini lorsqu'aucun chantier n'est positionne, ce qui
-    conduit naturellement au refus d'acces en aval.
-    """
-    plus_proche, plus_courte = None, float("inf")
+) -> list[tuple[models.Chantier, float]]:
+    """Distance de la position a chaque chantier positionne sur la carte."""
+    mesures = []
     for chantier in db.query(models.Chantier).all():
         coords = _coordonnees_chantier(chantier)
         if coords is None:
             continue
-        distance = distance_metres(latitude, longitude, coords[0], coords[1])
-        if distance < plus_courte:
-            plus_proche, plus_courte = chantier, distance
-    return plus_proche, plus_courte
+        mesures.append(
+            (chantier, distance_metres(latitude, longitude, coords[0], coords[1]))
+        )
+    return mesures
+
+
+def chantier_le_plus_proche(
+    db: Session, latitude: float, longitude: float
+) -> tuple[models.Chantier | None, float]:
+    """Chantier le plus proche dans l'absolu, sans considerer les rayons.
+
+    Sert a formuler un refus : indiquer a quelle distance se trouve le chantier
+    le plus proche est plus utile qu'un simple rejet.
+    """
+    mesures = _distances_aux_chantiers(db, latitude, longitude)
+    if not mesures:
+        return None, float("inf")
+    return min(mesures, key=lambda m: m[1])
+
+
+def chantier_couvrant(
+    db: Session, latitude: float, longitude: float
+) -> tuple[models.Chantier | None, float]:
+    """Chantier dont la zone d'influence englobe la position.
+
+    Le plus proche dans l'absolu n'est pas forcement celui qui couvre : chaque
+    ouvrage porte son propre rayon, si bien qu'un chantier un peu plus lointain
+    mais a l'emprise plus large peut englober un point qu'un chantier voisin,
+    au perimetre resserre, laisse en dehors. On retient donc le plus proche
+    parmi ceux qui couvrent reellement, et non le plus proche tout court.
+    """
+    couvrants = [
+        (c, d) for c, d in _distances_aux_chantiers(db, latitude, longitude)
+        if d <= c.rayon_influence_m
+    ]
+    if not couvrants:
+        return None, float("inf")
+    return min(couvrants, key=lambda m: m[1])
 
 
 def riverain_courant(
@@ -115,14 +145,19 @@ def verifier_zone(data: schemas.PositionGps, db: Session = Depends(get_db)):
     personne tout de suite que la laisser saisir ses informations pour lui
     opposer un refus ensuite.
     """
-    chantier, distance = chantier_le_plus_proche(db, data.latitude, data.longitude)
-    if chantier is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Aucun chantier n'est actuellement referencé sur la carte.",
-        )
+    chantier, distance = chantier_couvrant(db, data.latitude, data.longitude)
+    autorise = chantier is not None
 
-    autorise = distance <= chantier.rayon_influence_m
+    if chantier is None:
+        # Hors de toute zone : on designe le chantier le plus proche pour que
+        # la personne sache de combien elle se situe en dehors du perimetre.
+        chantier, distance = chantier_le_plus_proche(db, data.latitude, data.longitude)
+        if chantier is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Aucun chantier n'est actuellement referencé sur la carte.",
+            )
+
     return schemas.ZoneVerifiee(
         autorise=autorise,
         chantier_id=chantier.id,
@@ -153,13 +188,14 @@ def inscription(
     if db.query(models.Utilisateur).filter(models.Utilisateur.email == adresse).first():
         raise HTTPException(status_code=400, detail="Un compte existe deja pour cette adresse.")
 
-    chantier, distance = chantier_le_plus_proche(db, data.latitude, data.longitude)
+    chantier, _ = chantier_couvrant(db, data.latitude, data.longitude)
     if chantier is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Aucun chantier n'est actuellement referencé sur la carte.",
-        )
-    if distance > chantier.rayon_influence_m:
+        proche, distance = chantier_le_plus_proche(db, data.latitude, data.longitude)
+        if proche is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Aucun chantier n'est actuellement referencé sur la carte.",
+            )
         raise HTTPException(
             status_code=403,
             detail=(
@@ -224,9 +260,9 @@ def deposer_doleance(
     """
     chantier_id = courant.chantier_rattachement_id
     if data.latitude is not None and data.longitude is not None:
-        proche, _ = chantier_le_plus_proche(db, data.latitude, data.longitude)
-        if proche is not None:
-            chantier_id = proche.id
+        couvrant, _ = chantier_couvrant(db, data.latitude, data.longitude)
+        if couvrant is not None:
+            chantier_id = couvrant.id
 
     doleance = models.Plainte(
         nom_plaignant=courant.nom or courant.email,

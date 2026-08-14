@@ -177,14 +177,25 @@ def register(data: schemas.UtilisateurCreate,
 
     # Notification e-mail au nouvel utilisateur pour l'informer qu'un compte a
     # ete cree a son nom. Envoi en arriere-plan pour ne pas ralentir la
-    # reponse HTTP a l'administrateur.
-    background_tasks.add_task(_envoyer_email_bienvenue, utilisateur, courant)
+    # reponse HTTP a l'administrateur. On passe des STRINGS et non l'objet ORM :
+    # la session SQLAlchemy est fermee avant que le background task ne s'execute,
+    # ce qui rendrait un acces .role/.nom impossible (DetachedInstanceError).
+    role_str = utilisateur.role.value if hasattr(utilisateur.role, "value") else str(utilisateur.role)
+    background_tasks.add_task(
+        _envoyer_email_bienvenue,
+        utilisateur.email,
+        utilisateur.nom or utilisateur.email.split("@")[0],
+        role_str,
+        courant.email,
+    )
 
     return utilisateur
 
 
-def _envoyer_email_bienvenue(utilisateur: models.Utilisateur,
-                             admin: models.Utilisateur) -> None:
+def _envoyer_email_bienvenue(email_dest: str,
+                             nom_affiche: str,
+                             role_str: str,
+                             email_admin: str) -> None:
     """Envoie un email de bienvenue au nouvel utilisateur."""
     dashboard_url = os.getenv("FRONTEND_URL", "https://si-env-ptua.pages.dev")
     libelles_role = {
@@ -194,17 +205,15 @@ def _envoyer_email_bienvenue(utilisateur: models.Utilisateur,
         "SPEC_ENV": "Spécialiste Suivi Environnemental",
         "SPEC_PAR": "Spécialiste Suivi du P.A.R",
     }
-    libelle = libelles_role.get(utilisateur.role.value if hasattr(utilisateur.role, "value")
-                                 else str(utilisateur.role), str(utilisateur.role))
-    nom_affiche = utilisateur.nom or utilisateur.email.split("@")[0]
+    libelle = libelles_role.get(role_str, role_str)
 
     sujet = "[SI-ENV] Bienvenue - votre compte a ete cree"
 
     texte = (
         f"SI-ENV AGEROUTE\n\n"
         f"Bonjour {nom_affiche},\n\n"
-        f"Un compte SI-ENV vient de vous etre attribue par {admin.email}.\n\n"
-        f"  Email        : {utilisateur.email}\n"
+        f"Un compte SI-ENV vient de vous etre attribue par {email_admin}.\n\n"
+        f"  Email        : {email_dest}\n"
         f"  Role         : {libelle}\n\n"
         f"Pour vous connecter la premiere fois, rendez-vous sur :\n"
         f"{dashboard_url}\n\n"
@@ -227,13 +236,13 @@ def _envoyer_email_bienvenue(utilisateur: models.Utilisateur,
         <tr><td style="padding:36px 36px 24px">
           <h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#0F172A">Bienvenue {nom_affiche}</h1>
           <p style="margin:0 0 24px;font-size:14px;color:#475569">
-            L'administrateur AGEROUTE ({admin.email}) vient de vous créer un
+            L'administrateur AGEROUTE ({email_admin}) vient de vous créer un
             compte sur le Système d'Information Environnemental du PTUA.
           </p>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;background:#F8FAFC;border-radius:10px;border:1px solid #E2E8F0">
             <tr>
               <td style="padding:12px 16px;font-size:12px;color:#64748B;border-bottom:1px solid #E2E8F0;width:35%">Adresse e-mail</td>
-              <td style="padding:12px 16px;font-size:13px;font-weight:600;color:#0F172A;border-bottom:1px solid #E2E8F0">{utilisateur.email}</td>
+              <td style="padding:12px 16px;font-size:13px;font-weight:600;color:#0F172A;border-bottom:1px solid #E2E8F0">{email_dest}</td>
             </tr>
             <tr>
               <td style="padding:12px 16px;font-size:12px;color:#64748B">Rôle attribué</td>
@@ -259,7 +268,7 @@ def _envoyer_email_bienvenue(utilisateur: models.Utilisateur,
   </table>
 </body></html>"""
 
-    envoyer_email(utilisateur.email, sujet, html, texte)
+    envoyer_email(email_dest, sujet, html, texte)
 
 
 @router.post("/login", response_model=schemas.Token)

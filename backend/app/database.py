@@ -32,26 +32,24 @@ def _nettoyer_url(url: str) -> str:
     return url
 
 
-# Le moteur de connexion. pool_pre_ping verifie que la connexion est vivante.
-engine = create_engine(_nettoyer_url(settings.DATABASE_URL), pool_pre_ping=True)
-
-
 # ── search_path pour PostGIS ──────────────────────────────────────────────
 # Sur Supabase, PostGIS est installe dans le schema `topology` (verifie via
 # verifier-supabase.yml). Le search_path par defaut (`public, extensions`) ne
-# le couvre pas, donc les appels a ST_MakePoint, ST_SetSRID, geometry, etc.
-# echouent avec « function does not exist ». On l'ajoute ici pour chaque
-# nouvelle connexion tiree du pool. `public` reste en tete pour que
-# `Base.metadata.create_all` continue de creer les tables applicatives dans le
-# bon schema.
-if engine.dialect.name == "postgresql":
-    @event.listens_for(engine, "connect")
-    def _forcer_search_path_postgis(dbapi_connection, _record):
-        curseur = dbapi_connection.cursor()
-        try:
-            curseur.execute("SET search_path TO public, topology, extensions")
-        finally:
-            curseur.close()
+# le couvre pas, donc les appels a ST_MakePoint, ST_SetSRID, ST_AsEWKB, etc.
+# echouent avec « function does not exist ». On force le search_path via
+# l'option `-c search_path=...` transmise a psycopg2 : cette methode survit au
+# pgbouncer (transaction pooling) alors qu'un simple `SET search_path` ou meme
+# `ALTER DATABASE` peut etre ignore selon le mode de pool.
+_connect_args = {}
+if _nettoyer_url(settings.DATABASE_URL).startswith("postgresql"):
+    _connect_args["options"] = "-c search_path=public,topology,extensions"
+
+# Le moteur de connexion. pool_pre_ping verifie que la connexion est vivante.
+engine = create_engine(
+    _nettoyer_url(settings.DATABASE_URL),
+    pool_pre_ping=True,
+    connect_args=_connect_args,
+)
 
 # Fabrique de sessions : chaque requete HTTP ouvrira sa propre session.
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

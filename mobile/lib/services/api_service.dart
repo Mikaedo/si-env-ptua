@@ -44,6 +44,8 @@ class ApiService {
     await prefs.remove('role');
     await prefs.remove('premiere_connexion');
     await prefs.remove('user_profil');
+    await prefs.remove('cache_stats');
+    await prefs.remove('cache_signalements');
   }
 
   Map<String, String> get _headers => {
@@ -205,6 +207,13 @@ class ApiService {
         .get(uri, headers: _headers)
         .timeout(const Duration(seconds: 20));
     if (res.statusCode == 200) {
+      // Ne met en cache que la liste "sans filtre" : evite d'ecraser le
+      // cache avec un sous-ensemble filtre qui donnerait une vue partielle
+      // au prochain demarrage.
+      if (params.isEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('cache_signalements', res.body);
+      }
       final list = jsonDecode(res.body) as List;
       return list.map((e) => Signalement.fromJson(e)).toList();
     }
@@ -274,12 +283,44 @@ class ApiService {
     }
   }
 
+  /// Statistiques mises en cache local pour un affichage instantane a
+  /// l'ouverture de l'ecran Stats. Peuvent etre datees de quelques secondes ;
+  /// le rafraichissement se fait en arriere-plan via getStatistiques().
+  Future<Statistiques?> statistiquesEnCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('cache_stats');
+    if (raw == null) return null;
+    try {
+      return Statistiques.fromJson(jsonDecode(raw));
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Statistiques> getStatistiques() async {
-    final res = await http.get(Uri.parse('$kApiBaseUrl/stats'), headers: _headers);
+    final res = await http
+        .get(Uri.parse('$kApiBaseUrl/stats'), headers: _headers)
+        .timeout(const Duration(seconds: 15));
     if (res.statusCode == 200) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cache_stats', res.body);
       return Statistiques.fromJson(jsonDecode(res.body));
     }
     throw Exception('Erreur recuperation statistiques');
+  }
+
+  /// Signalements en cache : liste JSON complete du dernier appel reussi
+  /// sans filtre (les filtres restent traites cote serveur).
+  Future<List<Signalement>?> signalementsEnCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('cache_signalements');
+    if (raw == null) return null;
+    try {
+      final list = jsonDecode(raw) as List;
+      return list.map((e) => Signalement.fromJson(e)).toList();
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<Map<String, dynamic>> uploadPhoto(int signalementId, String filePath) async {

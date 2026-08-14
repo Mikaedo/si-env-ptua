@@ -73,7 +73,20 @@ class SignalementBloc extends Bloc<SignalementEvent, SignalementState> {
 
   SignalementBloc(this._api) : super(SignalementInitial()) {
     on<LoadSignalements>((event, emit) async {
-      emit(SignalementLoading());
+      // Stale-while-revalidate : si un cache local existe et qu'on charge
+      // la liste sans filtre, on l'affiche instantanement puis on rafraichit
+      // depuis le serveur en arriere-plan. Zero latence percue.
+      final sansFiltre = event.statut == null &&
+          event.criticite == null &&
+          event.typeNuisance == null &&
+          event.chantierId == null &&
+          event.periodeJours == null;
+      if (sansFiltre) {
+        final cache = await _api.signalementsEnCache();
+        if (cache != null) emit(SignalementsLoaded(cache));
+      } else {
+        emit(SignalementLoading());
+      }
       try {
         final list = await _api.getSignalements(
           statut: event.statut,
@@ -84,7 +97,11 @@ class SignalementBloc extends Bloc<SignalementEvent, SignalementState> {
         );
         emit(SignalementsLoaded(list));
       } catch (e) {
-        emit(SignalementError(e.toString().replaceFirst('Exception: ', '')));
+        // Si un cache a deja ete affiche, on garde l'affichage (pas d'erreur
+        // ecran) : mieux vaut des donnees potentiellement datees que rien.
+        if (state is! SignalementsLoaded) {
+          emit(SignalementError(e.toString().replaceFirst('Exception: ', '')));
+        }
       }
     });
 

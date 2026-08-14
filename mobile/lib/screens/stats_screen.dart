@@ -32,15 +32,24 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
   }
 
   Future<void> _loadStats() async {
-    setState(() { _loading = true; _hasError = false; });
+    // 1) Affichage instantane depuis le cache : plus de spinner visible si
+    //    l'ecran a deja ete ouvert au moins une fois.
+    final cache = await ApiService().statistiquesEnCache();
+    if (cache != null && mounted) {
+      setState(() { _stats = cache; _loading = false; _hasError = false; });
+      _animCtrl.forward(from: 0);
+    } else if (mounted) {
+      setState(() { _loading = true; _hasError = false; });
+    }
+    // 2) Rafraichissement silencieux depuis le serveur.
     try {
       final s = await ApiService().getStatistiques();
       if (!mounted) return;
-      setState(() { _stats = s; _loading = false; });
-      _animCtrl.forward(from: 0);
+      setState(() { _stats = s; _loading = false; _hasError = false; });
+      if (cache == null) _animCtrl.forward(from: 0);
     } catch (e) {
       debugPrint('Stats error: $e');
-      if (mounted) setState(() { _loading = false; _hasError = true; });
+      if (mounted && _stats == null) setState(() { _loading = false; _hasError = true; });
     }
   }
 

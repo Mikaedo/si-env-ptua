@@ -42,6 +42,11 @@ def executer_seed() -> None:
             ("Spec. Env", "spec.env@ageroute.ci", "spec123", models.RoleEnum.SPEC_ENV, False),
             ("Spec. P.A.R", "spec.par@ageroute.ci", "spec123", models.RoleEnum.SPEC_PAR, False),
             ("Agent nouvelle recrue", "nouveau@ageroute.ci", None, models.RoleEnum.RESP_ENV, True),
+            # Organismes de controle, en consultation seule. L'ANDE exerce la
+            # tutelle environnementale nationale, la BAD finance le programme
+            # et verifie le respect de ses sauvegardes operationnelles.
+            ("Contrôleur ANDE", "controle@ande.ci", "ande123", models.RoleEnum.ANDE, False),
+            ("Mission BAD", "mission@afdb.org", "bad123", models.RoleEnum.BAD, False),
         ]
         for nom, email, mdp, role, premiere in users_data:
             if not db.query(models.Utilisateur).filter_by(email=email).first():
@@ -71,6 +76,24 @@ def executer_seed() -> None:
                     geom=func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326),
                 ))
                 print(f"Chantier cree : {nom}")
+
+        # --- Site de demonstration ---
+        # L'application citoyenne n'ouvre l'inscription qu'aux riverains, en
+        # comparant la position du telephone au rayon d'influence du chantier
+        # le plus proche. Cette regle, indispensable en exploitation, rendrait
+        # toute demonstration impossible ailleurs qu'au pied des travaux. Ce
+        # site couvre donc volontairement un rayon tres large, ce qui permet de
+        # derouler le parcours complet depuis une salle de soutenance. Il est
+        # identifie comme tel et l'administrateur peut le retirer en une action
+        # avant une mise en service reelle.
+        if not db.query(models.Chantier).filter_by(nom="Site de démonstration").first():
+            db.add(models.Chantier(
+                nom="Site de démonstration",
+                commune="Abidjan",
+                geom=func.ST_SetSRID(func.ST_MakePoint(-4.008, 5.345), 4326),
+                rayon_influence_m=500_000,
+            ))
+            print("Chantier cree : Site de démonstration (rayon elargi)")
         db.commit()
 
         # --- Signalements de demo ---

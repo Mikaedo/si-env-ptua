@@ -21,7 +21,7 @@ import os
 
 from .config import settings
 from .database import Base, engine
-from .routers import auth_router, signalements_router, chantiers_router, alertes_router, stats_router, satellite_router, rapports_router, plaintes_router, admin_router
+from .routers import auth_router, signalements_router, chantiers_router, alertes_router, stats_router, satellite_router, rapports_router, plaintes_router, admin_router, citoyen_router
 from .services import erreur_service
 
 # Cree l'application avec un titre visible dans la doc Swagger
@@ -219,6 +219,7 @@ app.include_router(satellite_router.router)
 app.include_router(rapports_router.router)
 app.include_router(plaintes_router.router)
 app.include_router(admin_router.router)
+app.include_router(citoyen_router.router)
 
 # Sert les photos uploadees depuis le mobile.
 # En mode Supabase Storage, les octets sont servis par Supabase et le montage

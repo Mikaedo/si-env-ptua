@@ -6,7 +6,7 @@ Schemas Pydantic : structure des messages JSON echanges avec le client.
 from datetime import datetime
 from typing import Optional, List
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from .models import RoleEnum, StatutSignalement, CriticiteEnum
 
@@ -221,6 +221,7 @@ class ChantierOut(BaseModel):
     nom: str
     commune: Optional[str]
     geom: Optional[GeoPoint] = None
+    rayon_influence_m: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -247,6 +248,9 @@ class AlerteSeuilCreate(BaseModel):
     seuil: float
     niveau: str = "WARNING"
     actif: bool = True
+    # Laisse vide, le seuil vaut pour tous les chantiers. Renseigne, il ne
+    # s'applique qu'a celui-ci.
+    chantier_id: Optional[int] = None
 
 
 class AlerteSeuilOut(AlerteSeuilCreate):
@@ -304,3 +308,60 @@ class Statistiques(BaseModel):
     taux_traitement: float
     repartition: dict
     evolution: dict
+
+
+# ---------- Application citoyenne ----------
+class PositionGps(BaseModel):
+    """Position relevee par le telephone du riverain."""
+    latitude: float
+    longitude: float
+
+
+class ZoneVerifiee(BaseModel):
+    """Verdict rendu avant l'inscription d'un riverain.
+
+    On renvoie la distance et le rayon en plus du simple verdict : quand
+    l'acces est refuse, la personne merite de savoir de combien elle se trouve
+    hors du perimetre plutot que de se heurter a un refus sans explication.
+    """
+    autorise: bool
+    chantier_id: int
+    chantier_nom: str
+    commune: Optional[str] = None
+    distance_m: int
+    rayon_m: int
+
+
+class InscriptionCitoyen(BaseModel):
+    nom: str
+    email: EmailStr
+    mot_de_passe: str = Field(min_length=8)
+    telephone: Optional[str] = None
+    latitude: float
+    longitude: float
+
+
+class DoleanceCreate(BaseModel):
+    """Depot d'une doleance depuis l'application citoyenne.
+
+    Le vocabulaire des categories est volontairement celui d'un habitant et
+    non celui d'un technicien : personne ne se plaint spontanement d'un
+    depassement de seuil de particules, on se plaint de poussiere.
+    """
+    description: str = Field(min_length=5)
+    categorie: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+
+class DoleanceOut(BaseModel):
+    id: int
+    description: str
+    categorie: Optional[str] = None
+    statut: str
+    cree_le: datetime
+    chantier_id: Optional[int] = None
+    canal: Optional[str] = None
+
+    class Config:
+        from_attributes = True

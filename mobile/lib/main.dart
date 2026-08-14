@@ -10,6 +10,14 @@ import 'blocs/sync/sync_bloc.dart';
 import 'screens/nouveau_signalement_screen.dart';
 import 'screens/alertes_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/login_screen.dart';
+
+/// Cle du navigateur racine.
+///
+/// Elle permet de declencher une navigation depuis un endroit qui n'a pas de
+/// BuildContext sous un Navigator, ce qui est le cas du listener global place
+/// au-dessus du MaterialApp.
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,7 +38,21 @@ class SiEnvApp extends StatelessWidget {
         BlocProvider(create: (_) => SignalementBloc(api)),
         BlocProvider(create: (_) => SyncBloc(api, LocalDatabase())),
       ],
-      child: MaterialApp(
+      // Listener global de deconnexion. Il vit au-dessus du MaterialApp, donc
+      // il reste monte quel que soit l'ecran affiche : la deconnexion demandee
+      // depuis le profil, les parametres ou n'importe ou ailleurs ramene
+      // toujours a l'ecran de connexion, en vidant la pile de navigation pour
+      // qu'un retour arriere ne reouvre pas une session fermee.
+      child: BlocListener<AuthBloc, AuthState>(
+        listenWhen: (_, etat) => etat is AuthLoggedOut,
+        listener: (contexte, etat) {
+          navigatorKey.currentState?.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (route) => false,
+          );
+        },
+        child: MaterialApp(
+        navigatorKey: navigatorKey,
         title: 'SI-ENV',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
@@ -129,6 +151,7 @@ class SiEnvApp extends StatelessWidget {
           '/nouveau-signalement': (_) => const NouveauSignalementScreen(typeNuisance: 'Déchets de chantier'),
           '/alertes': (_) => const AlertesScreen(),
         },
+        ),
       ),
     );
   }

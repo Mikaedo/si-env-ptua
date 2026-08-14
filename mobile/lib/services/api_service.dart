@@ -108,14 +108,34 @@ class ApiService {
   }
 
   Future<void> changePassword(String oldPassword, String newPassword) async {
-    final res = await http.post(
-      Uri.parse('$kApiBaseUrl/auth/change-password'),
-      headers: _headers,
-      body: jsonEncode({'ancien_mot_de_passe': oldPassword, 'nouveau_mot_de_passe': newPassword}),
-    );
-    if (res.statusCode != 200) {
-      throw Exception('Erreur changement mot de passe');
+    final res = await http
+        .post(
+          Uri.parse('$kApiBaseUrl/auth/change-password'),
+          headers: _headers,
+          body: jsonEncode({
+            'ancien_mot_de_passe': oldPassword,
+            'nouveau_mot_de_passe': newPassword,
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
+    if (res.statusCode == 200) return;
+    // Le serveur renvoie un motif precis ("Ancien mot de passe incorrect").
+    // L'ecraser par un texte generique laissait l'utilisateur devant un echec
+    // inexplicable, d'ou l'impression que la fonction ne marchait pas.
+    throw Exception(_messageErreur(res, 'Erreur changement mot de passe'));
+  }
+
+  /// Extrait le champ `detail` renvoye par FastAPI, avec repli sur un libelle
+  /// par defaut si le corps n'est pas exploitable.
+  String _messageErreur(http.Response res, String defaut) {
+    try {
+      final corps = jsonDecode(res.body);
+      final detail = corps is Map ? corps['detail'] : null;
+      if (detail is String && detail.isNotEmpty) return detail;
+    } catch (_) {
+      // Corps non JSON : on retombe sur le libelle par defaut.
     }
+    return defaut;
   }
 
   Future<Map<String, dynamic>> forgotPassword(String email) async {

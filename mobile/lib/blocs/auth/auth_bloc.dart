@@ -37,6 +37,14 @@ class AuthError extends AuthState {
   AuthError(this.message);
 }
 
+/// Etat distinct de AuthInitial : il signale une deconnexion VOLONTAIRE.
+///
+/// AuthInitial est aussi emis au demarrage quand aucun jeton n'est stocke, et
+/// c'est le splash qui s'en charge. Sans cet etat separe, le listener global de
+/// main.dart se declencherait aussi au lancement de l'application et entrerait
+/// en conflit avec la navigation du splash.
+class AuthLoggedOut extends AuthState {}
+
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final ApiService _api;
 
@@ -84,7 +92,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     on<LogoutRequested>((event, emit) async {
       await _api.clearToken();
-      emit(AuthInitial());
+      emit(AuthLoggedOut());
     });
   }
 }

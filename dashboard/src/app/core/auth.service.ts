@@ -51,6 +51,33 @@ export class AuthService {
     );
   }
 
+  /**
+   * Deuxieme temps de la premiere connexion.
+   *
+   * Le premier temps est un appel a login() : quand le compte n'a pas encore
+   * de mot de passe, le serveur delivre un jeton sans rien verifier, ce qui
+   * autorise l'appel ci-dessous. L'utilisateur y depose son nom, son telephone
+   * et le mot de passe qu'il choisit.
+   */
+  firstLogin(nom: string, telephone: string, motDePasse: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${API_URL}/auth/first-login`, {
+      nom,
+      telephone,
+      mot_de_passe: motDePasse,
+    }).pipe(
+      tap(res => {
+        localStorage.setItem(TOKEN_KEY, res.access_token);
+        const brut = localStorage.getItem(USER_KEY);
+        const user: User = brut ? JSON.parse(brut) : ({} as User);
+        user.nom = nom;
+        user.role = res.role as User['role'];
+        user.premiere_connexion = false;
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+        this._user.set(user);
+      })
+    );
+  }
+
   logout(): void {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);

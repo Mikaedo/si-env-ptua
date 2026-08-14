@@ -9,6 +9,14 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/login/login').then(m => m.Login),
   },
   {
+    // Cible du lien envoye dans le courriel de bienvenue. Volontairement
+    // placee hors du shell protege : la page doit rester accessible meme
+    // lorsqu'aucune session valide n'existe, et elle ferme d'elle-meme celle
+    // qui serait deja ouverte dans le navigateur.
+    path: 'premiere-connexion',
+    loadComponent: () => import('./pages/premiere-connexion/premiere-connexion').then(m => m.PremiereConnexion),
+  },
+  {
     path: '',
     canActivate: [authGuard],
     loadComponent: () => import('./layout/shell').then(m => m.Shell),

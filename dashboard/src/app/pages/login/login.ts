@@ -127,8 +127,13 @@ export class Login {
       next: (res) => {
         this.loading.set(false);
         if (res.premiere_connexion) {
-          this.error.set('Première connexion — veuillez utiliser l\'application mobile pour compléter votre profil.');
+          // Un compte web n'a pas forcement d'homologue mobile : renvoyer
+          // l'utilisateur vers le telephone le laissait sans issue. On
+          // l'oriente desormais vers le parcours d'activation du tableau
+          // de bord, en lui evitant de ressaisir son adresse.
+          const adresse = this.email().trim();
           this.auth.logout();
+          this.router.navigate(['/premiere-connexion'], { queryParams: { email: adresse } });
           return;
         }
         if (!allowedRoles.includes(res.role)) {

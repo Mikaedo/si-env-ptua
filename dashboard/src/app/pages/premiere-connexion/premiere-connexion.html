@@ -1,0 +1,126 @@
+<div class="pc-wrapper">
+  <div class="pc-bg"></div>
+  <div class="pc-overlay"></div>
+
+  <div class="pc-content">
+    <div class="pc-brand">
+      <div class="pc-logo">SE</div>
+      <div class="pc-brand-name">SI-ENV</div>
+      <div class="pc-brand-sub">Système d'Information Environnemental · PTUA</div>
+    </div>
+
+    <div class="pc-card">
+
+      <!-- Étape 0 : identification -->
+      @if (etape() === 0) {
+        <div class="pc-step-tag">Étape 1 sur 2</div>
+        <h1 class="pc-title">Activation de votre compte</h1>
+        <p class="pc-lead">
+          Un compte a été créé à votre nom sur la plateforme AGEROUTE.
+          Confirmez votre adresse pour poursuivre.
+        </p>
+
+        <label class="pc-label">Adresse e-mail</label>
+        <div class="pc-field">
+          <lucide-icon [img]="Mail" size="17"></lucide-icon>
+          <input type="email" [value]="email()" (input)="email.set($any($event.target).value)"
+                 (keyup.enter)="verifierAdresse()" placeholder="prenom.nom@ageroute.ci" autocomplete="email" />
+        </div>
+
+        @if (erreur()) {
+          <div class="pc-error">
+            <lucide-icon [img]="AlertCircle" size="15"></lucide-icon>
+            <span>{{ erreur() }}</span>
+          </div>
+        }
+
+        <button class="pc-btn" (click)="verifierAdresse()" [disabled]="chargement()">
+          @if (chargement()) { <span>Vérification...</span> }
+          @else {
+            <span>Continuer</span>
+            <lucide-icon [img]="ArrowRight" size="17"></lucide-icon>
+          }
+        </button>
+      }
+
+      <!-- Étape 1 : informations et mot de passe -->
+      @if (etape() === 1) {
+        <div class="pc-step-tag">Étape 2 sur 2</div>
+        <h1 class="pc-title">Complétez votre profil</h1>
+        <p class="pc-lead">
+          Renseignez vos informations et choisissez le mot de passe
+          qui protégera votre compte.
+        </p>
+
+        <label class="pc-label">Nom complet</label>
+        <div class="pc-field">
+          <lucide-icon [img]="User" size="17"></lucide-icon>
+          <input type="text" [value]="nom()" (input)="nom.set($any($event.target).value)"
+                 placeholder="Votre nom et prénom" autocomplete="name" />
+        </div>
+
+        <label class="pc-label">Téléphone <span class="pc-optional">facultatif</span></label>
+        <div class="pc-field">
+          <lucide-icon [img]="Phone" size="17"></lucide-icon>
+          <input type="tel" [value]="telephone()" (input)="telephone.set($any($event.target).value)"
+                 placeholder="07 00 00 00 00" autocomplete="tel" />
+        </div>
+
+        <label class="pc-label">Mot de passe</label>
+        <div class="pc-field">
+          <lucide-icon [img]="Lock" size="17"></lucide-icon>
+          <input [type]="afficherMotDePasse() ? 'text' : 'password'"
+                 [value]="motDePasse()" (input)="motDePasse.set($any($event.target).value)"
+                 placeholder="8 caractères minimum" autocomplete="new-password" />
+          <button type="button" class="pc-eye" (click)="afficherMotDePasse.set(!afficherMotDePasse())">
+            <lucide-icon [img]="afficherMotDePasse() ? EyeOff : Eye" size="17"></lucide-icon>
+          </button>
+        </div>
+
+        <label class="pc-label">Confirmation</label>
+        <div class="pc-field">
+          <lucide-icon [img]="Lock" size="17"></lucide-icon>
+          <input [type]="afficherMotDePasse() ? 'text' : 'password'"
+                 [value]="confirmation()" (input)="confirmation.set($any($event.target).value)"
+                 (keyup.enter)="activerCompte()" placeholder="Saisissez à nouveau le mot de passe"
+                 autocomplete="new-password" />
+        </div>
+
+        @if (erreur()) {
+          <div class="pc-error">
+            <lucide-icon [img]="AlertCircle" size="15"></lucide-icon>
+            <span>{{ erreur() }}</span>
+          </div>
+        }
+
+        <button class="pc-btn" (click)="activerCompte()" [disabled]="chargement()">
+          @if (chargement()) { <span>Activation...</span> }
+          @else { <span>Activer mon compte</span> }
+        </button>
+      }
+
+      <!-- Étape 2 : confirmation -->
+      @if (etape() === 2) {
+        <div class="pc-success">
+          <div class="pc-success-icon">
+            <lucide-icon [img]="CheckCircle2" size="30"></lucide-icon>
+          </div>
+          <h1 class="pc-title">Compte activé</h1>
+          <p class="pc-lead">
+            Votre mot de passe est enregistré. Vous allez être redirigé
+            vers la page de connexion.
+          </p>
+        </div>
+      }
+
+      @if (etape() !== 2) {
+        <button class="pc-link" (click)="retourConnexion()">Retour à la connexion</button>
+      }
+    </div>
+
+    <div class="pc-footer">
+      AGEROUTE · Agence de Gestion des Routes<br />
+      Projet de Transport Urbain d'Abidjan
+    </div>
+  </div>
+</div>

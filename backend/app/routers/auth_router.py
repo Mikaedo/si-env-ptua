@@ -12,6 +12,8 @@ Endpoints d'authentification :
 - POST /auth/reset-password : definir un nouveau mot de passe avec le code
 """
 import os
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -207,6 +209,14 @@ def _envoyer_email_bienvenue(email_dest: str,
     }
     libelle = libelles_role.get(role_str, role_str)
 
+    # Le lien vise la page d'activation et non la racine du tableau de bord.
+    # Pointer vers la racine renvoyait l'utilisateur sur la session deja
+    # ouverte dans son navigateur au lieu de son propre parcours.
+    lien_activation = (
+        f"{dashboard_url}/premiere-connexion"
+        f"?email={quote(email_dest, safe='')}"
+    )
+
     sujet = "[SI-ENV] Bienvenue - votre compte a ete cree"
 
     texte = (
@@ -215,9 +225,9 @@ def _envoyer_email_bienvenue(email_dest: str,
         f"Un compte SI-ENV vient de vous etre attribue par {email_admin}.\n\n"
         f"  Email        : {email_dest}\n"
         f"  Role         : {libelle}\n\n"
-        f"Pour vous connecter la premiere fois, rendez-vous sur :\n"
-        f"{dashboard_url}\n\n"
-        f"Il vous sera demande de definir votre mot de passe.\n\n"
+        f"Pour activer votre compte et definir votre mot de passe,\n"
+        f"rendez-vous sur :\n"
+        f"{lien_activation}\n\n"
         f"--\n"
         f"AGEROUTE - Projet de Transport Urbain d'Abidjan\n"
     )
@@ -250,12 +260,12 @@ def _envoyer_email_bienvenue(email_dest: str,
             </tr>
           </table>
           <p style="margin:0 0 20px;font-size:14px;color:#475569">
-            Rendez-vous sur le tableau de bord et cliquez sur « Première
-            connexion » pour définir votre mot de passe.
+            Cliquez sur le bouton ci-dessous pour activer votre compte
+            et choisir votre mot de passe.
           </p>
           <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto" align="center">
             <tr><td style="background:#F37021;border-radius:10px">
-              <a href="{dashboard_url}" style="display:inline-block;padding:12px 28px;color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;border-radius:10px">Accéder au tableau de bord</a>
+              <a href="{lien_activation}" style="display:inline-block;padding:12px 28px;color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;border-radius:10px">Activer mon compte</a>
             </td></tr>
           </table>
         </td></tr>

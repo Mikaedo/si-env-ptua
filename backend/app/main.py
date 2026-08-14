@@ -10,13 +10,16 @@ Il fait 3 choses :
 """
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from jose import JWTError, jwt
 from sqlalchemy import text
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 import os
 
+from .config import settings
 from .database import Base, engine
 from .routers import auth_router, signalements_router, chantiers_router, alertes_router, stats_router, satellite_router, rapports_router, plaintes_router, admin_router
 from .services import erreur_service
@@ -49,6 +52,58 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── Consultation seule pour l'ANDE et la BAD ──────────────────────────────
+# Le regulateur national et le bailleur consultent le dispositif sans jamais
+# y ecrire. La restriction est posee en amont du routage plutot que sur chaque
+# operation : un endpoint ajoute plus tard sera couvert d'office, alors qu'une
+# dependance a repeter finit toujours par etre oubliee quelque part. Masquer
+# les boutons dans le tableau de bord ne suffirait pas, une requete construite
+# a la main contournerait l'interface.
+_METHODES_ECRITURE = {"POST", "PUT", "PATCH", "DELETE"}
+
+# Operations qui touchent au compte de la personne elle-meme, et non aux
+# donnees du projet. Les interdire enfermerait un consultant hors de sa
+# propre session.
+_CHEMINS_TOLERES = {
+    "/auth/login",
+    "/auth/logout",
+    "/auth/refresh",
+    "/auth/first-login",
+    "/auth/change-password",
+    "/auth/forgot",
+    "/auth/verify-code",
+    "/auth/reset-password",
+    "/auth/2fa/verifier",
+    "/auth/2fa/configurer",
+}
+
+
+@app.middleware("http")
+async def restreindre_consultation(request: Request, call_next):
+    if request.method in _METHODES_ECRITURE and request.url.path not in _CHEMINS_TOLERES:
+        entete = request.headers.get("authorization", "")
+        if entete.lower().startswith("bearer "):
+            try:
+                charge = jwt.decode(
+                    entete.split(" ", 1)[1],
+                    settings.SECRET_KEY,
+                    algorithms=[settings.ALGORITHM],
+                )
+                if charge.get("role") in {"ANDE", "BAD"}:
+                    return JSONResponse(
+                        status_code=403,
+                        content={
+                            "detail": "Votre profil donne un acces en consultation. "
+                                      "La modification des donnees releve des equipes AGEROUTE."
+                        },
+                    )
+            except JWTError:
+                # Jeton illisible : ce n'est pas a ce middleware de trancher,
+                # la dependance d'authentification renverra un 401 en aval.
+                pass
+    return await call_next(request)
 
 
 @app.on_event("startup")
@@ -97,6 +152,49 @@ def au_demarrage():
     _ajouter_colonne_si_absente(
         "utilisateurs", "twofa_email_actif", "BOOLEAN NOT NULL DEFAULT FALSE"
     )
+
+    # Colonnes introduites avec les huit profils et le canal citoyen. Le meme
+    # mecanisme idempotent s'applique : create_all cree les tables absentes
+    # mais ne touche jamais a celles qui existent deja, or la base de production
+    # porte des donnees qu'il n'est pas question de reconstruire.
+    _ajouter_colonne_si_absente(
+        "chantiers", "rayon_influence_m", "INTEGER NOT NULL DEFAULT 1500"
+    )
+    _ajouter_colonne_si_absente(
+        "utilisateurs", "chantier_rattachement_id", "INTEGER"
+    )
+    _ajouter_colonne_si_absente(
+        "alertes_seuils", "chantier_id", "INTEGER"
+    )
+    for nom_colonne, definition in (
+        ("plaignant_id", "INTEGER"),
+        ("categorie", "VARCHAR(40)"),
+        ("photo_chemin", "VARCHAR(255)"),
+        ("canal", "VARCHAR(20) DEFAULT 'GUICHET'"),
+    ):
+        _ajouter_colonne_si_absente("plaintes", nom_colonne, definition)
+
+    # La colonne geometrique passe par le type PostGIS, absent sous SQLite ou
+    # les tests tournent. On la traite donc a part, sans faire echouer le
+    # demarrage si le dialecte ne la comprend pas.
+    if engine.dialect.name == "postgresql":
+        _ajouter_colonne_si_absente(
+            "plaintes", "geom", "geometry(Point, 4326)"
+        )
+
+    # Les trois nouveaux profils doivent exister dans le type enumere cote
+    # PostgreSQL, sans quoi toute insertion les mentionnant serait rejetee.
+    # ADD VALUE IF NOT EXISTS est rejoue sans risque a chaque demarrage.
+    if engine.dialect.name == "postgresql":
+        with engine.connect() as conn:
+            for valeur in ("ANDE", "BAD", "PLAIGNANT"):
+                try:
+                    conn.execute(
+                        text(f"ALTER TYPE roleenum ADD VALUE IF NOT EXISTS '{valeur}'")
+                    )
+                    conn.commit()
+                except Exception as e:  # pragma: no cover
+                    logger.warning("ALTER TYPE roleenum %s : %s", valeur, e)
 
     # 3) Seed idempotent, uniquement si demande explicitement. Utile pour un
     # premier bootstrap sur une base neuve (Supabase, HF Spaces).

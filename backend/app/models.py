@@ -15,11 +15,40 @@ from .database import Base
 
 
 class RoleEnum(str, enum.Enum):
+    """Les huit profils du dispositif de suivi environnemental du PTUA.
+
+    Les cinq premiers correspondent aux intervenants operationnels du projet,
+    ceux qui produisent ou traitent l'information. Les trois derniers ont ete
+    ajoutes pour refleter la gouvernance reelle du programme : le regulateur
+    national et le bailleur consultent sans jamais ecrire, et les riverains
+    alimentent le mecanisme de gestion des plaintes depuis leur telephone.
+    """
     RESP_ENV = "RESP_ENV"
     EXPERT_HSE = "EXPERT_HSE"
     SPEC_ENV = "SPEC_ENV"
     SPEC_PAR = "SPEC_PAR"
     ADMIN = "ADMIN"
+    ANDE = "ANDE"              # Agence Nationale de l'Environnement
+    BAD = "BAD"                # Banque Africaine de Developpement
+    PLAIGNANT = "PLAIGNANT"    # Riverain d'un chantier
+
+
+#: Profils autorises a lire sans jamais pouvoir modifier quoi que ce soit.
+#: La restriction est appliquee par une dependance FastAPI, donc elle tient
+#: meme si une requete est forgee en dehors du tableau de bord.
+ROLES_LECTURE_SEULE = {RoleEnum.ANDE, RoleEnum.BAD}
+
+#: Profils qui accedent au tableau de bord web.
+ROLES_WEB = {
+    RoleEnum.ADMIN, RoleEnum.SPEC_ENV, RoleEnum.SPEC_PAR,
+    RoleEnum.ANDE, RoleEnum.BAD,
+}
+
+#: Profils qui accedent a l'application mobile des agents AGEROUTE.
+ROLES_MOBILE_AGENT = {RoleEnum.RESP_ENV, RoleEnum.EXPERT_HSE}
+
+#: Profil unique de l'application mobile citoyenne.
+ROLES_MOBILE_CITOYEN = {RoleEnum.PLAIGNANT}
 
 
 class StatutSignalement(str, enum.Enum):
@@ -48,8 +77,13 @@ class Utilisateur(Base):
     cree_le = Column(DateTime, default=datetime.utcnow)
     # Authentification a deux facteurs par email. Optionnelle par utilisateur.
     twofa_email_actif = Column(Boolean, default=False, nullable=False)
+    # Chantier de rattachement, renseigne uniquement pour les riverains. Il est
+    # determine automatiquement a l'inscription, a partir de la position GPS du
+    # telephone, et fige le perimetre dont la personne peut se plaindre.
+    chantier_rattachement_id = Column(Integer, ForeignKey("chantiers.id"), nullable=True)
 
     signalements = relationship("Signalement", back_populates="auteur")
+    chantier_rattachement = relationship("Chantier", foreign_keys=[chantier_rattachement_id])
 
 
 class Chantier(Base):
@@ -59,6 +93,13 @@ class Chantier(Base):
     nom = Column(String(150), nullable=False)
     commune = Column(String(100))
     geom = Column(Geometry(geometry_type="POINT", srid=4326))
+    # Rayon de la zone d'influence, en metres. Il traduit une notion que tout
+    # PGES manipule : l'aire autour du chantier dans laquelle les nuisances
+    # sont ressenties. Elle conditionne l'acces a l'application citoyenne, un
+    # riverain ne pouvant deposer de doleance que s'il se trouve a l'interieur.
+    # La valeur varie d'un chantier a l'autre : un terrassement lourd derange
+    # plus loin qu'une simple reprise de chaussee.
+    rayon_influence_m = Column(Integer, nullable=False, default=1500)
 
     signalements = relationship("Signalement", back_populates="chantier")
 
@@ -134,6 +175,15 @@ class NonConformite(Base):
 
 
 class Plainte(Base):
+    """Doleance enregistree au titre du Mecanisme de Gestion des Plaintes.
+
+    L'objet metier existait deja pour les plaintes recueillies au guichet ou
+    lors des reunions de riverains. Plutot que d'ouvrir une seconde table pour
+    les depots faits depuis l'application citoyenne, ce qui aurait introduit
+    deux representations concurrentes d'une meme realite, le telephone est
+    traite comme un canal de saisie supplementaire. Le specialiste du suivi
+    du P.A.R conserve ainsi une file unique, quelle que soit la provenance.
+    """
     __tablename__ = "plaintes"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -143,6 +193,24 @@ class Plainte(Base):
     statut = Column(String(20), default="OUVERTE")
     cree_le = Column(DateTime, default=datetime.utcnow)
     chantier_id = Column(Integer, ForeignKey("chantiers.id"))
+
+    # ── Champs propres au canal mobile ────────────────────────────────────
+    # Auteur du depot. Reste vide pour les plaintes saisies au guichet par un
+    # agent, ce qui preserve l'historique anterieur a l'application.
+    plaignant_id = Column(Integer, ForeignKey("utilisateurs.id"), nullable=True)
+    # Nature de la nuisance, choisie dans une liste courte pensee pour un
+    # habitant et non pour un technicien : bruit, poussiere, circulation, eau.
+    categorie = Column(String(40), nullable=True)
+    # Position relevee au moment du depot. Elle situe la nuisance elle-meme,
+    # qui n'est pas necessairement au domicile de la personne.
+    geom = Column(Geometry(geometry_type="POINT", srid=4326), nullable=True)
+    photo_chemin = Column(String(255), nullable=True)
+    # Provenance : GUICHET pour la saisie par un agent, MOBILE pour un depot
+    # citoyen. Permet de mesurer l'apport reel de l'application dans le rapport
+    # de sauvegardes remis au bailleur.
+    canal = Column(String(20), default="GUICHET")
+
+    plaignant = relationship("Utilisateur", foreign_keys=[plaignant_id])
 
 
 class AlerteSeuil(Base):
@@ -155,6 +223,14 @@ class AlerteSeuil(Base):
     niveau = Column(String(20), default="WARNING")
     actif = Column(Boolean, default=True)
     cree_le = Column(DateTime, default=datetime.utcnow)
+    # Portee du seuil. Laisse vide, il vaut pour l'ensemble des chantiers, ce
+    # qui etait le seul comportement possible auparavant. Renseigne, il ne
+    # s'applique qu'au chantier designe : deux chantiers voisins n'ont pas
+    # forcement la meme sensibilite, un ouvrage proche d'une zone humide
+    # justifie par exemple un seuil de turbidite plus severe.
+    chantier_id = Column(Integer, ForeignKey("chantiers.id"), nullable=True)
+
+    chantier = relationship("Chantier")
 
 
 class Journal(Base):

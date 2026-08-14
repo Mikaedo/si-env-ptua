@@ -149,7 +149,8 @@ def _tendance_label(t: str) -> str:
 
 @router.get("/chantiers", response_model=List[ChantierInfo])
 def get_chantiers(
-    _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN))
+    _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
+                                                     models.RoleEnum.ANDE, models.RoleEnum.BAD))
 ):
     """Liste des chantiers PTUA avec coordonnées GPS."""
     return [ChantierInfo(**c) for c in CHANTIERS]
@@ -158,7 +159,8 @@ def get_chantiers(
 @router.get("/indices", response_model=List[IndicePoint])
 def get_tous_indices(
     type_indice: Optional[str] = Query(None, description="NO2 | NDWI | NDVI | RISQUE_PLUIE"),
-    _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN))
+    _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
+                                                     models.RoleEnum.ANDE, models.RoleEnum.BAD))
 ):
     """Retourne les indices satellitaires courants (GEE temps réel) pour tous les chantiers."""
     from datetime import datetime
@@ -223,7 +225,8 @@ def get_tous_indices(
 def get_serie_temporelle(
     type_indice: str,
     chantier_id: int = Query(1, description="ID du chantier (1-6)"),
-    _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN))
+    _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
+                                                     models.RoleEnum.ANDE, models.RoleEnum.BAD))
 ):
     """
     Série temporelle mensuelle (2022→2026) pour un chantier donné.
@@ -257,7 +260,8 @@ def get_serie_temporelle(
 
 @router.get("/resume", response_model=ResumeSatellite)
 def get_resume(
-    _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN))
+    _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
+                                                     models.RoleEnum.ANDE, models.RoleEnum.BAD))
 ):
     """Résumé synthétique des indicateurs satellitaires (GEE temps réel)."""
     from datetime import datetime

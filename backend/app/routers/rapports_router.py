@@ -24,7 +24,8 @@ class RapportRequest(BaseModel):
 def generate_rapport(
     req: RapportRequest,
     db: Session = Depends(get_db),
-    current_user: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN))
+    current_user: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
+                                                     models.RoleEnum.ANDE, models.RoleEnum.BAD))
 ):
     """
     Génère le rapport PGES en PDF pour les chantiers et la période sélectionnés.

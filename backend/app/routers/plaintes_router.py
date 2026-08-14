@@ -8,7 +8,27 @@ router = APIRouter(prefix="/plaintes", tags=["Plaintes"])
 
 
 def _require_plainte_role(courant: models.Utilisateur = Depends(auth.utilisateur_courant)):
+    """Profils habilites a instruire une plainte."""
     if courant.role not in (models.RoleEnum.SPEC_PAR, models.RoleEnum.ADMIN):
+        raise HTTPException(status_code=403, detail="Accès réservé au suivi P.A.R")
+    return courant
+
+
+def _require_lecture_plainte(courant: models.Utilisateur = Depends(auth.utilisateur_courant)):
+    """Profils habilites a consulter la file des plaintes.
+
+    La Banque Africaine de Developpement s'y ajoute parce que le traitement des
+    doleances releve directement de sa sauvegarde operationnelle relative a la
+    reinstallation : c'est une piece qu'elle doit pouvoir verifier. L'Agence
+    Nationale de l'Environnement, dont le mandat porte sur la conformite
+    environnementale, n'y a en revanche pas acces.
+    """
+    autorises = (
+        models.RoleEnum.SPEC_PAR,
+        models.RoleEnum.ADMIN,
+        models.RoleEnum.BAD,
+    )
+    if courant.role not in autorises:
         raise HTTPException(status_code=403, detail="Accès réservé au suivi P.A.R")
     return courant
 
@@ -16,7 +36,7 @@ def _require_plainte_role(courant: models.Utilisateur = Depends(auth.utilisateur
 @router.get("", response_model=list[schemas.PlainteOut])
 def lister_plaintes(
     db: Session = Depends(get_db),
-    courant: models.Utilisateur = Depends(_require_plainte_role),
+    courant: models.Utilisateur = Depends(_require_lecture_plainte),
 ):
     return db.query(models.Plainte).order_by(models.Plainte.cree_le.desc()).all()
 

@@ -169,3 +169,47 @@ def chantier(db_session):
     db_session.commit()
     db_session.refresh(c)
     return c
+
+
+@pytest.fixture
+def ande_user(db_session):
+    """Agent de l'Agence Nationale de l'Environnement, en consultation seule."""
+    user = models.Utilisateur(
+        nom="Controleur ANDE",
+        email="controle@ande.ci",
+        mot_de_passe_hash=auth.hasher_mot_de_passe("ande123"),
+        role=models.RoleEnum.ANDE,
+        premiere_connexion=False,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+def bad_user(db_session):
+    """Charge de mission de la Banque Africaine de Developpement."""
+    user = models.Utilisateur(
+        nom="Mission BAD",
+        email="mission@afdb.org",
+        mot_de_passe_hash=auth.hasher_mot_de_passe("bad123"),
+        role=models.RoleEnum.BAD,
+        premiere_connexion=False,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+def ande_headers(ande_user):
+    jeton = auth.creer_token({"sub": str(ande_user.id), "role": ande_user.role.value})
+    return {"Authorization": f"Bearer {jeton}"}
+
+
+@pytest.fixture
+def bad_headers(bad_user):
+    jeton = auth.creer_token({"sub": str(bad_user.id), "role": bad_user.role.value})
+    return {"Authorization": f"Bearer {jeton}"}

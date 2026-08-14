@@ -18,6 +18,26 @@ def _admin_only(courant: models.Utilisateur = Depends(auth.utilisateur_courant))
     return courant
 
 
+def _parametrage_metier(courant: models.Utilisateur = Depends(auth.utilisateur_courant)):
+    """Profils habilites a definir les seuils de surveillance.
+
+    Fixer la valeur a partir de laquelle une concentration de dioxyde d'azote
+    devient preoccupante releve d'une appreciation environnementale, pas d'une
+    competence d'exploitation informatique. Ce parametrage revient donc au
+    specialiste du suivi environnemental, qui en repond devant l'ANDE et le
+    bailleur. L'administrateur conserve l'acces au titre de la continuite de
+    service, mais il n'est plus le seul, ni le destinataire naturel de cette
+    responsabilite.
+    """
+    autorises = (models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN)
+    if courant.role not in autorises:
+        raise HTTPException(
+            status_code=403,
+            detail="Le paramétrage environnemental relève du spécialiste du suivi environnemental.",
+        )
+    return courant
+
+
 def _journal(db: Session, message: str, utilisateur: models.Utilisateur, niveau: str = "INFO"):
     db.add(models.Journal(niveau=niveau, message=message, utilisateur=utilisateur.email))
 
@@ -102,7 +122,7 @@ def deployer_modele(
 
 
 @router.get("/seuils", response_model=list[schemas.AlerteSeuilOut])
-def lister_seuils(db: Session = Depends(get_db), _: models.Utilisateur = Depends(_admin_only)):
+def lister_seuils(db: Session = Depends(get_db), _: models.Utilisateur = Depends(_parametrage_metier)):
     return db.query(models.AlerteSeuil).order_by(models.AlerteSeuil.indicateur).all()
 
 
@@ -110,7 +130,7 @@ def lister_seuils(db: Session = Depends(get_db), _: models.Utilisateur = Depends
 def creer_seuil(
     data: schemas.AlerteSeuilCreate,
     db: Session = Depends(get_db),
-    courant: models.Utilisateur = Depends(_admin_only),
+    courant: models.Utilisateur = Depends(_parametrage_metier),
 ):
     seuil = models.AlerteSeuil(**data.model_dump())
     db.add(seuil)
@@ -125,7 +145,7 @@ def modifier_seuil(
     seuil_id: int,
     data: schemas.AlerteSeuilCreate,
     db: Session = Depends(get_db),
-    courant: models.Utilisateur = Depends(_admin_only),
+    courant: models.Utilisateur = Depends(_parametrage_metier),
 ):
     seuil = db.query(models.AlerteSeuil).filter(models.AlerteSeuil.id == seuil_id).first()
     if not seuil:
@@ -142,7 +162,7 @@ def modifier_seuil(
 def supprimer_seuil(
     seuil_id: int,
     db: Session = Depends(get_db),
-    courant: models.Utilisateur = Depends(_admin_only),
+    courant: models.Utilisateur = Depends(_parametrage_metier),
 ):
     seuil = db.query(models.AlerteSeuil).filter(models.AlerteSeuil.id == seuil_id).first()
     if not seuil:

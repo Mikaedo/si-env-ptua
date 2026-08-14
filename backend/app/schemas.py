@@ -214,6 +214,10 @@ class ChantierCreate(BaseModel):
     commune: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    # Etendue de la zone d'influence, en metres. Elle conditionne l'acces des
+    # riverains a l'application citoyenne. A defaut, 1500 m, ordre de grandeur
+    # d'une zone d'influence directe pour des travaux routiers urbains.
+    rayon_influence_m: Optional[int] = Field(default=None, ge=100, le=500_000)
 
 
 class ChantierOut(BaseModel):

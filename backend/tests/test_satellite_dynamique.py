@@ -151,3 +151,67 @@ class TestAccesApi:
     def test_un_agent_de_terrain_n_y_accede_pas(self, client, agent_headers):
         reponse = client.get("/satellite/chantiers", headers=agent_headers)
         assert reponse.status_code == 403
+
+
+class TestResponsabiliteDuParametrage:
+    """A qui revient la configuration environnementale.
+
+    Le decoupage initial confiait a l'administrateur le referentiel des
+    chantiers et les seuils d'alerte. C'est un contresens metier : decider a
+    partir de quelle concentration une mesure devient preoccupante, ou quelle
+    etendue retenir autour d'un ouvrage, releve d'une appreciation
+    environnementale et non d'une competence d'exploitation informatique. Ces
+    decisions reviennent au specialiste du suivi environnemental, qui en repond
+    devant l'agence nationale et devant le bailleur.
+    """
+
+    def test_le_specialiste_cree_un_chantier(self, client, spec_env_headers):
+        reponse = client.post("/chantiers", headers=spec_env_headers, json={
+            "nom": "Tranche Abobo", "commune": "Abobo",
+            "latitude": 5.42, "longitude": -4.02,
+        })
+        assert reponse.status_code in (200, 201)
+
+    def test_le_specialiste_fixe_la_zone_d_influence(self, client, spec_env_headers):
+        reponse = client.post("/chantiers", headers=spec_env_headers, json={
+            "nom": "Ouvrage à forte emprise", "commune": "Yopougon",
+            "latitude": 5.372, "longitude": -4.048,
+            "rayon_influence_m": 3000,
+        })
+        assert reponse.status_code in (200, 201)
+        assert reponse.json()["rayon_influence_m"] == 3000
+
+    def test_le_specialiste_definit_un_seuil(self, client, spec_env_headers):
+        reponse = client.post("/admin/seuils", headers=spec_env_headers, json={
+            "nom": "Alerte NO2 zone dense", "indicateur": "NO2",
+            "seuil": 120.0, "niveau": "CRITIQUE",
+        })
+        assert reponse.status_code in (200, 201)
+
+    def test_un_seuil_peut_viser_un_seul_chantier(self, client, spec_env_headers, db_session):
+        """Deux ouvrages voisins n'appellent pas forcement la meme severite."""
+        chantier = models.Chantier(
+            nom="Ouvrage près d'une zone humide", commune="Cocody",
+            geom="SRID=4326;POINT(-3.974 5.348)",
+        )
+        db_session.add(chantier)
+        db_session.commit()
+
+        reponse = client.post("/admin/seuils", headers=spec_env_headers, json={
+            "nom": "Turbidité renforcée", "indicateur": "NDWI",
+            "seuil": 0.2, "niveau": "CRITIQUE",
+            "chantier_id": chantier.id,
+        })
+        assert reponse.status_code in (200, 201)
+        assert reponse.json()["chantier_id"] == chantier.id
+
+    def test_un_agent_de_terrain_ne_configure_rien(self, client, agent_headers):
+        reponse = client.post("/admin/seuils", headers=agent_headers, json={
+            "nom": "Tentative", "indicateur": "NO2", "seuil": 50.0,
+        })
+        assert reponse.status_code == 403
+
+    def test_l_administrateur_garde_l_acces(self, client, auth_headers):
+        """La continuite de service reste assuree."""
+        reponse = client.get("/admin/seuils", headers=auth_headers)
+        assert reponse.status_code == 200

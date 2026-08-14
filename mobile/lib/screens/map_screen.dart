@@ -162,6 +162,10 @@ class _MapScreenState extends State<MapScreen> {
               ),
               children: [
                 TileLayer(
+                  // La cle change avec le mode : force flutter_map a
+                  // re-instancier le layer et vider son cache de tiles,
+                  // sans quoi le switch Plan/Satellite ne rechargeait rien.
+                  key: ValueKey(_satelliteMode),
                   urlTemplate: _satelliteMode
                       ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
                       : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',

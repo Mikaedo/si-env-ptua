@@ -36,14 +36,22 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   }
 
   Future<void> _loadUser() async {
+    // 1) Affichage immediat depuis le cache local (SharedPreferences) : le
+    //    profil apparait sans attendre le reseau, meme en mode offline.
+    final cache = await ApiService().profilEnCache();
+    if (cache != null && mounted) {
+      setState(() { _user = cache; _loading = false; });
+      _animCtrl.forward();
+    }
+    // 2) Rafraichissement silencieux en arriere-plan si le reseau repond.
     try {
       final u = await ApiService().me();
       if (mounted) {
         setState(() { _user = u; _loading = false; });
-        _animCtrl.forward();
+        if (cache == null) _animCtrl.forward();
       }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && _user == null) setState(() => _loading = false);
     }
   }
 

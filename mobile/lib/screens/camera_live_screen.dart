@@ -4,6 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../services/ia_service.dart';
 
+/// Retourne par CameraLiveScreen quand l'agent capture. Contient la photo prise
+/// et les dernieres detections vues juste avant la capture, permettant a
+/// l'appelant de fixer type et criticite sans intervention humaine.
+class CameraLiveResultat {
+  final XFile photo;
+  final List<DetectionBox> cadres;
+  const CameraLiveResultat({required this.photo, required this.cadres});
+}
+
 /// Ecran de capture avec detection EN DIRECT : les cadres verts et le type de
 /// dechet s'affichent sur l'apercu video avant meme la prise de vue, a la
 /// maniere d'une camera de surveillance.
@@ -191,7 +200,13 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
       }
       final fichier = await ctrl.takePicture();
       if (!mounted) return;
-      Navigator.pop(context, fichier);
+      // Retourne la photo ET les dernieres detections encore visibles a
+      // l'ecran : l'appelant s'en servira pour deriver le type et la
+      // criticite sans faire intervenir l'agent.
+      Navigator.pop<CameraLiveResultat>(
+        context,
+        CameraLiveResultat(photo: fichier, cadres: List.of(_cadres)),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

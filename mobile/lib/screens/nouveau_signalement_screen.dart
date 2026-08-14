@@ -12,6 +12,7 @@ import '../services/local_database.dart';
 import '../services/gps_service.dart';
 import '../services/api_service.dart';
 import '../services/ia_service.dart';
+import 'camera_live_screen.dart';
 import 'confirmation_screen.dart';
 
 class NouveauSignalementScreen extends StatefulWidget {
@@ -32,6 +33,10 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
   bool _gpsAuto = true;
   bool _iaLoading = false;
   IaResult? _iaResult;
+  // Detections issues du viseur live (circuit dechets). Quand non nul, le type
+  // de nuisance et la criticite sont figes automatiquement : l'agent n'a plus
+  // aucun choix a faire pour les dechets, conformement au principe pose.
+  int? _nbObjetsDetectes;
   final _descriptionController = TextEditingController();
   final _gpsController = TextEditingController();
   XFile? _photo;
@@ -63,29 +68,60 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
 
   Future<void> _pickPhoto() async {
     final granted = await GpsService.requestCameraPermission();
-    if (!granted) return;
+    if (!granted || !mounted) return;
+
+    // Circuit dechets : viseur live avec detection YOLO en superposition, la
+    // criticite est deduite automatiquement du nombre d'objets detectes.
+    // L'agent n'evalue plus, ne choisit plus : il pointe et il capture.
+    if (_hasIa) {
+      final navigator = Navigator.of(context);
+      final resultat = await navigator.push<CameraLiveResultat>(
+        MaterialPageRoute(builder: (_) => const CameraLiveScreen()),
+      );
+      if (!mounted || resultat == null) return;
+      final n = resultat.cadres.length;
+      setState(() {
+        _photo = resultat.photo;
+        _nbObjetsDetectes = n;
+        _criticite = _deriverCriticite(n);
+        _iaResult = IaResult(
+          detected: n > 0,
+          criticite: _criticite,
+          confiance: n == 0
+              ? null
+              : (resultat.cadres.map((c) => c.confidence).reduce((a, b) => a > b ? a : b) * 100),
+          objets: resultat.cadres.map((c) => c.label).toSet().toList(),
+        );
+        _iaLoading = false;
+      });
+      return;
+    }
+
+    // Autres nuisances : chemin historique via l'appareil photo natif.
     final picker = ImagePicker();
     final photo = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
     if (photo != null) {
       setState(() {
         _photo = photo;
-        _iaLoading = true;
+        _iaLoading = false;
       });
-      if (_hasIa) {
-        final result = await IaService().analyzeImage(photo.path);
-        if (!mounted) return;
-        setState(() {
-          _iaResult = result;
-          _iaLoading = false;
-          if (result.criticite != null) _criticite = result.criticite!;
-        });
-      } else {
-        setState(() => _iaLoading = false);
-      }
     }
   }
 
+  /// Regle deterministe du §5.8 du memoire : peu d'objets = faible, moyen =
+  /// modere, beaucoup = eleve. Reste centralisee ici pour que la meme regle
+  /// soit appliquee quel que soit l'appelant.
+  String _deriverCriticite(int nbObjets) {
+    if (nbObjets >= 6) return 'ELEVE';
+    if (nbObjets >= 3) return 'MODERE';
+    return 'FAIBLE';
+  }
+
   bool get _hasIa => _selectedType == 'Déchets de chantier';
+
+  /// Vrai des qu'on est passe par le viseur live : dans ce cas, l'agent ne peut
+  /// plus changer ni le type de nuisance ni la criticite.
+  bool get _diagnosticIaFige => _hasIa && _nbObjetsDetectes != null;
 
   IconData _iconForType(String type) {
     switch (type) {
@@ -113,10 +149,24 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
           children: [
             _buildPhotoHero(),
             const SizedBox(height: 20),
-            _sectionLabel('Type de nuisance', LucideIcons.tags),
-            const SizedBox(height: 10),
-            _buildTypeSelector(),
-            const SizedBox(height: 20),
+
+            // Circuit dechets fige : l'agent voit le diagnostic mais ne
+            // change plus rien. Les selecteurs type/criticite sont remplaces
+            // par des cartes en lecture seule qui reprennent la decision du
+            // modele. Le chantier reste modifiable (proximite GPS peut se
+            // tromper), la description aussi.
+            if (!_diagnosticIaFige) ...[
+              _sectionLabel('Type de nuisance', LucideIcons.tags),
+              const SizedBox(height: 10),
+              _buildTypeSelector(),
+              const SizedBox(height: 20),
+            ] else ...[
+              _sectionLabel('Diagnostic automatique', LucideIcons.brain),
+              const SizedBox(height: 10),
+              _buildIaCard(),
+              const SizedBox(height: 20),
+            ],
+
             _sectionLabel('Chantier concerné', LucideIcons.hardHat),
             const SizedBox(height: 10),
             _buildChantierField(),
@@ -124,16 +174,13 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
             _sectionLabel('Localisation', LucideIcons.mapPin),
             const SizedBox(height: 10),
             _buildGpsCard(),
-            if (_hasIa) ...[
+
+            if (!_diagnosticIaFige) ...[
               const SizedBox(height: 20),
-              _sectionLabel('Diagnostic IA', LucideIcons.brain),
+              _sectionLabel('Niveau de criticité', LucideIcons.shield),
               const SizedBox(height: 10),
-              _buildIaCard(),
+              _buildCriticiteSelector(),
             ],
-            const SizedBox(height: 20),
-            _sectionLabel(_hasIa ? 'Criticité confirmée' : 'Niveau de criticité', LucideIcons.shield),
-            const SizedBox(height: 10),
-            _buildCriticiteSelector(),
             const SizedBox(height: 20),
             _sectionLabel('Description', LucideIcons.alignLeft),
             const SizedBox(height: 10),

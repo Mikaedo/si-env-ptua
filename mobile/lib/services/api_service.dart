@@ -43,6 +43,7 @@ class ApiService {
     await prefs.remove('token');
     await prefs.remove('role');
     await prefs.remove('premiere_connexion');
+    await prefs.remove('user_profil');
   }
 
   Map<String, String> get _headers => {
@@ -64,9 +65,27 @@ class ApiService {
     throw Exception(err['detail'] ?? 'Erreur de connexion');
   }
 
+  /// Profil en cache local (SharedPreferences). Renseigne apres le premier
+  /// appel reussi a /auth/me. Permet a ProfileScreen d'afficher les
+  /// informations utilisateur immediatement, sans attendre le reseau.
+  Future<Utilisateur?> profilEnCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('user_profil');
+    if (raw == null) return null;
+    try {
+      return Utilisateur.fromJson(jsonDecode(raw));
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Utilisateur> me() async {
-    final res = await http.get(Uri.parse('$kApiBaseUrl/auth/me'), headers: _headers);
+    final res = await http
+        .get(Uri.parse('$kApiBaseUrl/auth/me'), headers: _headers)
+        .timeout(const Duration(seconds: 12));
     if (res.statusCode == 200) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_profil', res.body);
       return Utilisateur.fromJson(jsonDecode(res.body));
     }
     throw Exception('Erreur recuperation profil');
@@ -182,7 +201,9 @@ class ApiService {
     if (periodeJours != null) params['periode_jours'] = periodeJours.toString();
 
     final uri = Uri.parse('$kApiBaseUrl/signalements').replace(queryParameters: params);
-    final res = await http.get(uri, headers: _headers);
+    final res = await http
+        .get(uri, headers: _headers)
+        .timeout(const Duration(seconds: 20));
     if (res.statusCode == 200) {
       final list = jsonDecode(res.body) as List;
       return list.map((e) => Signalement.fromJson(e)).toList();

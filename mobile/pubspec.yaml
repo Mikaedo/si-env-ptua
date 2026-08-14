@@ -26,6 +26,10 @@ dependencies:
   cupertino_icons: ^1.0.2
   google_fonts: ^6.2.1
   lucide_icons: ^0.257.0
+  # Camera : requis par lib/screens/camera_live_screen.dart pour l'apercu
+  # video en direct avec detection YOLO en superposition. Version fixee sur
+  # celle deja resolue dans pubspec.lock.
+  camera: ^0.12.0+2
 
 dev_dependencies:
   flutter_test:

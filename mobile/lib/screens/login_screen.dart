@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../blocs/auth/auth_bloc.dart';
 import '../core/constants.dart';
 import 'forgot_password_screen.dart';
+import 'main_navigation.dart';
+import 'first_login_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -266,6 +268,15 @@ class _LoginScreenState extends State<LoginScreen>
                                       listener: (context, state) {
                                         if (state is AuthError) {
                                           setState(() => _showError = true);
+                                        } else if (state is AuthAuthenticated) {
+                                          // Navigation manquante : sans elle, le spinner
+                                          // s'arretait sans rediriger l'utilisateur.
+                                          final destination = state.premiereConnexion
+                                              ? const FirstLoginScreen()
+                                              : const MainNavigation();
+                                          Navigator.of(context).pushReplacement(
+                                            MaterialPageRoute(builder: (_) => destination),
+                                          );
                                         }
                                       },
                                       builder: (context, state) {

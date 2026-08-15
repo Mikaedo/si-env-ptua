@@ -4,7 +4,7 @@ import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { ToastService } from '../../core/toast.service';
 import { Plainte, Chantier } from '../../core/models';
-import { LucideAngularModule, ShieldAlert, Search, MapPin, Plus, CheckCircle, X, Clock, User, Phone, Building2, AlertCircle, BarChart2, AlertTriangle } from 'lucide-angular';
+import { LucideAngularModule, ShieldAlert, Search, MapPin, Plus, CheckCircle, X, Clock, User, Phone, Building2, AlertCircle, BarChart2, AlertTriangle, Smartphone } from 'lucide-angular';
 import { CustomSelect } from '../../shared/custom-select';
 
 @Component({
@@ -31,6 +31,28 @@ export class Plaintes implements OnInit {
   readonly Clock = Clock;
   readonly User = User;
   readonly Phone = Phone;
+  readonly Smartphone = Smartphone;
+
+  /**
+   * Traduit la categorie declaree par le riverain.
+   *
+   * Le vocabulaire du depot est celui d'un habitant, non d'un technicien :
+   * personne ne se plaint d'un depassement de seuil de particules, on se
+   * plaint de poussiere. Le tableau de bord conserve ce vocabulaire plutot
+   * que de le retraduire, pour que le specialiste lise ce que la personne
+   * a effectivement voulu dire.
+   */
+  libelleCategorie(code: string): string {
+    const libelles: Record<string, string> = {
+      bruit: 'Bruit',
+      poussiere: 'Poussière',
+      circulation: 'Circulation',
+      eau: 'Eau stagnante',
+      dechets: 'Déchets',
+      autre: 'Autre',
+    };
+    return libelles[code] ?? code;
+  }
   readonly Building2 = Building2;
   readonly AlertCircle = AlertCircle;
   readonly BarChart2 = BarChart2;

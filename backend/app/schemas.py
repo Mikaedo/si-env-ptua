@@ -281,6 +281,12 @@ class PlainteOut(BaseModel):
     statut: str
     cree_le: datetime
     chantier_id: Optional[int] = None
+    # Provenance et nature du depot. Le specialiste du suivi social a besoin
+    # de savoir d'ou vient une doleance : celle qui arrive du telephone d'un
+    # riverain n'appelle pas la meme reponse que celle recueillie au guichet,
+    # ou un agent a pu preciser les circonstances de vive voix.
+    canal: Optional[str] = None
+    categorie: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -148,13 +148,29 @@
                 </div>
               </div>
             </div>
-            <span class="badge"
-              [class.badge-orange]="p.statut === 'OUVERTE'"
-              [class.badge-blue]="p.statut === 'EN_COURS'"
-              [class.badge-green]="p.statut === 'RESOLU'"
-              [class.badge-gray]="p.statut === 'REJETE'">
-              {{ p.statut === 'OUVERTE' ? 'Ouverte' : p.statut === 'EN_COURS' ? 'En cours' : p.statut === 'RESOLU' ? 'Résolue' : 'Rejetée' }}
-            </span>
+            <div style="display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
+              <!-- Provenance du dépôt. Une doléance arrivée du téléphone d'un
+                   riverain n'appelle pas la même réponse que celle recueillie
+                   au guichet, où un agent a pu préciser les circonstances de
+                   vive voix. Le spécialiste doit voir la différence d'un coup
+                   d'oeil, sans ouvrir le détail. -->
+              @if (p.canal === 'MOBILE') {
+                <span class="badge" style="background:#EEF6FF; color:#004F9F;">
+                  <lucide-icon [img]="Smartphone" size="11"></lucide-icon>
+                  Dépôt riverain
+                </span>
+              }
+              @if (p.categorie) {
+                <span class="badge badge-gray">{{ libelleCategorie(p.categorie) }}</span>
+              }
+              <span class="badge"
+                [class.badge-orange]="p.statut === 'OUVERTE'"
+                [class.badge-blue]="p.statut === 'EN_COURS'"
+                [class.badge-green]="p.statut === 'RESOLU'"
+                [class.badge-gray]="p.statut === 'REJETE'">
+                {{ p.statut === 'OUVERTE' ? 'Ouverte' : p.statut === 'EN_COURS' ? 'En cours' : p.statut === 'RESOLU' ? 'Résolue' : 'Rejetée' }}
+              </span>
+            </div>
           </div>
 
           <!-- Description -->

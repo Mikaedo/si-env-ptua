@@ -68,6 +68,10 @@ export interface Plainte {
   statut: 'OUVERTE' | 'EN_COURS' | 'RESOLU' | 'REJETE' | string;
   cree_le: string;
   chantier_id?: number | null;
+  /** MOBILE pour un dépôt citoyen, GUICHET pour un recueil par un agent. */
+  canal?: string | null;
+  /** Nature déclarée par le riverain : bruit, poussière, circulation... */
+  categorie?: string | null;
 }
 
 export interface NonConformite {

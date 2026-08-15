@@ -231,18 +231,30 @@ def inscription(
     }
 
 
-@router.get("/mon-chantier", response_model=schemas.ChantierOut)
+@router.get("/mon-chantier", response_model=schemas.ChantierRattachement)
 def mon_chantier(
     db: Session = Depends(get_db),
     courant: models.Utilisateur = Depends(riverain_courant),
 ):
-    """Chantier auquel le riverain est rattache."""
+    """Chantier auquel le riverain est rattache.
+
+    La reponse ne reprend pas le schema complet des chantiers. Celui-ci
+    embarque la geometrie PostGIS, que Pydantic ne sait pas convertir sans
+    passer par une serialisation dediee, et dont l'application citoyenne n'a
+    de toute facon aucun usage : elle affiche un nom et une commune, pas une
+    carte. Repondre exactement ce qui est utilise evite une conversion inutile
+    autant qu'une source d'erreur.
+    """
     chantier = db.query(models.Chantier).filter(
         models.Chantier.id == courant.chantier_rattachement_id
     ).first()
     if chantier is None:
         raise HTTPException(status_code=404, detail="Aucun chantier de rattachement.")
-    return chantier
+    return schemas.ChantierRattachement(
+        id=chantier.id,
+        nom=chantier.nom,
+        commune=chantier.commune,
+    )
 
 
 @router.post("/doleances", response_model=schemas.DoleanceOut)

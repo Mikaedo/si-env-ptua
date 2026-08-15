@@ -260,3 +260,34 @@ class TestDoleances:
         """Les deux applications restent cloisonnees."""
         reponse = client.get("/citoyen/doleances", headers=agent_headers)
         assert reponse.status_code == 403
+
+
+class TestChantierDeRattachement:
+    """Consultation du chantier auquel le riverain est rattache.
+
+    Ce point etait le seul du parcours a n'avoir aucune couverture, et c'est
+    precisement la qu'un defaut s'est manifeste en production : l'endpoint
+    renvoyait l'objet complet du chantier, geometrie PostGIS comprise, que la
+    serialisation ne savait pas convertir. L'ecran de profil affichait donc une
+    erreur alors que l'inscription et le depot fonctionnaient.
+    """
+
+    def test_le_riverain_consulte_son_rattachement(
+        self, client, riverain_headers, chantier_positionne
+    ):
+        reponse = client.get("/citoyen/mon-chantier", headers=riverain_headers)
+        assert reponse.status_code == 200
+        corps = reponse.json()
+        assert corps["nom"] == "Bd Latrille"
+        assert corps["commune"] == "Cocody"
+
+    def test_la_reponse_se_limite_a_ce_qui_est_affiche(
+        self, client, riverain_headers, chantier_positionne
+    ):
+        """La geometrie n'a pas a figurer dans une reponse que personne ne lit."""
+        corps = client.get("/citoyen/mon-chantier", headers=riverain_headers).json()
+        assert set(corps.keys()) == {"id", "nom", "commune"}
+
+    def test_un_agent_n_accede_pas_a_cet_espace(self, client, agent_headers):
+        reponse = client.get("/citoyen/mon-chantier", headers=agent_headers)
+        assert reponse.status_code == 403

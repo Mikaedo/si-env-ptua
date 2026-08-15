@@ -336,6 +336,18 @@ class ZoneVerifiee(BaseModel):
     rayon_m: int
 
 
+class ChantierRattachement(BaseModel):
+    """Chantier de rattachement, tel que l'application citoyenne l'affiche.
+
+    Volontairement reduit au strict necessaire : l'ecran de profil montre un
+    nom et une commune. Renvoyer la geometrie obligerait a une serialisation
+    dediee pour une donnee que personne ne lit.
+    """
+    id: int
+    nom: str
+    commune: Optional[str] = None
+
+
 class InscriptionCitoyen(BaseModel):
     nom: str
     email: EmailStr

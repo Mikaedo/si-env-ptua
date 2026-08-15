@@ -303,3 +303,39 @@ class RefreshToken(Base):
     cree_le = Column(DateTime, default=datetime.utcnow)
 
 
+
+
+class TransmissionRapport(Base):
+    """Trace d'un rapport adresse a un organisme de controle.
+
+    Consulter le tableau de bord et recevoir officiellement un rapport sont
+    deux actes distincts. L'ANDE et la BAD suivent le programme au fil de
+    l'eau depuis leur acces en consultation, mais la remise periodique du
+    rapport de conformite reste une formalite dont il faut pouvoir rendre
+    compte. C'est precisement ce qu'un auditeur reclame : non pas le document,
+    qu'il possede deja, mais la preuve de la date a laquelle il lui a ete
+    adresse, et par qui.
+
+    L'enregistrement subsiste meme lorsque l'acheminement echoue, faute de quoi
+    une transmission perdue en route ne laisserait aucune trace et passerait
+    pour n'avoir jamais ete tentee.
+    """
+    __tablename__ = "transmissions_rapports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    transmis_le = Column(DateTime, default=datetime.utcnow, index=True)
+    # Auteur de la transmission, conserve sous forme d'adresse : la trace doit
+    # survivre a la suppression du compte qui l'a produite.
+    emetteur_email = Column(String(120), nullable=False)
+    destinataire_email = Column(String(120), nullable=False)
+    # Organisme vise, tel que choisi dans le formulaire (ANDE, BAD, etc.).
+    organisme = Column(String(40), nullable=True)
+    periode_debut = Column(String(20), nullable=True)
+    periode_fin = Column(String(20), nullable=True)
+    # Chantiers couverts, enregistres sous forme de liste d'identifiants
+    # separes par des virgules pour rester lisible sans jointure.
+    chantiers = Column(String(255), nullable=True)
+    nom_fichier = Column(String(160), nullable=True)
+    taille_octets = Column(Integer, nullable=True)
+    succes = Column(Boolean, default=False, nullable=False)
+    detail_erreur = Column(Text, nullable=True)

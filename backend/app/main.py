@@ -182,6 +182,9 @@ def au_demarrage():
             "plaintes", "geom", "geometry(Point, 4326)"
         )
 
+    # La table des transmissions est creee par create_all puisqu'elle est
+    # entierement nouvelle. Aucune colonne a rattraper ici.
+
     # Les trois nouveaux profils doivent exister dans le type enumere cote
     # PostgreSQL, sans quoi toute insertion les mentionnant serait rejetee.
     # ADD VALUE IF NOT EXISTS est rejoue sans risque a chaque demarrage.

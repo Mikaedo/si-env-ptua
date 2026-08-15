@@ -34,27 +34,49 @@ export class Rapports implements OnInit {
   error = signal('');
 
   entreprises = [
-    { value: 'ANDE', label: 'ANDE — Agence Nationale de l\'Environnement' },
-    { value: 'BAD', label: 'BAD — Banque Africaine de Développement' },
-    { value: 'AGEROUTE', label: 'AGEROUTE — Agence de Gestion des Routes' },
-    { value: 'CC-PTUA', label: 'CC-PTUA — Cellule de Coordination du Projet' },
-    { value: 'BEIE', label: 'BEIE — Bureau d\'Études d\'Impact Environnemental' },
-    { value: 'CSCEC', label: 'CSCEC — China State Construction Engineering' },
-    { value: 'SOGEA-SATOM', label: 'SOGEA-SATOM — Entreprise de Travaux' },
-    { value: 'COLAS', label: 'COLAS — Entreprise de Travaux' },
+    { value: 'ANDE', label: 'ANDE · Agence Nationale de l\'Environnement' },
+    { value: 'BAD', label: 'BAD · Banque Africaine de Développement' },
+    { value: 'AGEROUTE', label: 'AGEROUTE · Agence de Gestion des Routes' },
+    { value: 'CC-PTUA', label: 'CC-PTUA · Cellule de Coordination du Projet' },
+    { value: 'BEIE', label: 'BEIE · Bureau d\'Études d\'Impact Environnemental' },
+    { value: 'CSCEC', label: 'CSCEC · China State Construction Engineering' },
+    { value: 'SOGEA-SATOM', label: 'SOGEA-SATOM · Entreprise de Travaux' },
+    { value: 'COLAS', label: 'COLAS · Entreprise de Travaux' },
   ];
   selectedEntreprise = signal('ANDE');
 
+  // Etat de chargement du referentiel. Sans lui, un echec de l'appel laissait
+  // la liste vide et affichait « Aucun chantier disponible », message qui
+  // designe une base vide alors que le probleme venait de la requete. La
+  // distinction compte : dans un cas il n'y a rien a selectionner, dans
+  // l'autre la selection est momentanement inaccessible.
+  chargementChantiers = signal(true);
+  erreurChantiers = signal('');
+
   ngOnInit() {
-    this.api.getChantiers().subscribe({
-      next: (data) => this.chantiers.set(data),
-      error: () => {}
-    });
+    this.chargerChantiers();
 
     const today = new Date();
     const threeMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
     this.dateFin.set(today.toISOString().split('T')[0]);
     this.dateDebut.set(threeMonthsAgo.toISOString().split('T')[0]);
+  }
+
+  chargerChantiers() {
+    this.chargementChantiers.set(true);
+    this.erreurChantiers.set('');
+    this.api.getChantiers().subscribe({
+      next: (data) => {
+        this.chantiers.set(data);
+        this.chargementChantiers.set(false);
+      },
+      error: () => {
+        this.chargementChantiers.set(false);
+        this.erreurChantiers.set(
+          'Le référentiel des chantiers n\'a pas pu être chargé. Vérifiez votre connexion, puis réessayez.'
+        );
+      }
+    });
   }
 
   toggleChantier(id: number) {

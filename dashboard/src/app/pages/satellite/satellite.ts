@@ -152,7 +152,13 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
     return vals.length ? Math.max(...vals) : 1;
   }
 
-  ngOnInit() { this.loadAll(); }
+  ngOnInit() {
+    // Le référentiel alimente aussi bien le sélecteur de série temporelle que
+    // l'onglet de paramétrage : il est chargé d'emblée et non à l'ouverture
+    // d'un onglet particulier.
+    this.chargerParametrage();
+    this.loadAll();
+  }
 
   loadAll() {
     this.loading.set(true);
@@ -183,14 +189,20 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  chantiersList = [
-    { id: 1, nom: 'Rocade Y4 — Yopougon' },
-    { id: 2, nom: '4e Pont — Plateau/Adjamé' },
-    { id: 3, nom: 'Bd Latrille — Cocody' },
-    { id: 4, nom: 'Sortie Est — Bingerville' },
-    { id: 5, nom: 'Sortie Ouest — Songon' },
-    { id: 6, nom: 'Échangeurs CG — Plateau' },
-  ];
+  /**
+   * Chantiers proposés dans le sélecteur de série temporelle.
+   *
+   * Cette liste était elle aussi figée dans le code, avec six entrées dont les
+   * identifiants supposaient une numérotation immuable. Elle dérive désormais
+   * du référentiel chargé depuis la base : un chantier ajouté apparaît dans le
+   * sélecteur, un chantier retiré en disparaît.
+   */
+  get chantiersList(): { id: number; nom: string }[] {
+    return this.chantiers().map(c => ({
+      id: c.id,
+      nom: c.commune ? `${c.nom} · ${c.commune}` : c.nom,
+    }));
+  }
 
   ngAfterViewInit() { setTimeout(() => this.initMap(), 200); }
 
@@ -381,7 +393,15 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
 
   chargerParametrage() {
     this.http.get<ChantierRef[]>(`${API}/chantiers`, { headers: this.entetes }).subscribe({
-      next: d => this.chantiers.set(d),
+      next: d => {
+        this.chantiers.set(d);
+        // La sélection par défaut visait l'identifiant 1, qui pouvait
+        // désigner un chantier supprimé. On se cale sur le premier réellement
+        // présent, sauf si l'utilisateur a déjà fait son choix.
+        if (d.length && !d.some(c => c.id === this.selectedChantier())) {
+          this.selectedChantier.set(d[0].id);
+        }
+      },
       error: () => this.erreurParam.set('Le référentiel des chantiers n\'a pas pu être chargé.'),
     });
     this.http.get<SeuilRef[]>(`${API}/admin/seuils`, { headers: this.entetes }).subscribe({

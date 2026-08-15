@@ -140,7 +140,7 @@
       <div style="padding:16px 20px; border-bottom:1px solid #F4F4F5; display:flex; align-items:center; justify-content:space-between;">
         <div>
           <div style="font-size:14px; font-weight:700; color:#18181B;">Carte des signalements</div>
-          <div style="font-size:12px; color:#A1A1AA; margin-top:2px;">Localisation en temps réel — tracé PTUA</div>
+          <div style="font-size:12px; color:#A1A1AA; margin-top:2px;">Localisation en temps réel · tracé PTUA</div>
         </div>
         <div class="flex items-center gap-4">
           <div class="flex items-center gap-1.5">
@@ -254,7 +254,7 @@
         >
           <div class="min-w-0">
             <div style="font-size:13px; font-weight:600; color:#18181B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ s.type_nuisance }}</div>
-            <div style="font-size:11px; color:#A1A1AA; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ s.chantier?.nom ?? '—' }}</div>
+            <div style="font-size:11px; color:#A1A1AA; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ s.chantier?.nom ?? '-' }}</div>
           </div>
           <span style="font-size:12px; color:#71717A;">{{ formatDate(s.cree_le) }}</span>
           <span class="badge"

@@ -250,7 +250,7 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
             ${s.criticite_ia ? `<span style="padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;background:#EEF1F8;color:#004F9F;">IA: ${s.criticite_ia} (${s.confiance_ia}%)</span>` : ''}
           </div>
           <div style="margin-top:8px;font-size:10px;color:#A1A1AA;">${new Date(s.cree_le).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</div>
-          <a href="/signalements/${s.id}" style="display:block;margin-top:8px;padding:6px 12px;background:#004F9F;color:white;border-radius:6px;font-size:11px;font-weight:600;text-align:center;text-decoration:none;">Voir le détail →</a>
+          <a href="/signalements/${s.id}" style="display:block;margin-top:8px;padding:6px 12px;background:#004F9F;color:white;border-radius:6px;font-size:11px;font-weight:600;text-align:center;text-decoration:none;">Voir le détail</a>
         </div>
       `);
     }

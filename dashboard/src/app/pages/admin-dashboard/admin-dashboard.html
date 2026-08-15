@@ -8,7 +8,7 @@
       </div>
       <div>
         <h1 class="admin-title">Centre de consultation</h1>
-        <p class="admin-subtitle">Surveillance globale — signalements, plaintes & alertes environnementales</p>
+        <p class="admin-subtitle">Surveillance globale · signalements, plaintes & alertes environnementales</p>
       </div>
     </div>
     <div class="admin-header-right">
@@ -187,7 +187,7 @@
                   <td style="font-size:12px; color:#A1A1AA; font-weight:600;">#{{ s.id }}</td>
                   <td style="font-size:13px; font-weight:600; color:#18181B;">{{ s.type_nuisance }}</td>
                   <td><span class="badge" [class.badge-gray]="s.criticite === 'FAIBLE'" [class.badge-orange]="s.criticite === 'MODERE'" [class.badge-red]="s.criticite === 'ELEVE'">{{ s.criticite }}</span></td>
-                  <td style="font-size:12.5px; color:#3F3F46;">{{ s.chantier?.nom ?? '—' }}</td>
+                  <td style="font-size:12.5px; color:#3F3F46;">{{ s.chantier?.nom ?? '-' }}</td>
                   <td><span class="badge" [class.badge-orange]="s.statut === 'NOUVEAU'" [class.badge-blue]="s.statut === 'EN_TRAITEMENT'" [class.badge-green]="s.statut === 'CLOTURE'" [class.badge-gray]="s.statut === 'REJETE'">{{ s.statut }}</span></td>
                   <td style="font-size:12px; color:#71717A;">{{ formatDateTime(s.cree_le) }}</td>
                   <td><lucide-icon [img]="ChevronRight" size="16" style="color:#D1D1D6;"></lucide-icon></td>

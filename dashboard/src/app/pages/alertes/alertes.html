@@ -3,7 +3,7 @@
   @if (isAdmin()) {
     <div class="badge-consultation" style="align-self:flex-start;">
       <lucide-icon [img]="Bell" size="13"></lucide-icon>
-      Mode consultation — lecture seule sur les alertes
+      Mode consultation · lecture seule sur les alertes
     </div>
   }
 
@@ -22,7 +22,7 @@
       </div>
       <div>
         <h1 class="page-header-title">Alertes environnementales</h1>
-        <p class="page-header-sub">Dépassements de seuils — qualité de l'air, nuisances PGES</p>
+        <p class="page-header-sub">Dépassements de seuils · qualité de l'air, nuisances PGES</p>
       </div>
     </div>
     <div class="flex gap-2 flex-wrap">
@@ -104,7 +104,7 @@
           <div class="empty-state-text" style="font-size:14px;">
             @if (loading()) { Chargement des alertes... }
             @else if (error()) { Vérifiez la connexion à l'API. }
-            @else { Aucune alerte active — tout est nominal ✓ }
+            @else { Aucune alerte active · tout est nominal ✓ }
           </div>
         </div>
       </div>

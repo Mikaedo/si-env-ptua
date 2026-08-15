@@ -195,7 +195,7 @@
         <div class="indice-table-header blue-h">
           <lucide-icon [img]="Wind" size="14"></lucide-icon>
           <div>
-            <div class="it-title">NO₂ — Dioxyde d'azote</div>
+            <div class="it-title">NO₂ · Dioxyde d'azote</div>
             <div class="it-source">Sentinel-5P / TROPOMI · buffer 2,5 km · Seuil 30-50 µmol/m²</div>
           </div>
         </div>
@@ -232,7 +232,7 @@
         <div class="indice-table-header green-h">
           <lucide-icon [img]="Leaf" size="14"></lucide-icon>
           <div>
-            <div class="it-title">NDVI — Végétation</div>
+            <div class="it-title">NDVI · Végétation</div>
             <div class="it-source">Sentinel-2 MSI · Bande NIR/Red · Seuil santé &gt; 0,40</div>
           </div>
         </div>
@@ -267,7 +267,7 @@
         <div class="indice-table-header teal-h">
           <lucide-icon [img]="Droplets" size="14"></lucide-icon>
           <div>
-            <div class="it-title">NDWI — Humidité sol</div>
+            <div class="it-title">NDWI · Humidité sol</div>
             <div class="it-source">Sentinel-2 MSI · Bande NIR/SWIR · Seuil &gt; 0,30</div>
           </div>
         </div>
@@ -338,7 +338,7 @@
     <div class="methodo-note">
       <lucide-icon [img]="Info" size="14"></lucide-icon>
       <p>
-        <strong>Méthodologie (cf. Chapitre 9 — mémoire V56) :</strong>
+        <strong>Méthodologie (cf. Chapitre 9 · mémoire V56) :</strong>
         Les données sont extraites via Google Earth Engine sur une période de 5 jours glissants.
         Sentinel-2/NDWI a été écarté de l'analyse primaire au profit de CHIRPS+SRTM pour robustesse à la couverture nuageuse tropicale
         (taux couverture nuageuse actuel : <strong>{{ resume()?.couverture_nuageuse_pct ?? 18.4 }}%</strong>).
@@ -446,7 +446,7 @@
         <div class="serie-source-note">
           Chantier analysé : <strong>{{ serie()!.chantier }}</strong> ·
           Source : <strong>{{ serie()!.type_indice === 'NO2' ? 'Sentinel-5P/TROPOMI' : serie()!.type_indice === 'RISQUE_PLUIE' ? 'CHIRPS + SRTM' : 'Sentinel-2 MSI' }}</strong> ·
-          Période : Janvier 2022 → Juillet 2026
+          Période : de janvier 2022 à juillet 2026
         </div>
       }
 

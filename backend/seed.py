@@ -22,15 +22,22 @@ from app.database import SessionLocal, engine, Base
 from app import models, auth
 
 
-def executer_seed() -> None:
-    """Cree les donnees de demonstration si elles n'existent pas encore."""
+def executer_seed(creer_extensions: bool = True) -> None:
+    """Cree les donnees de demonstration si elles n'existent pas encore.
 
-    # S'assure que PostGIS est actif et que les tables existent.
-    # Sur Supabase, l'extension est preinstallee : la commande est un no-op.
-    with engine.connect() as conn:
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
-        conn.commit()
-    Base.metadata.create_all(bind=engine)
+    `creer_extensions` permet de sauter la preparation du schema spatial, qui
+    suppose PostgreSQL. Les tests s'executent sous SQLite, ou l'extension
+    n'existe pas et ou les tables sont deja creees par le harnais : sans cette
+    porte de sortie, le jeu de donnees initial resterait invérifiable, alors
+    qu'il conditionne tout ce qu'une demonstration peut montrer.
+    """
+    if creer_extensions:
+        # S'assure que PostGIS est actif et que les tables existent.
+        # Sur Supabase, l'extension est preinstallee : la commande est un no-op.
+        with engine.connect() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+            conn.commit()
+        Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
     try:
@@ -144,6 +151,75 @@ def executer_seed() -> None:
                 valeur=72.5, chantier_id=ouest.id if ouest else None,
             ))
             print("Alerte demo creee")
+
+        db.commit()
+
+        # --- Riverain de demonstration ---
+        # Le profil PLAIGNANT etait le seul des huit a n'avoir aucun compte au
+        # seed, alors que les riverains s'inscrivent d'ordinaire eux-memes
+        # depuis l'application citoyenne. Un compte pre-existant reste utile :
+        # il permet d'ouvrir directement la file des doleances sans avoir a
+        # derouler l'inscription, et il porte l'historique ci-dessous.
+        riverain = db.query(models.Utilisateur).filter_by(
+            email="riverain@yopougon.ci"
+        ).first()
+        if not riverain and y4:
+            riverain = models.Utilisateur(
+                nom="Kouassi Adjoua",
+                email="riverain@yopougon.ci",
+                mot_de_passe_hash=auth.hasher_mot_de_passe("riverain123"),
+                role=models.RoleEnum.PLAIGNANT,
+                premiere_connexion=False,
+                chantier_rattachement_id=y4.id,
+            )
+            db.add(riverain)
+            db.commit()
+            db.refresh(riverain)
+            print("Utilisateur cree : riverain@yopougon.ci (riverain Rocade Y4)")
+
+        # --- Doleances de demonstration ---
+        # Le Mecanisme de Gestion des Plaintes n'avait aucune donnee de
+        # demonstration, si bien que l'ecran du specialiste du suivi social
+        # s'ouvrait vide. Les entrees ci-dessous couvrent les deux canaux de
+        # saisie, le guichet et le telephone, et les trois etats du traitement.
+        # Cette mixite est le point que le rapport doit pouvoir montrer :
+        # l'application citoyenne ne remplace pas le recueil classique, elle
+        # s'y ajoute.
+        doleances_demo = [
+            # Depuis l'application citoyenne, par le riverain de demonstration.
+            ("Kouassi Adjoua", riverain, y4, "bruit", "MOBILE", "OUVERTE",
+             "Les engins travaillent apres vingt-deux heures depuis une semaine, "
+             "impossible de dormir avec les enfants."),
+            ("Kouassi Adjoua", riverain, y4, "poussiere", "MOBILE", "EN_COURS",
+             "La poussiere du terrassement recouvre la cour de l'ecole voisine, "
+             "les enfants toussent en sortant de classe."),
+            ("Kouassi Adjoua", riverain, y4, "circulation", "MOBILE", "RESOLU",
+             "La deviation obligeait les taxis a passer devant le marche aux "
+             "heures de pointe. Un itineraire a ete revu depuis."),
+            # Recueillies au guichet ou en reunion de quartier, sans compte.
+            ("Yao Beatrice", None, ouest, None, "GUICHET", "OUVERTE",
+             "Les eaux stagnantes derriere la palissade attirent les moustiques "
+             "depuis le debut des pluies."),
+            ("Traore Ibrahim", None, latrille, None, "GUICHET", "RESOLU",
+             "Fissures apparues sur le mur de cloture apres le passage des "
+             "engins lourds. Reparation constatee."),
+        ]
+        for nom_p, auteur, chantier, categorie, canal, statut, description in doleances_demo:
+            if not chantier:
+                continue
+            if db.query(models.Plainte).filter_by(description=description).first():
+                continue
+            db.add(models.Plainte(
+                nom_plaignant=nom_p,
+                contact=auteur.email if auteur else None,
+                description=description,
+                statut=statut,
+                chantier_id=chantier.id,
+                plaignant_id=auteur.id if auteur else None,
+                categorie=categorie,
+                canal=canal,
+            ))
+            print(f"Doleance creee : {nom_p} ({canal}, {statut})")
 
         db.commit()
         print("Initialisation terminee.")

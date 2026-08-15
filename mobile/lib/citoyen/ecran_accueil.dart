@@ -152,15 +152,40 @@ class _EcranAccueilCitoyenState extends State<EcranAccueilCitoyen>
   }
 
   Widget _contenu() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Spacer(flex: 2),
-        _enTete(),
-        const SizedBox(height: 34),
-        Expanded(flex: 5, child: SingleChildScrollView(child: _corps())),
-        _pied(),
-      ],
+    // La mise en page reposait sur des proportions fixes, un Spacer et un
+    // Expanded se partageant la hauteur. Sur un ecran moins haut que celui de
+    // reference, le bloc central debordait de la part qui lui etait allouee et
+    // se retrouvait rogne : la premiere ligne du titre disparaissait.
+    //
+    // Le contenu defile donc desormais librement, et n'occupe la hauteur
+    // disponible que lorsqu'elle suffit. Le pied reste ancre en bas, ce qui
+    // maintient le bouton d'action a portee de pouce.
+    return LayoutBuilder(
+      builder: (contexte, contraintes) {
+        return Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: contraintes.maxHeight),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 24),
+                      _enTete(),
+                      const SizedBox(height: 30),
+                      _corps(),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            _pied(),
+          ],
+        );
+      },
     );
   }
 

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
@@ -72,6 +73,48 @@ def _collecter_donnees(db: Session, req: "RapportRequest") -> list[dict]:
         if req.date_fin: nc_q = nc_q.filter(models.NonConformite.cree_le <= req.date_fin)
         nb_nc = nc_q.count()
         
+        # Repartition par statut et par gravite. Ces chiffres ne servent pas
+        # aux tableaux, qui se contentent des totaux, mais a la redaction du
+        # rapport : sans eux, le commentaire ne pourrait qu'enoncer des
+        # volumes, sans jamais dire si la situation s'assainit ou se degrade.
+        nb_traites = sig_q.filter(
+            models.Signalement.statut == models.StatutSignalement.CLOTURE
+        ).count()
+        nb_en_cours = sig_q.filter(
+            models.Signalement.statut == models.StatutSignalement.EN_TRAITEMENT
+        ).count()
+        nb_nouveaux = sig_q.filter(
+            models.Signalement.statut == models.StatutSignalement.NOUVEAU
+        ).count()
+        nb_eleves = sig_q.filter(
+            models.Signalement.criticite == models.CriticiteEnum.ELEVE
+        ).count()
+        nb_plaintes_ouvertes = plainte_q.filter(
+            models.Plainte.statut.in_(("OUVERTE", "EN_COURS"))
+        ).count()
+        nb_plaintes_mobile = plainte_q.filter(
+            models.Plainte.canal == "MOBILE"
+        ).count()
+        nb_nc_ouvertes = nc_q.filter(
+            models.NonConformite.resolue == False  # noqa: E712
+        ).count()
+
+        # Nuisances les plus frequentes, pour nommer ce dont il s'agit plutot
+        # que de compter des signalements indistincts.
+        types_frequents = [
+            {"type": t, "n": n}
+            for t, n in (
+                sig_q.with_entities(
+                    models.Signalement.type_nuisance,
+                    func.count(models.Signalement.id),
+                )
+                .group_by(models.Signalement.type_nuisance)
+                .order_by(func.count(models.Signalement.id).desc())
+                .limit(3)
+                .all()
+            )
+        ]
+
         chantiers_data.append({
             "id": c.id,
             "nom": c.nom,
@@ -80,6 +123,14 @@ def _collecter_donnees(db: Session, req: "RapportRequest") -> list[dict]:
             "nb_alertes": nb_alertes,
             "nb_plaintes": nb_plaintes,
             "nb_non_conformites": nb_nc,
+            "nb_traites": nb_traites,
+            "nb_en_cours": nb_en_cours,
+            "nb_nouveaux": nb_nouveaux,
+            "nb_eleves": nb_eleves,
+            "nb_plaintes_ouvertes": nb_plaintes_ouvertes,
+            "nb_plaintes_mobile": nb_plaintes_mobile,
+            "nb_nc_ouvertes": nb_nc_ouvertes,
+            "types_frequents": types_frequents,
             "plaintes_details": [
                 {"nom": p.nom_plaignant, "desc": p.description, "statut": p.statut, "date": p.cree_le.strftime("%d/%m/%Y") if p.cree_le else ""}
                 for p in plainte_q.limit(5).all()

@@ -7,6 +7,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.units import cm
 from reportlab.platypus.flowables import HRFlowable
 
+from . import redaction_pges as redaction
+
 
 def generate_pges_pdf(chantiers_data, start_date, end_date, entreprise_destinataire="ANDE"):
     buffer = io.BytesIO()
@@ -108,19 +110,67 @@ def generate_pges_pdf(chantiers_data, start_date, end_date, entreprise_destinata
 
     story.append(PageBreak())
     
+    # --- SOMMAIRE ---
+    # Un rapport remis a une tutelle se parcourt rarement de bout en bout : le
+    # lecteur cherche une section precise. Le sommaire est donc construit a
+    # partir du perimetre reel, chaque chantier y figurant nommement.
+    story.append(Paragraph("SOMMAIRE", h2_style))
+    story.append(HRFlowable(width='100%', thickness=1,
+                            color=colors.HexColor('#004F9F'), spaceAfter=12))
+
+    entrees = [
+        ("1.", "Contexte et objectifs du suivi"),
+        ("2.", "Synth\u00e8se de la p\u00e9riode"),
+        ("3.", "Situation par chantier"),
+    ]
+    for i, ch in enumerate(chantiers_data, start=1):
+        libelle = ch['nom']
+        if ch.get('commune'):
+            libelle += f" ({ch['commune']})"
+        entrees.append((f"3.{i}", libelle))
+    entrees.append(("4.", "Conclusion et recommandations"))
+
+    sommaire_style = ParagraphStyle(
+        'Sommaire', parent=styles['Normal'],
+        fontName='Helvetica', fontSize=11,
+        textColor=colors.HexColor('#3F3F46'), leading=20,
+    )
+    sommaire_sous_style = ParagraphStyle(
+        'SommaireSous', parent=sommaire_style,
+        fontSize=10, leftIndent=18,
+        textColor=colors.HexColor('#71717A'),
+    )
+    for numero, libelle in entrees:
+        style = sommaire_sous_style if numero.count('.') > 1 else sommaire_style
+        story.append(Paragraph(f"<b>{numero}</b>&nbsp;&nbsp;{libelle}", style))
+
+    story.append(Spacer(1, 0.6*cm))
+    story.append(Paragraph(
+        "Ce rapport est \u00e9tabli \u00e0 partir des donn\u00e9es consign\u00e9es dans le syst\u00e8me "
+        "d'information environnemental de l'AGEROUTE. Les effectifs indiqu\u00e9s "
+        "correspondent aux enregistrements horodat\u00e9s sur la p\u00e9riode retenue.",
+        ParagraphStyle('NoteSommaire', parent=body_style,
+                       fontSize=9.5, textColor=colors.HexColor('#71717A')),
+    ))
+    story.append(PageBreak())
+
     # --- INTRODUCTION ---
     story.append(Paragraph("1. CONTEXTE ET OBJECTIFS DU SUIVI", h2_style))
-    intro_text = (
-        "Le pr\u00e9sent rapport de suivi a \u00e9t\u00e9 g\u00e9n\u00e9r\u00e9 automatiquement par le syst\u00e8me d'information SI-ENV de l'AGEROUTE. "
-        "Il s'inscrit dans le cadre de la mise en \u0153uvre du Plan de Gestion Environnementale et Sociale (PGES) "
-        "du Projet de Transport Urbain d'Abidjan (PTUA). Il r\u00e9capitule l'ensemble des signalements (plaintes, incidents, "
-        "non-conformit\u00e9s) enregistr\u00e9s et trait\u00e9s durant la p\u00e9riode concern\u00e9e pour les chantiers s\u00e9lectionn\u00e9s."
-    )
-    story.append(Paragraph(intro_text, body_style))
+    story.append(Paragraph(
+        redaction.introduction(chantiers_data, start_date, end_date,
+                               entreprise_destinataire),
+        body_style,
+    ))
     story.append(Spacer(1, 0.3*cm))
 
-    # --- SUMMARY KPI TABLE ---
-    story.append(Paragraph("2. SYNTHESE GLOBALE", h2_style))
+    # --- SYNTHESE ---
+    story.append(Paragraph("2. SYNTHESE DE LA PERIODE", h2_style))
+    # Le commentaire precede les chiffres : il indique au lecteur ce qu'il doit
+    # y chercher, alors qu'un tableau seul le laisse face a des volumes bruts.
+    story.append(Paragraph(
+        redaction.synthese(chantiers_data, start_date, end_date), body_style,
+    ))
+    story.append(Spacer(1, 0.4*cm))
     
     total_sig = sum(c.get('nb_signalements', 0) for c in chantiers_data)
     total_alertes = sum(c.get('nb_alertes', 0) for c in chantiers_data)
@@ -155,11 +205,16 @@ def generate_pges_pdf(chantiers_data, start_date, end_date, entreprise_destinata
     story.append(Spacer(1, 0.5*cm))
     
     # --- MATRICE DES DONNEES ---
-    story.append(Paragraph("3. MATRICE DE SUIVI DES CHANTIERS", h2_style))
+    story.append(Paragraph("3. SITUATION PAR CHANTIER", h2_style))
     
-    for chantier in chantiers_data:
+    for index, chantier in enumerate(chantiers_data, start=1):
         story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#E4E4E7'), spaceBefore=4, spaceAfter=8))
-        story.append(Paragraph(f"Chantier : {chantier['nom']} ({chantier['commune']})", h3_style))
+        commune = chantier.get('commune') or 'commune non renseignée'
+        story.append(Paragraph(f"3.{index}. {chantier['nom']} ({commune})", h3_style))
+        # Le commentaire ouvre la sous-section : le lecteur sait ce que les
+        # tableaux qui suivent vont confirmer.
+        story.append(Paragraph(redaction.commentaire_chantier(chantier), body_style))
+        story.append(Spacer(1, 0.25*cm))
         
         # Table of metrics for this chantier
         data = [
@@ -231,13 +286,12 @@ def generate_pges_pdf(chantiers_data, start_date, end_date, entreprise_destinata
         
     # --- CONCLUSION ---
     story.append(Paragraph("4. CONCLUSION ET RECOMMANDATIONS", h2_style))
-    concl_text = (
-        "Le suivi environnemental et social est un processus continu. Les donn\u00e9es ci-dessus d\u00e9montrent la "
-        "volont\u00e9 du projet PTUA de minimiser les impacts n\u00e9gatifs sur le milieu naturel et humain. "
-        "Il est recommand\u00e9 de poursuivre la mise en \u0153uvre stricte des mesures d'att\u00e9nuation pr\u00e9vues "
-        "et d'assurer une r\u00e9solution rapide de toutes les non-conformit\u00e9s et plaintes ouvertes."
-    )
-    story.append(Paragraph(concl_text, body_style))
+    # Les recommandations decoulent des chiffres constates : un rapport ou
+    # tout est clos ne peut pas se conclure comme un rapport ou des
+    # non-conformites restent ouvertes.
+    story.append(Paragraph(
+        redaction.conclusion(chantiers_data, start_date, end_date), body_style,
+    ))
     story.append(Spacer(1, 0.5*cm))
     
     # Signature block

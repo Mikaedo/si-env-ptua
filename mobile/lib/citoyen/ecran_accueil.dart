@@ -117,9 +117,41 @@ class _EcranAccueilCitoyenState extends State<EcranAccueilCitoyen>
       if (!mounted) return;
       setState(() {
         _etape = _Etape.erreur;
-        _message = e.toString().replaceFirst('Exception: ', '');
+        _message = _messageLisible(e);
       });
     }
+  }
+
+  /// Traduit une panne technique en une phrase compréhensible.
+  ///
+  /// Les messages venus du serveur sont rédigés pour la personne concernée et
+  /// remontent tels quels. Ceux que lève la couche réseau, en revanche, sont
+  /// écrits pour un développeur : un riverain à qui l'on affiche
+  /// « CERTIFICATE_VERIFY_FAILED » n'apprend rien et se croit fautif. On lui
+  /// dit ce qui se passe et ce qu'il peut faire, sans jargon.
+  String _messageLisible(Object erreur) {
+    final brut = erreur.toString().replaceFirst('Exception: ', '');
+
+    const pannesReseau = [
+      'SocketException', 'HandshakeException', 'CERTIFICATE_VERIFY_FAILED',
+      'Connection refused', 'Network is unreachable', 'Failed host lookup',
+      'Connection timed out', 'TimeoutException', 'ClientException',
+    ];
+    for (final motif in pannesReseau) {
+      if (brut.contains(motif)) {
+        return "Nous n'avons pas pu joindre le serveur. Vérifiez votre "
+            "connexion à Internet, puis réessayez.";
+      }
+    }
+
+    // Un message venu du serveur est déjà rédigé pour être lu : on le garde.
+    // Au-delà d'une certaine longueur ou en présence de parenthèses
+    // techniques, il s'agit plus probablement d'une trace interne.
+    if (brut.length > 160 || brut.contains('(OS Error')) {
+      return "Une erreur est survenue. Réessayez dans un instant ; si le "
+          "problème persiste, signalez-le à l'AGEROUTE.";
+    }
+    return brut;
   }
 
   void _versConnexion() {

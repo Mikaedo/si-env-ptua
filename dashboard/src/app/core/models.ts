@@ -109,3 +109,22 @@ export interface Journal {
   ip_source?: string | null;
   cree_le: string;
 }
+
+/**
+ * Trace d'un rapport adressé à un organisme de contrôle.
+ *
+ * Consulter le tableau de bord et recevoir officiellement un rapport sont deux
+ * actes distincts : le second se prouve, d'où cet enregistrement daté.
+ */
+export interface TransmissionRapport {
+  id: number;
+  transmis_le: string;
+  emetteur_email: string;
+  destinataire_email: string;
+  organisme?: string | null;
+  periode_debut?: string | null;
+  periode_fin?: string | null;
+  nom_fichier?: string | null;
+  taille_octets?: number | null;
+  succes: boolean;
+}

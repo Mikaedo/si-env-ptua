@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Signalement, Chantier, Alerte, Plainte, NonConformite, IndiceSatellite, User, AlerteSeuil, Journal } from './models';
+import { Signalement, Chantier, Alerte, Plainte, NonConformite, IndiceSatellite, User, AlerteSeuil, Journal, TransmissionRapport } from './models';
 import { AuthService } from './auth.service';
 
 import { environment } from '../../environments/environment';
@@ -75,6 +75,29 @@ export class ApiService {
     return this.http.post(`${API_URL}/rapports/generate`,
       { chantier_ids: chantierIds, date_debut: dateDebut, date_fin: dateFin, entreprise_destinataire: entrepriseDestinataire || 'ANDE' },
       { headers: this.headers, responseType: 'blob' });
+  }
+
+  /**
+   * Adresse formellement le rapport à l'organisme retenu.
+   *
+   * Distinct du téléchargement : celui-ci sert à consulter, celui-là engage
+   * l'AGEROUTE et laisse une trace datée dans l'historique des remises.
+   * L'adresse peut rester vide, l'adresse institutionnelle de l'organisme
+   * étant alors utilisée.
+   */
+  transmettreRapport(chantierIds: number[], dateDebut: string, dateFin: string,
+                     organisme: string, destinataireEmail?: string): Observable<TransmissionRapport> {
+    return this.http.post<TransmissionRapport>(`${API_URL}/rapports/transmettre`, {
+      chantier_ids: chantierIds,
+      date_debut: dateDebut,
+      date_fin: dateFin,
+      entreprise_destinataire: organisme,
+      destinataire_email: destinataireEmail || null,
+    }, { headers: this.headers });
+  }
+
+  getTransmissions(): Observable<TransmissionRapport[]> {
+    return this.http.get<TransmissionRapport[]>(`${API_URL}/rapports/transmissions`, { headers: this.headers });
   }
 
   // Users (admin)

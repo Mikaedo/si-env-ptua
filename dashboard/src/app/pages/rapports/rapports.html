@@ -118,9 +118,20 @@
       <p style="font-size:11.5px; color:#A1A1AA; margin:8px 0 0; font-weight:500;">
         Le rapport sera adressé à l'entreprise sélectionnée (visible sur la page de garde du PDF)
       </p>
+
+      @if (peutTransmettre) {
+        <div style="margin-top:14px; padding-top:14px; border-top:1px dashed #E4E4E7;">
+          <label class="form-label" style="display:block; margin-bottom:6px;">
+            Adresse de transmission <span style="font-weight:500; color:#A1A1AA;">facultative</span>
+          </label>
+          <input type="email" [value]="emailPersonnalise()" (input)="emailPersonnalise.set($any($event.target).value)"
+            placeholder="Laissez vide pour utiliser l'adresse institutionnelle"
+            style="width:100%; padding:10px 12px; border:1.5px solid #E4E4E7; border-radius:8px; font-size:13px; color:#18181B; outline:none; font-family:inherit;" />
+        </div>
+      }
     </div>
 
-    <!-- Bouton générer -->
+    <!-- Actions -->
     <div style="padding:22px 26px; background:#FAFAFA;">
       <button (click)="generate()" [disabled]="generating()" class="btn btn-primary" style="width:100%; justify-content:center; padding:13px 24px; font-size:14px;" [style.opacity]="generating() ? '0.7' : '1'">
         @if (generating()) {
@@ -131,10 +142,81 @@
           Générer le rapport PDF
         }
       </button>
-      <p style="text-align:center; font-size:12px; color:#A1A1AA; margin:10px 0 0; font-weight:500;">
-        Le rapport agrège signalements, alertes et mesures · Modèle réglementaire BAD
-      </p>
+
+      @if (peutTransmettre) {
+        <button (click)="transmettre()" [disabled]="transmission()"
+          style="width:100%; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:9px; padding:13px 24px; border:1.5px solid #004F9F; border-radius:10px; background:white; color:#004F9F; font-size:14px; font-weight:600; font-family:inherit; cursor:pointer;"
+          [style.opacity]="transmission() ? '0.7' : '1'">
+          @if (transmission()) {
+            <div class="spinner" style="border-top-color:#004F9F;"></div>
+            Transmission en cours...
+          } @else {
+            <lucide-icon [img]="Send" size="17"></lucide-icon>
+            Transmettre à {{ selectedEntreprise() }}
+          }
+        </button>
+        <p style="text-align:center; font-size:11.5px; color:#A1A1AA; margin:10px 0 0; font-weight:500; line-height:1.6;">
+          La transmission adresse le rapport en pièce jointe et enregistre la remise
+          à votre nom, avec sa date.
+        </p>
+      } @else {
+        <p style="text-align:center; font-size:12px; color:#A1A1AA; margin:10px 0 0; font-weight:500;">
+          Le rapport agrège signalements, alertes et mesures · Modèle réglementaire BAD
+        </p>
+      }
     </div>
+  </div>
+
+  <!-- Historique des transmissions -->
+  <div class="card">
+    <button (click)="basculerHistorique()"
+      style="width:100%; display:flex; align-items:center; gap:11px; padding:18px 26px; border:none; background:none; cursor:pointer; font-family:inherit; text-align:left;">
+      <div style="width:34px; height:34px; border-radius:9px; background:#F0F7FF; color:#004F9F; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <lucide-icon [img]="History" size="16"></lucide-icon>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:13.5px; font-weight:700; color:#18181B;">Historique des transmissions</div>
+        <div style="font-size:11.5px; color:#A1A1AA; margin-top:2px;">
+          Preuve des remises effectuées aux organismes de contrôle
+        </div>
+      </div>
+      @if (transmissions().length) {
+        <span class="badge badge-navy">{{ transmissions().length }}</span>
+      }
+    </button>
+
+    @if (afficherHistorique()) {
+      <div style="border-top:1px solid #F4F4F5;">
+        @for (t of transmissions(); track t.id) {
+          <div style="display:flex; align-items:center; gap:12px; padding:13px 26px; border-bottom:1px solid #F8F8F9;">
+            <div style="width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"
+                 [style.background]="t.succes ? '#F0FDF4' : '#FEF2F2'"
+                 [style.color]="t.succes ? '#16A34A' : '#B91C1C'">
+              <lucide-icon [img]="t.succes ? Mail : XCircle" size="15"></lucide-icon>
+            </div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:13px; font-weight:600; color:#18181B;">
+                {{ t.organisme }} · {{ t.destinataire_email }}
+              </div>
+              <div style="font-size:11.5px; color:#A1A1AA; margin-top:2px;">
+                {{ dateTransmission(t) }} · par {{ t.emetteur_email }}
+                @if (t.periode_debut && t.periode_fin) {
+                  · période du {{ t.periode_debut }} au {{ t.periode_fin }}
+                }
+              </div>
+            </div>
+            <span style="font-size:11px; color:#A1A1AA; white-space:nowrap; flex-shrink:0;">{{ poidsLisible(t) }}</span>
+            @if (!t.succes) {
+              <span class="badge" style="background:#FEF2F2; color:#B91C1C; flex-shrink:0;">Échec</span>
+            }
+          </div>
+        } @empty {
+          <div style="padding:26px; text-align:center; font-size:12.5px; color:#A1A1AA; line-height:1.6;">
+            Aucune transmission enregistrée à ce jour.
+          </div>
+        }
+      </div>
+    }
   </div>
 
   <!-- Note contextuelle -->

@@ -1,9 +1,10 @@
 import { Component, signal, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ApiService } from '../../core/api.service';
+import { AuthService } from '../../core/auth.service';
 import { ToastService } from '../../core/toast.service';
-import { Chantier } from '../../core/models';
-import { LucideAngularModule, FileText, Download, Calendar, Building2, Info, CheckCircle, MapPin, AlertCircle, Send } from 'lucide-angular';
+import { Chantier, TransmissionRapport } from '../../core/models';
+import { LucideAngularModule, FileText, Download, Calendar, Building2, Info, CheckCircle, MapPin, AlertCircle, Send, History, Mail, XCircle } from 'lucide-angular';
 import { DatePicker } from '../../shared/date-picker';
 
 @Component({
@@ -14,7 +15,26 @@ import { DatePicker } from '../../shared/date-picker';
 })
 export class Rapports implements OnInit {
   private api = inject(ApiService);
+  private auth = inject(AuthService);
   private toast = inject(ToastService);
+
+  readonly History = History;
+  readonly Mail = Mail;
+  readonly XCircle = XCircle;
+
+  // ── Transmission formelle ────────────────────────────────────────────
+  // Le téléchargement sert à consulter, la transmission engage l'AGEROUTE
+  // devant son régulateur et son bailleur. Les destinataires eux-mêmes n'y
+  // ont pas accès : la remise qu'ils reçoivent ne peut pas être produite par
+  // eux, sinon la trace n'attesterait plus rien.
+  transmissions = signal<TransmissionRapport[]>([]);
+  transmission = signal(false);
+  emailPersonnalise = signal('');
+  afficherHistorique = signal(false);
+
+  get peutTransmettre(): boolean {
+    return this.auth.hasRole('SPEC_ENV', 'ADMIN');
+  }
 
   readonly FileText = FileText;
   readonly Download = Download;
@@ -55,6 +75,7 @@ export class Rapports implements OnInit {
 
   ngOnInit() {
     this.chargerChantiers();
+    this.chargerTransmissions();
 
     const today = new Date();
     const threeMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
@@ -115,5 +136,78 @@ export class Rapports implements OnInit {
         this.toast.error('Échec de la génération du rapport');
       }
     });
+  }
+
+  transmettre() {
+    if (this.selectedChantiers().length === 0) {
+      this.error.set('Sélectionnez au moins un chantier');
+      return;
+    }
+    if (!this.dateDebut() || !this.dateFin()) {
+      this.error.set('Sélectionnez une période');
+      return;
+    }
+
+    const organisme = this.selectedEntreprise();
+    const adresse = this.emailPersonnalise().trim();
+    const cible = adresse || `l'adresse institutionnelle de ${organisme}`;
+    if (!confirm(
+      `Adresser le rapport à ${cible} ?\n\n` +
+      `Cette remise sera enregistrée à votre nom dans l'historique des transmissions.`
+    )) return;
+
+    this.transmission.set(true);
+    this.error.set('');
+
+    this.api.transmettreRapport(
+      this.selectedChantiers(), this.dateDebut(), this.dateFin(), organisme, adresse
+    ).subscribe({
+      next: (t) => {
+        this.transmission.set(false);
+        this.emailPersonnalise.set('');
+        this.toast.success(`Rapport transmis à ${t.destinataire_email}`);
+        this.chargerTransmissions();
+        this.afficherHistorique.set(true);
+      },
+      error: (e) => {
+        this.transmission.set(false);
+        const motif = e?.error?.detail ?? 'La transmission a échoué.';
+        this.error.set(motif);
+        this.toast.error('Échec de la transmission');
+        // L'historique est rechargé malgré l'échec : la tentative y figure,
+        // et il vaut mieux que l'utilisateur la voie plutôt qu'il la croie
+        // perdue et la relance en double.
+        this.chargerTransmissions();
+      }
+    });
+  }
+
+  chargerTransmissions() {
+    this.api.getTransmissions().subscribe({
+      next: (d) => this.transmissions.set(d),
+      error: () => {}
+    });
+  }
+
+  basculerHistorique() {
+    const ouvert = !this.afficherHistorique();
+    this.afficherHistorique.set(ouvert);
+    if (ouvert) this.chargerTransmissions();
+  }
+
+  /** Date et heure d'une remise, au format lisible en Côte d'Ivoire. */
+  dateTransmission(t: TransmissionRapport): string {
+    const d = new Date(t.transmis_le);
+    return d.toLocaleDateString('fr-FR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  }
+
+  poidsLisible(t: TransmissionRapport): string {
+    const o = t.taille_octets ?? 0;
+    return o >= 1024 * 1024
+      ? `${(o / (1024 * 1024)).toFixed(1)} Mo`
+      : `${Math.max(1, Math.round(o / 1024))} ko`;
   }
 }

@@ -1,0 +1,269 @@
+ANCIEN ESSAI LOCAL - NE PAS UTILISER
+Entrainement sur le jeu TACO local a 1 classe (179 images de validation).
+Superse par l entrainement final sur Recycle Trash (247 images de validation),
+dont les resultats figurent au tableau 5.5 et a la figure 5.8 du memoire.
+
+>> Debut du script de classification...
+>> Calcul sur : cpu
+>> Categories detectees : ['faible', 'important', 'modere']
+>> Train: 619 images, Val: 179 images
+>> Chargement de MobileNetV2 pre-entraine...
+>> Debut de la boucle d'entrainement...
+  Epoch 1 - batch 10/78 - perte: 1.1264
+  Epoch 1 - batch 20/78 - perte: 1.0141
+  Epoch 1 - batch 30/78 - perte: 0.8460
+  Epoch 1 - batch 40/78 - perte: 1.0346
+  Epoch 1 - batch 50/78 - perte: 0.7536
+  Epoch 1 - batch 60/78 - perte: 0.7429
+  Epoch 1 - batch 70/78 - perte: 0.6280
+Epoch 1/30 - Train Loss: 0.9550 - Val Loss: 1.3396 - Val Acc: 0.1844
+  Epoch 2 - batch 10/78 - perte: 0.7535
+  Epoch 2 - batch 20/78 - perte: 0.8320
+  Epoch 2 - batch 30/78 - perte: 1.1799
+  Epoch 2 - batch 40/78 - perte: 0.6580
+  Epoch 2 - batch 50/78 - perte: 0.8396
+  Epoch 2 - batch 60/78 - perte: 0.6630
+  Epoch 2 - batch 70/78 - perte: 0.9688
+Epoch 2/30 - Train Loss: 0.7785 - Val Loss: 1.3032 - Val Acc: 0.2291
+  Epoch 3 - batch 10/78 - perte: 0.5356
+  Epoch 3 - batch 20/78 - perte: 0.5669
+  Epoch 3 - batch 30/78 - perte: 0.4754
+  Epoch 3 - batch 40/78 - perte: 0.4738
+  Epoch 3 - batch 50/78 - perte: 0.5157
+  Epoch 3 - batch 60/78 - perte: 0.5091
+  Epoch 3 - batch 70/78 - perte: 0.7680
+Epoch 3/30 - Train Loss: 0.5970 - Val Loss: 1.2959 - Val Acc: 0.2067
+  Epoch 4 - batch 10/78 - perte: 0.4531
+  Epoch 4 - batch 20/78 - perte: 0.4967
+  Epoch 4 - batch 30/78 - perte: 0.3893
+  Epoch 4 - batch 40/78 - perte: 0.3581
+  Epoch 4 - batch 50/78 - perte: 0.2548
+  Epoch 4 - batch 60/78 - perte: 0.5013
+  Epoch 4 - batch 70/78 - perte: 0.2249
+Epoch 4/30 - Train Loss: 0.5199 - Val Loss: 1.2730 - Val Acc: 0.1899
+  Epoch 5 - batch 10/78 - perte: 0.3073
+  Epoch 5 - batch 20/78 - perte: 0.3095
+  Epoch 5 - batch 30/78 - perte: 0.7304
+  Epoch 5 - batch 40/78 - perte: 0.2130
+  Epoch 5 - batch 50/78 - perte: 0.3450
+  Epoch 5 - batch 60/78 - perte: 0.4899
+  Epoch 5 - batch 70/78 - perte: 0.4103
+Epoch 5/30 - Train Loss: 0.3628 - Val Loss: 1.2415 - Val Acc: 0.2626
+  Epoch 6 - batch 10/78 - perte: 0.1702
+  Epoch 6 - batch 20/78 - perte: 0.2228
+  Epoch 6 - batch 30/78 - perte: 0.1800
+  Epoch 6 - batch 40/78 - perte: 0.2701
+  Epoch 6 - batch 50/78 - perte: 0.4700
+  Epoch 6 - batch 60/78 - perte: 0.2380
+  Epoch 6 - batch 70/78 - perte: 0.2521
+Epoch 6/30 - Train Loss: 0.3129 - Val Loss: 1.1877 - Val Acc: 0.3184
+  Epoch 7 - batch 10/78 - perte: 0.1545
+  Epoch 7 - batch 20/78 - perte: 0.1046
+  Epoch 7 - batch 30/78 - perte: 0.1431
+  Epoch 7 - batch 40/78 - perte: 0.5521
+  Epoch 7 - batch 50/78 - perte: 0.2007
+  Epoch 7 - batch 60/78 - perte: 0.2556
+  Epoch 7 - batch 70/78 - perte: 0.1230
+Epoch 7/30 - Train Loss: 0.2406 - Val Loss: 1.2206 - Val Acc: 0.4358
+  Epoch 8 - batch 10/78 - perte: 0.2637
+  Epoch 8 - batch 20/78 - perte: 0.1424
+  Epoch 8 - batch 30/78 - perte: 0.1126
+  Epoch 8 - batch 40/78 - perte: 0.1533
+  Epoch 8 - batch 50/78 - perte: 0.2830
+  Epoch 8 - batch 60/78 - perte: 0.0850
+  Epoch 8 - batch 70/78 - perte: 0.9126
+Epoch 8/30 - Train Loss: 0.2274 - Val Loss: 1.1538 - Val Acc: 0.4581
+  Epoch 9 - batch 10/78 - perte: 0.1637
+  Epoch 9 - batch 20/78 - perte: 0.1062
+  Epoch 9 - batch 30/78 - perte: 0.0713
+  Epoch 9 - batch 40/78 - perte: 0.0698
+  Epoch 9 - batch 50/78 - perte: 0.2035
+  Epoch 9 - batch 60/78 - perte: 0.1036
+  Epoch 9 - batch 70/78 - perte: 0.5127
+Epoch 9/30 - Train Loss: 0.1744 - Val Loss: 1.0705 - Val Acc: 0.5978
+  Epoch 10 - batch 10/78 - perte: 0.1138
+  Epoch 10 - batch 20/78 - perte: 0.1156
+  Epoch 10 - batch 30/78 - perte: 0.4915
+  Epoch 10 - batch 40/78 - perte: 0.0755
+  Epoch 10 - batch 50/78 - perte: 0.1737
+  Epoch 10 - batch 60/78 - perte: 0.0645
+  Epoch 10 - batch 70/78 - perte: 0.0361
+Epoch 10/30 - Train Loss: 0.1714 - Val Loss: 1.1741 - Val Acc: 0.5698
+  Epoch 11 - batch 10/78 - perte: 0.1886
+  Epoch 11 - batch 20/78 - perte: 0.0713
+  Epoch 11 - batch 30/78 - perte: 0.0834
+  Epoch 11 - batch 40/78 - perte: 0.2297
+  Epoch 11 - batch 50/78 - perte: 0.0911
+  Epoch 11 - batch 60/78 - perte: 0.0959
+  Epoch 11 - batch 70/78 - perte: 0.1243
+Epoch 11/30 - Train Loss: 0.1198 - Val Loss: 1.0821 - Val Acc: 0.6089
+  Epoch 12 - batch 10/78 - perte: 0.0711
+  Epoch 12 - batch 20/78 - perte: 0.0830
+  Epoch 12 - batch 30/78 - perte: 0.0546
+  Epoch 12 - batch 40/78 - perte: 0.1230
+  Epoch 12 - batch 50/78 - perte: 0.0451
+  Epoch 12 - batch 60/78 - perte: 0.2371
+  Epoch 12 - batch 70/78 - perte: 0.2647
+Epoch 12/30 - Train Loss: 0.1285 - Val Loss: 1.2940 - Val Acc: 0.5698
+  Epoch 13 - batch 10/78 - perte: 0.1281
+  Epoch 13 - batch 20/78 - perte: 0.2517
+  Epoch 13 - batch 30/78 - perte: 0.0128
+  Epoch 13 - batch 40/78 - perte: 0.0252
+  Epoch 13 - batch 50/78 - perte: 0.3394
+  Epoch 13 - batch 60/78 - perte: 0.0394
+  Epoch 13 - batch 70/78 - perte: 0.1334
+Epoch 13/30 - Train Loss: 0.0895 - Val Loss: 1.2202 - Val Acc: 0.5698
+  Epoch 14 - batch 10/78 - perte: 0.0156
+  Epoch 14 - batch 20/78 - perte: 0.1231
+  Epoch 14 - batch 30/78 - perte: 0.0081
+  Epoch 14 - batch 40/78 - perte: 0.0291
+  Epoch 14 - batch 50/78 - perte: 0.0114
+  Epoch 14 - batch 60/78 - perte: 0.0294
+  Epoch 14 - batch 70/78 - perte: 0.0125
+Epoch 14/30 - Train Loss: 0.1066 - Val Loss: 1.2243 - Val Acc: 0.5810
+  Epoch 15 - batch 10/78 - perte: 0.0270
+  Epoch 15 - batch 20/78 - perte: 0.0416
+  Epoch 15 - batch 30/78 - perte: 0.0633
+  Epoch 15 - batch 40/78 - perte: 0.0477
+  Epoch 15 - batch 50/78 - perte: 0.0319
+  Epoch 15 - batch 60/78 - perte: 0.1730
+  Epoch 15 - batch 70/78 - perte: 0.0256
+Epoch 15/30 - Train Loss: 0.0898 - Val Loss: 1.2317 - Val Acc: 0.6034
+  Epoch 16 - batch 10/78 - perte: 0.0622
+  Epoch 16 - batch 20/78 - perte: 0.0526
+  Epoch 16 - batch 30/78 - perte: 0.0119
+  Epoch 16 - batch 40/78 - perte: 0.0130
+  Epoch 16 - batch 50/78 - perte: 0.0442
+  Epoch 16 - batch 60/78 - perte: 0.0291
+  Epoch 16 - batch 70/78 - perte: 0.0128
+Epoch 16/30 - Train Loss: 0.0971 - Val Loss: 1.5028 - Val Acc: 0.6369
+  Epoch 17 - batch 10/78 - perte: 0.0313
+  Epoch 17 - batch 20/78 - perte: 0.0222
+  Epoch 17 - batch 30/78 - perte: 0.1310
+  Epoch 17 - batch 40/78 - perte: 0.0424
+  Epoch 17 - batch 50/78 - perte: 0.0306
+  Epoch 17 - batch 60/78 - perte: 0.0105
+  Epoch 17 - batch 70/78 - perte: 0.0149
+Epoch 17/30 - Train Loss: 0.0785 - Val Loss: 1.2608 - Val Acc: 0.6089
+  Epoch 18 - batch 10/78 - perte: 0.0202
+  Epoch 18 - batch 20/78 - perte: 0.0691
+  Epoch 18 - batch 30/78 - perte: 0.0461
+  Epoch 18 - batch 40/78 - perte: 0.0474
+  Epoch 18 - batch 50/78 - perte: 0.0775
+  Epoch 18 - batch 60/78 - perte: 0.0139
+  Epoch 18 - batch 70/78 - perte: 0.0155
+Epoch 18/30 - Train Loss: 0.0534 - Val Loss: 1.2573 - Val Acc: 0.5866
+  Epoch 19 - batch 10/78 - perte: 0.0264
+  Epoch 19 - batch 20/78 - perte: 0.2138
+  Epoch 19 - batch 30/78 - perte: 0.0192
+  Epoch 19 - batch 40/78 - perte: 0.0149
+  Epoch 19 - batch 50/78 - perte: 0.0293
+  Epoch 19 - batch 60/78 - perte: 0.0061
+  Epoch 19 - batch 70/78 - perte: 0.0264
+Epoch 19/30 - Train Loss: 0.0401 - Val Loss: 1.4826 - Val Acc: 0.6257
+  Epoch 20 - batch 10/78 - perte: 0.0108
+  Epoch 20 - batch 20/78 - perte: 0.0036
+  Epoch 20 - batch 30/78 - perte: 0.0465
+  Epoch 20 - batch 40/78 - perte: 0.0257
+  Epoch 20 - batch 50/78 - perte: 0.0598
+  Epoch 20 - batch 60/78 - perte: 0.0048
+  Epoch 20 - batch 70/78 - perte: 0.0159
+Epoch 20/30 - Train Loss: 0.0633 - Val Loss: 1.3183 - Val Acc: 0.6201
+  Epoch 21 - batch 10/78 - perte: 0.0243
+  Epoch 21 - batch 20/78 - perte: 0.0345
+  Epoch 21 - batch 30/78 - perte: 0.0205
+  Epoch 21 - batch 40/78 - perte: 0.0232
+  Epoch 21 - batch 50/78 - perte: 0.0319
+  Epoch 21 - batch 60/78 - perte: 0.0899
+  Epoch 21 - batch 70/78 - perte: 0.0265
+Epoch 21/30 - Train Loss: 0.0774 - Val Loss: 1.5487 - Val Acc: 0.5978
+  Epoch 22 - batch 10/78 - perte: 0.0095
+  Epoch 22 - batch 20/78 - perte: 0.0255
+  Epoch 22 - batch 30/78 - perte: 0.1414
+  Epoch 22 - batch 40/78 - perte: 0.0181
+  Epoch 22 - batch 50/78 - perte: 0.0826
+  Epoch 22 - batch 60/78 - perte: 0.1439
+  Epoch 22 - batch 70/78 - perte: 0.0102
+Epoch 22/30 - Train Loss: 0.0689 - Val Loss: 1.3253 - Val Acc: 0.6201
+  Epoch 23 - batch 10/78 - perte: 0.0783
+  Epoch 23 - batch 20/78 - perte: 0.0044
+  Epoch 23 - batch 30/78 - perte: 0.0063
+  Epoch 23 - batch 40/78 - perte: 0.0120
+  Epoch 23 - batch 50/78 - perte: 0.0038
+  Epoch 23 - batch 60/78 - perte: 0.1668
+  Epoch 23 - batch 70/78 - perte: 0.1049
+Epoch 23/30 - Train Loss: 0.0693 - Val Loss: 1.5666 - Val Acc: 0.6480
+  Epoch 24 - batch 10/78 - perte: 0.0143
+  Epoch 24 - batch 20/78 - perte: 0.0735
+  Epoch 24 - batch 30/78 - perte: 0.0789
+  Epoch 24 - batch 40/78 - perte: 0.0084
+  Epoch 24 - batch 50/78 - perte: 0.0268
+  Epoch 24 - batch 60/78 - perte: 0.0368
+  Epoch 24 - batch 70/78 - perte: 0.0029
+Epoch 24/30 - Train Loss: 0.0962 - Val Loss: 1.3823 - Val Acc: 0.6257
+  Epoch 25 - batch 10/78 - perte: 0.1905
+  Epoch 25 - batch 20/78 - perte: 0.0630
+  Epoch 25 - batch 30/78 - perte: 0.2613
+  Epoch 25 - batch 40/78 - perte: 0.4561
+  Epoch 25 - batch 50/78 - perte: 0.0306
+  Epoch 25 - batch 60/78 - perte: 0.0026
+  Epoch 25 - batch 70/78 - perte: 0.0653
+Epoch 25/30 - Train Loss: 0.0875 - Val Loss: 1.4373 - Val Acc: 0.6425
+  Epoch 26 - batch 10/78 - perte: 0.0096
+  Epoch 26 - batch 20/78 - perte: 0.0360
+  Epoch 26 - batch 30/78 - perte: 0.0440
+  Epoch 26 - batch 40/78 - perte: 0.0133
+  Epoch 26 - batch 50/78 - perte: 0.0068
+  Epoch 26 - batch 60/78 - perte: 0.0025
+  Epoch 26 - batch 70/78 - perte: 0.0064
+Epoch 26/30 - Train Loss: 0.0551 - Val Loss: 1.4340 - Val Acc: 0.6145
+  Epoch 27 - batch 10/78 - perte: 0.0179
+  Epoch 27 - batch 20/78 - perte: 0.0076
+  Epoch 27 - batch 30/78 - perte: 0.0557
+  Epoch 27 - batch 40/78 - perte: 0.0073
+  Epoch 27 - batch 50/78 - perte: 0.0205
+  Epoch 27 - batch 60/78 - perte: 0.0153
+  Epoch 27 - batch 70/78 - perte: 0.0282
+Epoch 27/30 - Train Loss: 0.0350 - Val Loss: 1.4258 - Val Acc: 0.6201
+  Epoch 28 - batch 10/78 - perte: 0.4850
+  Epoch 28 - batch 20/78 - perte: 0.0061
+  Epoch 28 - batch 30/78 - perte: 0.0039
+  Epoch 28 - batch 40/78 - perte: 0.0099
+  Epoch 28 - batch 50/78 - perte: 0.1701
+  Epoch 28 - batch 60/78 - perte: 0.0467
+  Epoch 28 - batch 70/78 - perte: 0.0160
+Epoch 28/30 - Train Loss: 0.0358 - Val Loss: 1.5585 - Val Acc: 0.6089
+  Epoch 29 - batch 10/78 - perte: 0.0693
+  Epoch 29 - batch 20/78 - perte: 0.0293
+  Epoch 29 - batch 30/78 - perte: 0.0016
+  Epoch 29 - batch 40/78 - perte: 0.0403
+  Epoch 29 - batch 50/78 - perte: 0.0539
+  Epoch 29 - batch 60/78 - perte: 0.0288
+  Epoch 29 - batch 70/78 - perte: 0.0063
+Epoch 29/30 - Train Loss: 0.0417 - Val Loss: 1.6231 - Val Acc: 0.6536
+  Epoch 30 - batch 10/78 - perte: 0.0080
+  Epoch 30 - batch 20/78 - perte: 0.0228
+  Epoch 30 - batch 30/78 - perte: 0.0368
+  Epoch 30 - batch 40/78 - perte: 0.0599
+  Epoch 30 - batch 50/78 - perte: 0.0093
+  Epoch 30 - batch 60/78 - perte: 0.0223
+  Epoch 30 - batch 70/78 - perte: 0.0060
+Epoch 30/30 - Train Loss: 0.0540 - Val Loss: 1.6686 - Val Acc: 0.6089
+>> Entrainement termine. Evaluation...
+
+===== RAPPORT DE CLASSIFICATION (F1-score par classe) =====
+              precision    recall  f1-score   support
+
+      faible       0.69      0.85      0.76       116
+   important       0.60      0.11      0.19        27
+      modere       0.23      0.19      0.21        36
+
+    accuracy                           0.61       179
+   macro avg       0.51      0.39      0.39       179
+weighted avg       0.58      0.61      0.56       179
+
+>> Matrice de confusion enregistree : matrice_confusion_classification.png
+>> Courbe d'apprentissage enregistree
+>> Modele exporte : mobilenetv2_criticite.onnx
+
+TERMINE !

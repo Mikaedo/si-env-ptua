@@ -16,7 +16,7 @@ schema reel (backend/app/models.py) :
 from PIL import Image, ImageDraw, ImageFont
 import math
 
-W, H = 2500, 1450
+W, H = 2500, 1620
 BG = (255, 255, 255)
 FG = (0, 0, 0)
 
@@ -129,8 +129,11 @@ hse = Entite("EXPERT_HSE", ["numeroAgrement"], 220, 380, 180)
 spec = Entite("SPEC_ENV", ["niveauHabilitation"], 420, 380, 180)
 par = Entite("SPEC_PAR", ["secteurAffecte"], 620, 380, 180)
 admin = Entite("ADMIN", ["niveauAcces"], 820, 380, 150)
+ande = Entite("ANDE", ["referenceAgrement"], 990, 380, 180)
+bad = Entite("BAD", ["codeMission"], 1190, 380, 170)
+riverain = Entite("PLAIGNANT", ["# chantierRattachement"], 1380, 380, 250)
 
-sous_types = [resp, hse, spec, par, admin]
+sous_types = [resp, hse, spec, par, admin, ande, bad, riverain]
 
 # ─── Entités principales ─────────────────────────────────────────────────
 signalement = Entite("SIGNALEMENT",
@@ -138,10 +141,12 @@ signalement = Entite("SIGNALEMENT",
                       "statutSignalement", "geom", "dateObservation"],
                      1950, 420, 340)
 
-chantier = Entite("CHANTIER", ["# idChantier", "nomChantier", "commune"], 20, 650, 300)
+chantier = Entite("CHANTIER", ["# idChantier", "nomChantier", "commune",
+                               "rayonInfluence"], 20, 650, 300)
 
 plainte = Entite("PLAINTE", ["# idPlainte", "nomPlaignant", "contact", "description",
-                             "statutPlainte", "dateDepot"], 1950, 20, 340)
+                             "statutPlainte", "dateDepot", "canal", "categorie",
+                             "geom"], 1950, 20, 340)
 
 alerte = Entite("ALERTE", ["# idAlerte", "message", "niveau", "valeur",
                            "dateDeclenchement", "recue"], 1950, 900, 340)
@@ -160,12 +165,17 @@ rapport = Entite("RAPPORT", ["# idRapport", "periodeDebut", "periodeFin",
                              "cheminFichier", "destinataire", "nbChantiers",
                              "dateGeneration"], 1560, 1150, 330)
 
-toutes = [util, resp, hse, spec, par, admin, chantier, signalement, plainte,
-         photo, action, nc, alerte, rapport]
+transmission = Entite("TRANSMISSION",
+                      ["# idTransmission", "emetteur", "destinataire",
+                       "organisme", "dateTransmission", "succes"], 1950, 1330, 340)
+
+toutes = [util, resp, hse, spec, par, admin, ande, bad, riverain, chantier,
+         signalement, plainte, photo, action, nc, alerte, rapport,
+         transmission]
 for e in toutes:
     e.draw()
 
-specialisation(util, sous_types, scx=490)
+specialisation(util, sous_types, scx=790)
 
 # ─── Relations (fidèles aux clés étrangères réelles du modèle SQLAlchemy) ──
 relation(util, signalement, "SAISIT", "0,n", "1,1", 0.35)
@@ -175,11 +185,14 @@ relation(signalement, action, "GENERE", "0,n", "1,1", 0.5)
 relation(signalement, nc, "SIGNALE", "0,n", "1,1", 0.45)
 relation(chantier, alerte, "DECLENCHE", "0,n", "0,1", 0.5)
 relation(util, alerte, "DESTINATAIRE", "0,n", "0,1", 0.6)
-relation(chantier, plainte, "CONCERNE", "0,n", "0,1", 0.6)
+relation(chantier, plainte, "CONCERNE", "0,n", "0,1", 0.22)
 relation(util, rapport, "REDIGE", "0,n", "1,1", 0.55)
+# Un rapport peut etre remis plusieurs fois, a des organismes differents.
+relation(rapport, transmission, "FAIT_L_OBJET_DE", "0,n", "1,1", 0.5)
 
 d.text((20, H - 28),
-      "Note : les 5 sous-types reprennent les valeurs de l'énumération role du modèle Utilisateur (RESP_ENV, EXPERT_HSE, SPEC_ENV, SPEC_PAR, ADMIN).",
+      "Note : les 8 sous-types reprennent les valeurs de l'énumération role du modèle Utilisateur. "
+      "ANDE et BAD accèdent en consultation seule ; PLAIGNANT désigne un riverain rattaché à un chantier.",
       font=F_NOTE, fill=FG)
 
 img.save(r"C:\Users\DELL\AppData\Local\Temp\claude\d--etude-soutenance-SI-ENV\3233866b-194c-446a-b8f6-65c65b911c25\scratchpad\mcd_regenere.png")

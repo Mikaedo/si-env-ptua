@@ -9,7 +9,7 @@ dessine a la main.
 from PIL import Image, ImageDraw, ImageFont
 import math
 
-W, H = 2000, 1450
+W, H = 2680, 1450
 BG = (255, 255, 255)
 FG = (0, 0, 0)
 LINE_W = 2
@@ -164,6 +164,15 @@ par = Box("SpecialisteSuiviPAR", ["secteurAffecte : Texte"],
 admin = Box("Administrateur", ["niveauAcces : Texte"],
             ["gererUtilisateurs()", "configurerSeuils()", "majModeleIA()"], 1340, 20, 300)
 
+# Organismes de controle : aucune operation d'ecriture, ce que traduit
+# l'absence de methode modifiant l'etat du systeme.
+ande = Box("ANDE", ["referenceAgrement : Texte"],
+           ["consulterConformite()", "recevoirRapport()"], 1660, 20, 300)
+bad = Box("BAD", ["codeMission : Texte"],
+          ["consulterSauvegardes()", "recevoirRapport()"], 1980, 20, 300)
+riverain = Box("Riverain", ["chantierRattachement : Entier"],
+               ["deposerDoleance()", "suivreDoleances()"], 2300, 20, 300)
+
 util = Box("Utilisateur",
            ["idUtilisateur : Entier", "emailPro : Texte", "hashMdp : Texte",
             "dateInscription : Date"],
@@ -172,10 +181,12 @@ util = Box("Utilisateur",
 
 plainte = Box("Plainte",
               ["idPlainte : Entier", "descriptionPlainte : Texte",
-               "statutPlainte : Texte", "dateDepot : Horodatage"],
+               "statutPlainte : Texte", "dateDepot : Horodatage",
+               "canal : Texte", "categorie : Texte"],
               ["qualifierPlainte()", "cloturerPlainte()"], 20, 620, 200)
 
-chantier = Box("Chantier", ["idChantier : Entier", "nomChantier : Texte", "commune : Texte"],
+chantier = Box("Chantier", ["idChantier : Entier", "nomChantier : Texte", "commune : Texte",
+                            "rayonInfluence : Entier"],
                ["genererIndicateurs()", "archiver()"], 380, 620, 300)
 
 # Signalement est decale plus bas que Plainte/Chantier/Rapport pour laisser
@@ -211,13 +222,20 @@ nc = Box("NonConformite",
           "resolue : Booléen"],
          ["marquerResolue()"], 1300, 1170, 320)
 
-boxes = [resp, hse, spec, par, admin, util, plainte, chantier, signalement,
-        rapport, indice, alerte, photo, action, nc]
+transmission = Box("TransmissionRapport",
+                   ["idTransmission : Entier", "emetteur : Texte",
+                    "destinataire : Texte", "organisme : Texte",
+                    "dateTransmission : Horodatage", "succes : Booleen"],
+                   ["tracer()"], 1660, 1170, 330)
+
+boxes = [resp, hse, spec, par, admin, ande, bad, riverain, util, plainte,
+        chantier, signalement, rapport, indice, alerte, photo, action, nc,
+        transmission]
 for b in boxes:
     b.draw()
 
 # ─── Héritage : ligne droite de chaque acteur vers Utilisateur ─────────
-for b in (resp, hse, spec, par, admin):
+for b in (resp, hse, spec, par, admin, ande, bad, riverain):
     relation(b, util, "", None, None, heritage=True)
 
 # ─── Associations : ligne droite, multiplicités correctes (1 côté "un",
@@ -231,6 +249,12 @@ for b in (resp, hse, spec, par, admin):
 #   produit ou les recoit ; ils lui survivent.
 relation(util, signalement, "saisit", "1", "0..*")
 relation(util, rapport, "rédige", "1", "0..*")
+# Un rapport peut etre remis plusieurs fois, a des organismes differents et a
+# des dates differentes. La trace ne reference pas l'emetteur par une cle
+# etrangere mais conserve son adresse : elle doit survivre a la suppression du
+# compte qui l'a produite, sans quoi la preuve de la remise disparaitrait avec
+# son auteur.
+relation(rapport, transmission, "fait l'objet de", "1", "0..*")
 relation(util, alerte, "reçoit", "1", "0..*", frac=0.6)
 relation(chantier, plainte, "concerne", "1", "0..*")
 relation(chantier, alerte, "déclenche", "1", "0..*")

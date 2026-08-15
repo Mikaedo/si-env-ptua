@@ -15,7 +15,7 @@ schema reel (backend/app/models.py), en coherence avec le MCD corrige :
 """
 from PIL import Image, ImageDraw, ImageFont
 
-W, H = 2350, 1250
+W, H = 2350, 1450
 BG = (255, 255, 255)
 FG = (0, 0, 0)
 ORANGE = (196, 90, 17)
@@ -92,10 +92,12 @@ def relation_fk(t_source, t_cible):
 util = Table("UTILISATEUR", "idUtilisateur",
              ["nom", "email", "motDePasseHash", "role", "premiereConnexion",
               "telephone", "dateInscription", "tokenInvitation",
-              "tokenInvitationExpire"], [],
+              "tokenInvitationExpire", "twofaEmailActif"],
+             ["idChantierRattachement (nullable)"],
              20, 20, 360)
 
-chantier = Table("CHANTIER", "idChantier", ["nom", "commune", "geom"], [],
+chantier = Table("CHANTIER", "idChantier",
+                 ["nom", "commune", "geom", "rayonInfluence"], [],
                  1900, 20, 300)
 
 # Archive des rapports PGES : place en haut, a cote d'UTILISATEUR, pour que le
@@ -106,8 +108,9 @@ rapport = Table("RAPPORT", "idRapport",
                ["idUtilisateur"], 520, 20, 360)
 
 plainte = Table("PLAINTE", "idPlainte",
-                ["nomPlaignant", "contact", "description", "statut", "dateCreation"],
-                ["idChantier (nullable)"], 20, 500, 320)
+                ["nomPlaignant", "contact", "description", "statut", "dateCreation",
+                 "canal", "categorie", "geom"],
+                ["idChantier (nullable)", "idPlaignant (nullable)"], 20, 500, 340)
 
 signalement = Table("SIGNALEMENT", "idSignalement",
                     ["uuidMobile", "typeNuisance", "description", "criticite",
@@ -129,7 +132,17 @@ nc = Table("NONCONFORMITE", "idNonConformite",
           ["description", "severite", "resolue", "dateCreation"],
           ["idSignalement"], 1140, 950, 340)
 
-tables = [util, chantier, plainte, signalement, alerte, photo, action, nc, rapport]
+# La trace de remise ne reference pas son emetteur par une cle etrangere :
+# elle conserve son adresse en clair afin de survivre a la suppression du
+# compte, sans quoi la preuve disparaitrait avec son auteur.
+transmission = Table("TRANSMISSION", "idTransmission",
+                     ["emetteurEmail", "destinataireEmail", "organisme",
+                      "periodeDebut", "periodeFin", "chantiers", "nomFichier",
+                      "tailleOctets", "succes", "dateTransmission"],
+                     [], 1560, 950, 360)
+
+tables = [util, chantier, plainte, signalement, alerte, photo, action, nc,
+          rapport, transmission]
 for t in tables:
     t.draw()
 
@@ -143,9 +156,11 @@ relation_fk(photo, signalement)
 relation_fk(action, signalement)
 relation_fk(nc, signalement)
 relation_fk(rapport, util)
+relation_fk(plainte, util)
+relation_fk(util, chantier)
 
 d.text((20, H - 90),
-      "Note : la spécialisation d'UTILISATEUR (RESP_ENV, EXPERT_HSE, SPEC_ENV, SPEC_PAR, ADMIN, cf. figure 4.8) est résolue en table unique",
+      "Note : la spécialisation d'UTILISATEUR en huit sous-types (cf. figure 4.8) est résolue en table unique",
       font=F_NOTE, fill=FG)
 d.text((20, H - 70),
       "avec discriminant (colonne role), conformément au modèle Utilisateur du code (backend/app/models.py).",

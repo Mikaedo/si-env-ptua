@@ -149,6 +149,10 @@ satellite = cas(COL_B, 1435, "Lancer une\nanalyse satellitaire")
 # par les organismes de controle : elle appartient donc a cette bande, ou les
 # trois acteurs concernes se trouvent voisins.
 transmettre = cas(COL_A, 1510, "Transmettre un\nrapport réglementaire")
+# Le referentiel des chantiers et les seuils d'alerte relevent du specialiste
+# et non de l'administrateur : ce sont des parametres metier, qui engagent
+# l'interpretation environnementale et non l'exploitation du systeme.
+config = cas(COL_B, 1585, "Configurer chantiers\net seuils")
 
 # Specialiste Suivi du P.A.R
 plaintes = cas(COL_A, 1700, "Traiter les\nplaintes (MGP)")
@@ -156,9 +160,8 @@ affecter = cas(COL_B, 1775, "Affecter une\naction corrective")
 
 # Administrateur
 users = cas(COL_A, 1960, "Gérer les\nutilisateurs")
-config = cas(COL_B, 2035, "Configurer chantiers\net seuils")
-types_nuisance = cas(COL_A, 2110, "Paramétrer les\ntypes de nuisance")
-modele_ia = cas(COL_B, 2185, "Mettre à jour\nle modèle IA")
+types_nuisance = cas(COL_B, 2035, "Paramétrer les\ntypes de nuisance")
+modele_ia = cas(COL_A, 2110, "Mettre à jour\nle modèle IA")
 
 # Volet citoyen
 deposer = cas(COL_A, 2370, "Déposer une\ndoléance")
@@ -171,14 +174,14 @@ acteurs = [
     (760, "Expert HSE", [traiter, valider, sync, alerte_recue]),
     (1150, "Spécialiste Suivi\nEnvironnemental", [bord_cas, gerer_alertes, rapport,
                                                   histo_rapports, export, satellite,
-                                                  transmettre]),
+                                                  transmettre, config]),
     # Les organismes de controle suivent immediatement le specialiste dont ils
     # consultent les ecrans : leurs associations restent ainsi courtes, et le
     # voisinage traduit visuellement leur role d'observateurs de son travail.
     (1390, "ANDE", [bord_cas, histo_rapports, satellite, transmettre]),
     (1600, "BAD", [bord_cas, histo_rapports, satellite, transmettre, plaintes]),
     (1830, "Spécialiste\nSuivi du P.A.R", [plaintes, affecter]),
-    (2080, "Administrateur", [users, config, types_nuisance, modele_ia]),
+    (2080, "Administrateur", [users, types_nuisance, modele_ia]),
     (2400, "Riverain", [deposer, suivre_dol]),
 ]
 for y, nom, ses_cas in acteurs:

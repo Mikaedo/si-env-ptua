@@ -3,13 +3,15 @@ import {
   ViewChild, ElementRef, OnDestroy, computed
 } from '@angular/core';
 import { CommonModule, DecimalPipe, DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../core/auth.service';
 import {
   LucideAngularModule,
   Satellite as SatelliteIcon, Wind, Droplets, Leaf, CloudRain,
   TrendingUp, TrendingDown, Minus, AlertTriangle,
-  CheckCircle, RefreshCw, Info, BarChart2, Map, Calendar, Layers, Activity
+  CheckCircle, RefreshCw, Info, BarChart2, Map, Calendar, Layers, Activity,
+  SlidersHorizontal, Building2, BellRing, Plus, Trash2, MapPin, Ruler
 } from 'lucide-angular';
 import * as L from 'leaflet';
 
@@ -53,10 +55,30 @@ interface ResumeSatellite {
   couverture_nuageuse_pct: number;
 }
 
+/** Chantier du référentiel, tel que le paramètre le spécialiste. */
+interface ChantierRef {
+  id: number;
+  nom: string;
+  commune: string | null;
+  geom?: { type: string; coordinates: [number, number] } | null;
+  rayon_influence_m?: number | null;
+}
+
+/** Seuil de déclenchement d'alerte sur un indicateur satellitaire. */
+interface SeuilRef {
+  id: number;
+  nom: string;
+  indicateur: string;
+  seuil: number;
+  niveau: string;
+  actif: boolean;
+  chantier_id?: number | null;
+}
+
 // ─── Composant ───────────────────────────────────────────
 @Component({
   selector: 'app-satellite',
-  imports: [CommonModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule],
   templateUrl: './satellite.html',
   styleUrl: './satellite.scss'
 })
@@ -73,6 +95,9 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
   readonly RefreshCw = RefreshCw; readonly Info = Info;
   readonly BarChart2 = BarChart2; readonly Map = Map; readonly Calendar = Calendar;
   readonly Layers = Layers; readonly Activity = Activity;
+  readonly SlidersHorizontal = SlidersHorizontal; readonly Building2 = Building2;
+  readonly BellRing = BellRing; readonly Plus = Plus; readonly Trash2 = Trash2;
+  readonly MapPin = MapPin; readonly Ruler = Ruler;
 
   // State
   indices = signal<IndicePoint[]>([]);
@@ -80,7 +105,29 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
   serie = signal<SerieTemporelle | null>(null);
   selectedType = signal<'NO2' | 'NDVI' | 'NDWI' | 'RISQUE_PLUIE'>('NO2');
   selectedChantier = signal<number>(1);
-  activeTab = signal<'carte' | 'serie' | 'indices'>('indices');
+  activeTab = signal<'carte' | 'serie' | 'indices' | 'parametrage'>('indices');
+
+  // ── Paramétrage, réuni ici plutôt que dans l'espace d'administration ──
+  // Le référentiel des chantiers et les seuils de déclenchement conditionnent
+  // directement ce qu'affichent les trois autres onglets. Les tenir dans un
+  // écran séparé obligeait le spécialiste à naviguer entre deux pages pour
+  // comprendre l'effet d'une valeur qu'il venait de modifier.
+  chantiers = signal<ChantierRef[]>([]);
+  seuils = signal<SeuilRef[]>([]);
+  erreurParam = signal('');
+  succesParam = signal('');
+
+  nvChantierNom = signal('');
+  nvChantierCommune = signal('');
+  nvChantierLat = signal('');
+  nvChantierLon = signal('');
+  nvChantierRayon = signal('1500');
+
+  nvSeuilNom = signal('');
+  nvSeuilIndicateur = signal('NO2');
+  nvSeuilValeur = signal('');
+  nvSeuilNiveau = signal('WARNING');
+  nvSeuilChantier = signal('');
   loading = signal(true);
   loadingSerie = signal(false);
   lastRefresh = signal(new Date());
@@ -306,7 +353,7 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
     return { NO2:'µmol/m²', NDVI:'indice', NDWI:'indice', RISQUE_PLUIE:'/10' }[t] ?? '';
   }
 
-  setTab(tab: 'carte' | 'serie' | 'indices') {
+  setTab(tab: 'carte' | 'serie' | 'indices' | 'parametrage') {
     this.activeTab.set(tab);
     if (tab === 'carte') {
       setTimeout(() => {
@@ -314,5 +361,139 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
         else this.map.invalidateSize();
       }, 100);
     }
+    if (tab === 'parametrage') this.chargerParametrage();
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  Paramétrage du dispositif de surveillance
+  // ══════════════════════════════════════════════════════════════════
+
+  private get entetes() {
+    return { Authorization: `Bearer ${this.auth.token}` };
+  }
+
+  /** Signale brièvement une opération réussie, puis efface le message. */
+  private annoncer(message: string) {
+    this.erreurParam.set('');
+    this.succesParam.set(message);
+    setTimeout(() => this.succesParam.set(''), 3200);
+  }
+
+  chargerParametrage() {
+    this.http.get<ChantierRef[]>(`${API}/chantiers`, { headers: this.entetes }).subscribe({
+      next: d => this.chantiers.set(d),
+      error: () => this.erreurParam.set('Le référentiel des chantiers n\'a pas pu être chargé.'),
+    });
+    this.http.get<SeuilRef[]>(`${API}/admin/seuils`, { headers: this.entetes }).subscribe({
+      next: d => this.seuils.set(d),
+      error: () => this.erreurParam.set('Les seuils de surveillance n\'ont pas pu être chargés.'),
+    });
+  }
+
+  creerChantier() {
+    const nom = this.nvChantierNom().trim();
+    if (!nom) {
+      this.erreurParam.set('Le nom du chantier est obligatoire.');
+      return;
+    }
+    const lat = parseFloat(this.nvChantierLat());
+    const lon = parseFloat(this.nvChantierLon());
+    if (isNaN(lat) || isNaN(lon)) {
+      // Sans coordonnées, aucun indice satellitaire ne peut être extrait et
+      // aucun riverain ne peut être rattaché : autant le dire tout de suite.
+      this.erreurParam.set('Les coordonnées sont nécessaires pour suivre le chantier par satellite.');
+      return;
+    }
+
+    const corps = {
+      nom,
+      commune: this.nvChantierCommune().trim() || null,
+      latitude: lat,
+      longitude: lon,
+      rayon_influence_m: parseInt(this.nvChantierRayon(), 10) || 1500,
+    };
+
+    this.http.post<ChantierRef>(`${API}/chantiers`, corps, { headers: this.entetes }).subscribe({
+      next: () => {
+        this.nvChantierNom.set(''); this.nvChantierCommune.set('');
+        this.nvChantierLat.set(''); this.nvChantierLon.set('');
+        this.nvChantierRayon.set('1500');
+        this.chargerParametrage();
+        this.annoncer('Chantier ajouté au périmètre de surveillance.');
+        // Les indices portent sur le référentiel : ils doivent suivre.
+        this.loadAll();
+      },
+      error: e => this.erreurParam.set(e?.error?.detail ?? 'La création du chantier a échoué.'),
+    });
+  }
+
+  supprimerChantier(chantier: ChantierRef) {
+    if (!confirm(`Retirer « ${chantier.nom} » du périmètre de surveillance ?`)) return;
+    this.http.delete(`${API}/chantiers/${chantier.id}`, { headers: this.entetes }).subscribe({
+      next: () => {
+        this.chargerParametrage();
+        this.annoncer('Chantier retiré du périmètre.');
+        this.loadAll();
+      },
+      error: e => this.erreurParam.set(
+        e?.error?.detail ?? 'Ce chantier ne peut pas être retiré.'
+      ),
+    });
+  }
+
+  creerSeuil() {
+    const nom = this.nvSeuilNom().trim();
+    const valeur = parseFloat(this.nvSeuilValeur());
+    if (!nom || isNaN(valeur)) {
+      this.erreurParam.set('Un intitulé et une valeur de seuil sont nécessaires.');
+      return;
+    }
+
+    const portee = this.nvSeuilChantier();
+    const corps = {
+      nom,
+      indicateur: this.nvSeuilIndicateur(),
+      seuil: valeur,
+      niveau: this.nvSeuilNiveau(),
+      actif: true,
+      // Portée vide : le seuil vaut pour l'ensemble des chantiers.
+      chantier_id: portee ? parseInt(portee, 10) : null,
+    };
+
+    this.http.post<SeuilRef>(`${API}/admin/seuils`, corps, { headers: this.entetes }).subscribe({
+      next: () => {
+        this.nvSeuilNom.set(''); this.nvSeuilValeur.set(''); this.nvSeuilChantier.set('');
+        this.chargerParametrage();
+        this.annoncer('Seuil de déclenchement enregistré.');
+      },
+      error: e => this.erreurParam.set(e?.error?.detail ?? 'La création du seuil a échoué.'),
+    });
+  }
+
+  supprimerSeuil(seuil: SeuilRef) {
+    if (!confirm(`Supprimer le seuil « ${seuil.nom} » ?`)) return;
+    this.http.delete(`${API}/admin/seuils/${seuil.id}`, { headers: this.entetes }).subscribe({
+      next: () => { this.chargerParametrage(); this.annoncer('Seuil supprimé.'); },
+      error: e => this.erreurParam.set(e?.error?.detail ?? 'La suppression a échoué.'),
+    });
+  }
+
+  /** Coordonnées lisibles d'un chantier, ou mention explicite d'absence. */
+  coordonneesLisibles(chantier: ChantierRef): string {
+    const c = chantier.geom?.coordinates;
+    if (!c) return 'Non positionné';
+    return `${c[1].toFixed(4)}, ${c[0].toFixed(4)}`;
+  }
+
+  /** Rayon d'influence exprimé dans l'unité la plus lisible. */
+  rayonLisible(chantier: ChantierRef): string {
+    const r = chantier.rayon_influence_m ?? 1500;
+    return r >= 1000 ? `${(r / 1000).toFixed(r % 1000 === 0 ? 0 : 1)} km` : `${r} m`;
+  }
+
+  /** Chantier visé par un seuil, ou mention de portée générale. */
+  porteeSeuil(seuil: SeuilRef): string {
+    if (!seuil.chantier_id) return 'Tous les chantiers';
+    return this.chantiers().find(c => c.id === seuil.chantier_id)?.nom ?? 'Chantier retiré';
   }
 }

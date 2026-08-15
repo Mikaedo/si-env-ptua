@@ -2,7 +2,8 @@ export interface User {
   id: number;
   nom: string;
   email: string;
-  role: 'ADMIN' | 'SPEC_ENV' | 'SPEC_PAR' | 'RESP_ENV' | 'EXPERT_HSE';
+  role: 'ADMIN' | 'SPEC_ENV' | 'SPEC_PAR' | 'RESP_ENV' | 'EXPERT_HSE'
+      | 'ANDE' | 'BAD' | 'PLAIGNANT';
   premiere_connexion: boolean;
 }
 

@@ -32,7 +32,11 @@ export class Admin implements OnInit {
   readonly Trash2 = Trash2;
   readonly Pencil = Pencil;
 
-  activeTab = signal<'users' | 'ia' | 'config' | 'logs'>('users');
+  // Le referentiel des chantiers et les seuils d'alerte ont quitte cet ecran.
+  // Ils relevent d'une appreciation environnementale et non de l'exploitation
+  // de la plateforme, et se trouvent desormais dans l'analyse satellitaire,
+  // au contact des indices qu'ils gouvernent.
+  activeTab = signal<'users' | 'ia' | 'logs'>('users');
   users = signal<User[]>([]);
   logs = signal<any[]>([]);
   chantiers = signal<Chantier[]>([]);
@@ -56,7 +60,7 @@ export class Admin implements OnInit {
   ngOnInit() {
     this.route.queryParamMap.subscribe(params => {
       const tab = params.get('tab');
-      if (tab && ['users', 'ia', 'config', 'logs'].includes(tab)) {
+      if (tab && ['users', 'ia', 'logs'].includes(tab)) {
         this.setTab(tab as any);
       }
     });
@@ -80,20 +84,15 @@ export class Admin implements OnInit {
     }
   }
 
-  setTab(tab: 'users' | 'ia' | 'config' | 'logs') {
+  setTab(tab: 'users' | 'ia' | 'logs') {
     this.activeTab.set(tab);
     if (tab === 'logs') this.loadLogs();
-    if (tab === 'config') {
-      this.api.getChantiers().subscribe({ next: data => this.chantiers.set(data) });
-      this.api.getSeuils().subscribe({ next: data => this.seuils.set(data) });
-    }
   }
 
   get tabTitle(): string {
     const titles: Record<string, string> = {
       'users': 'Gestion des utilisateurs',
       'ia': 'Modèle IA Mobile',
-      'config': 'Configuration système',
       'logs': 'Journaux système'
     };
     return titles[this.activeTab()] ?? 'Administration';
@@ -103,7 +102,6 @@ export class Admin implements OnInit {
     const subs: Record<string, string> = {
       'users': 'Création et gestion des comptes utilisateurs',
       'ia': 'Déploiement et suivi du modèle d\'inférence locale',
-      'config': 'Chantiers et seuils d\'alerte environnementale',
       'logs': 'Audit complet des événements système'
     };
     return subs[this.activeTab()] ?? '';

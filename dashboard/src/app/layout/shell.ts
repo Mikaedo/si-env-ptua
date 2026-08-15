@@ -69,19 +69,26 @@ export class Shell implements OnInit, OnDestroy {
     return this.currentTime().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   }
 
+  // L'entree « Configuration » a disparu de l'administration : le referentiel
+  // des chantiers et les seuils d'alerte ont rejoint l'analyse satellitaire,
+  // au contact des indices qu'ils gouvernent.
+  //
+  // L'ANDE et la BAD consultent le dispositif sans pouvoir l'ecrire. Leurs
+  // perimetres different : le mandat de l'agence nationale porte sur la
+  // conformite environnementale, celui du bailleur englobe en plus le volet
+  // social, dont releve le traitement des doleances de riverains.
   navItems: NavItem[] = [
-    { label: 'Tableau de bord', icon: LayoutDashboard, route: '/dashboard', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE'] },
-    { label: 'Signalements', icon: MapPin, route: '/signalements', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE'] },
-    { label: 'Alertes', icon: Bell, route: '/alertes', roles: ['SPEC_ENV', 'SPEC_PAR'] },
-    { label: 'Analyse satellitaire', icon: Satellite, route: '/satellite', roles: ['SPEC_ENV'] },
-    { label: 'Rapports PGES', icon: FileText, route: '/rapports', roles: ['SPEC_ENV'] },
-    { label: 'Plaintes (MGP)', icon: ShieldAlert, route: '/plaintes', roles: ['SPEC_PAR'] },
+    { label: 'Tableau de bord', icon: LayoutDashboard, route: '/dashboard', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE', 'ANDE', 'BAD'] },
+    { label: 'Signalements', icon: MapPin, route: '/signalements', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE', 'ANDE', 'BAD'] },
+    { label: 'Alertes', icon: Bell, route: '/alertes', roles: ['SPEC_ENV', 'SPEC_PAR', 'ANDE', 'BAD'] },
+    { label: 'Analyse satellitaire', icon: Satellite, route: '/satellite', roles: ['SPEC_ENV', 'ANDE', 'BAD'] },
+    { label: 'Rapports PGES', icon: FileText, route: '/rapports', roles: ['SPEC_ENV', 'ANDE', 'BAD'] },
+    { label: 'Plaintes (MGP)', icon: ShieldAlert, route: '/plaintes', roles: ['SPEC_PAR', 'BAD'] },
     // Admin: section label
     { label: 'Administration', icon: Users, route: '', roles: ['ADMIN'], isSection: true },
     // Admin: sub-items
     { label: 'Utilisateurs', icon: Users, route: '/admin', roles: ['ADMIN'], queryParams: { tab: 'users' } },
     { label: 'Modèle IA Mobile', icon: Cpu, route: '/admin', roles: ['ADMIN'], queryParams: { tab: 'ia' } },
-    { label: 'Configuration', icon: Settings2, route: '/admin', roles: ['ADMIN'], queryParams: { tab: 'config' } },
     { label: 'Journaux Système', icon: ScrollText, route: '/admin', roles: ['ADMIN'], queryParams: { tab: 'logs' } },
     // Admin: consultation
     { label: 'Vue consultation', icon: Eye, route: '/admin-dashboard', roles: ['ADMIN'] },

@@ -172,92 +172,10 @@
     </div>
   }
 
-  <!-- ==================== ONGLET : CONFIGURATION ==================== -->
-  @if (activeTab() === 'config') {
-    <div class="slide-in">
-      @if (error()) {
-        <div class="error-banner" style="margin-bottom:16px;">
-          <lucide-icon [img]="AlertCircle" size="16"></lucide-icon>
-          {{ error() }}
-        </div>
-      }
-      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-
-        <!-- Chantiers -->
-        <div class="card" style="padding:22px 26px;">
-          <div class="section-label">
-            <lucide-icon [img]="Building2" size="13"></lucide-icon>
-            Configurer les chantiers
-          </div>
-          <div class="flex gap-2 mb-4">
-            <input [value]="newChantierNom()" (input)="newChantierNom.set($any($event.target).value)" placeholder="Nom du chantier" class="form-input" style="flex:2;" />
-            <input [value]="newChantierCommune()" (input)="newChantierCommune.set($any($event.target).value)" placeholder="Commune" class="form-input" style="flex:1;" />
-            <button (click)="createChantier()" class="btn btn-primary" style="flex-shrink:0; padding:9px 16px;">Ajouter</button>
-          </div>
-          <div>
-            @for (c of chantiers(); track c.id) {
-              <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid #F4F4F5;">
-                <div>
-                  <div style="font-size:13px; font-weight:600; color:#18181B;">{{ c.nom }}</div>
-                  <div style="font-size:11.5px; color:#A1A1AA; margin-top:1px;">{{ c.commune || 'Commune non renseignée' }}</div>
-                </div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <span class="badge badge-gray">{{ c.commune }}</span>
-                  <button (click)="deleteChantier(c)" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#C62828;transition:all 0.15s;" onmouseenter="this.style.background='#FFEBEE'" onmouseleave="this.style.background='none'" title="Supprimer">
-                    <lucide-icon [img]="Trash2" size="14"></lucide-icon>
-                  </button>
-                </div>
-              </div>
-            }
-            @if (!chantiers().length) {
-              <div style="padding:16px 0; text-align:center; font-size:12.5px; color:#A1A1AA;">Aucun chantier configuré</div>
-            }
-          </div>
-        </div>
-
-        <!-- Seuils d'alerte -->
-        <div class="card" style="padding:22px 26px;">
-          <div class="section-label">
-            <lucide-icon [img]="BellRing" size="13"></lucide-icon>
-            Seuils d'alerte
-          </div>
-          <div class="grid grid-cols-3 gap-2 mb-3">
-            <input [value]="newSeuilNom()" (input)="newSeuilNom.set($any($event.target).value)" placeholder="Nom du seuil" class="form-input" />
-            <select [value]="newSeuilIndicateur()" (change)="newSeuilIndicateur.set($any($event.target).value)" class="form-select">
-              <option value="NO2">NO₂</option>
-              <option value="NDVI">NDVI</option>
-              <option value="NDWI">NDWI</option>
-              <option value="RISQUE_PLUIE">Risque pluie</option>
-            </select>
-            <input type="number" [value]="newSeuilValeur()" (input)="newSeuilValeur.set($any($event.target).value)" placeholder="Seuil" class="form-input" />
-          </div>
-          <button (click)="createSeuil()" class="btn btn-primary" style="margin-bottom:14px; font-size:12.5px; padding:8px 16px;">
-            <lucide-icon [img]="Plus" size="14"></lucide-icon>
-            Ajouter le seuil
-          </button>
-          <div>
-            @for (seuil of seuils(); track seuil.id) {
-              <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid #F4F4F5;">
-                <div>
-                  <div style="font-size:13px; font-weight:600; color:#18181B;">{{ seuil.nom }}</div>
-                  <div style="font-size:11.5px; color:#71717A; margin-top:1px;">{{ seuil.indicateur }}</div>
-                </div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <span class="badge badge-orange">Seuil : {{ seuil.seuil }}</span>
-                  <button (click)="deleteSeuil(seuil)" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#C62828;transition:all 0.15s;" onmouseenter="this.style.background='#FFEBEE'" onmouseleave="this.style.background='none'" title="Supprimer">
-                    <lucide-icon [img]="Trash2" size="14"></lucide-icon>
-                  </button>
-                </div>
-              </div>
-            }
-            @if (!seuils().length) {
-              <div style="padding:16px 0; text-align:center; font-size:12.5px; color:#A1A1AA;">Aucun seuil configuré</div>
-            }
-          </div>
-        </div>
-      </div>
-    </div>
-  }
+  <!-- Le referentiel des chantiers et les seuils d'alerte ont quitte cet
+       ecran pour rejoindre l'analyse satellitaire : ils gouvernent ce que
+       les indices affichent, et relevent du specialiste du suivi
+       environnemental plutot que de l'exploitation de la plateforme. -->
 
   <!-- ==================== ONGLET : LOGS SYSTEME ==================== -->
   @if (activeTab() === 'logs') {

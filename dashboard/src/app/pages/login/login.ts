@@ -121,7 +121,9 @@ export class Login {
     this.loading.set(true);
     this.error.set('');
 
-    const allowedRoles = ['ADMIN', 'SPEC_ENV', 'SPEC_PAR'];
+    // Profils admis sur le tableau de bord. Les agents de terrain passent par
+    // l'application mobile, les riverains par l'application citoyenne.
+    const allowedRoles = ['ADMIN', 'SPEC_ENV', 'SPEC_PAR', 'ANDE', 'BAD'];
 
     this.auth.login(this.email(), this.password()).subscribe({
       next: (res) => {

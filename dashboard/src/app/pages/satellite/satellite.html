@@ -178,6 +178,10 @@
       <lucide-icon [img]="Map" size="14"></lucide-icon>
       Carte satellitaire
     </button>
+    <button class="tab-btn" [class.active]="activeTab() === 'parametrage'" (click)="setTab('parametrage')">
+      <lucide-icon [img]="SlidersHorizontal" size="14"></lucide-icon>
+      Paramétrage
+    </button>
   </div>
 
   <!-- ══════════════════════════════════════════
@@ -468,8 +472,216 @@
       <div #mapSat class="sat-map-container"></div>
       <div class="carte-note">
         <lucide-icon [img]="Info" size="13"></lucide-icon>
-        Overlay NO₂ Sentinel-5P/TROPOMI — Rayon proportionnel à la concentration.
+        Overlay NO₂ Sentinel-5P/TROPOMI · Rayon proportionnel à la concentration.
         Couverture nuageuse : <strong>18,4%</strong> · Données GEE du 15 juillet 2026.
+      </div>
+    </div>
+  }
+
+  <!-- ══════════════════════════════════════════
+       ONGLET 4 : PARAMÉTRAGE DU DISPOSITIF
+  ══════════════════════════════════════════ -->
+  @if (activeTab() === 'parametrage') {
+    <div class="param-zone">
+
+      <div class="param-intro">
+        <lucide-icon [img]="Info" size="15"></lucide-icon>
+        <div>
+          Ce que vous définissez ici détermine ce que les trois autres onglets affichent.
+          Chaque chantier ajouté entre immédiatement dans le périmètre d'analyse satellitaire,
+          et sa zone d'influence ouvre l'accès de l'application citoyenne aux riverains concernés.
+        </div>
+      </div>
+
+      @if (erreurParam()) {
+        <div class="param-alerte param-alerte-erreur">
+          <lucide-icon [img]="AlertTriangle" size="15"></lucide-icon>
+          <span>{{ erreurParam() }}</span>
+        </div>
+      }
+      @if (succesParam()) {
+        <div class="param-alerte param-alerte-succes">
+          <lucide-icon [img]="CheckCircle" size="15"></lucide-icon>
+          <span>{{ succesParam() }}</span>
+        </div>
+      }
+
+      <div class="param-grid">
+
+        <!-- ─── Référentiel des chantiers ─── -->
+        <section class="param-card">
+          <header class="param-card-head">
+            <div class="param-card-icon param-icon-bleu">
+              <lucide-icon [img]="Building2" size="16"></lucide-icon>
+            </div>
+            <div>
+              <h3>Périmètre de surveillance</h3>
+              <p>Chantiers suivis par l'analyse satellitaire</p>
+            </div>
+            <span class="param-compteur">{{ chantiers().length }}</span>
+          </header>
+
+          <div class="param-form">
+            <div class="param-row">
+              <label>
+                <span>Désignation</span>
+                <input type="text" [(ngModel)]="nvChantierNom" [ngModelOptions]="{standalone:true}"
+                       placeholder="Rocade Y4" />
+              </label>
+              <label>
+                <span>Commune</span>
+                <input type="text" [(ngModel)]="nvChantierCommune" [ngModelOptions]="{standalone:true}"
+                       placeholder="Yopougon" />
+              </label>
+            </div>
+            <div class="param-row param-row-3">
+              <label>
+                <span>Latitude</span>
+                <input type="number" step="0.0001" [(ngModel)]="nvChantierLat"
+                       [ngModelOptions]="{standalone:true}" placeholder="5.3720" />
+              </label>
+              <label>
+                <span>Longitude</span>
+                <input type="number" step="0.0001" [(ngModel)]="nvChantierLon"
+                       [ngModelOptions]="{standalone:true}" placeholder="-4.0480" />
+              </label>
+              <label>
+                <span>Zone d'influence (m)</span>
+                <input type="number" step="100" [(ngModel)]="nvChantierRayon"
+                       [ngModelOptions]="{standalone:true}" placeholder="1500" />
+              </label>
+            </div>
+            <p class="param-aide">
+              La zone d'influence traduit l'aire dans laquelle les nuisances du chantier
+              se font sentir. Un terrassement lourd dérange plus loin qu'une reprise de
+              chaussée, d'où une valeur propre à chaque ouvrage.
+            </p>
+            <button class="param-btn" (click)="creerChantier()">
+              <lucide-icon [img]="Plus" size="15"></lucide-icon>
+              Ajouter au périmètre
+            </button>
+          </div>
+
+          <div class="param-liste">
+            @for (c of chantiers(); track c.id) {
+              <div class="param-item">
+                <div class="param-item-corps">
+                  <div class="param-item-titre">{{ c.nom }}</div>
+                  <div class="param-item-meta">
+                    <span><lucide-icon [img]="MapPin" size="11"></lucide-icon> {{ c.commune || 'Commune non renseignée' }}</span>
+                    <span class="param-sep">·</span>
+                    <span class="param-coord">{{ coordonneesLisibles(c) }}</span>
+                  </div>
+                </div>
+                <span class="param-badge param-badge-rayon">
+                  <lucide-icon [img]="Ruler" size="11"></lucide-icon>
+                  {{ rayonLisible(c) }}
+                </span>
+                <button class="param-suppr" (click)="supprimerChantier(c)" title="Retirer du périmètre">
+                  <lucide-icon [img]="Trash2" size="14"></lucide-icon>
+                </button>
+              </div>
+            }
+            @if (!chantiers().length) {
+              <div class="param-vide">Aucun chantier dans le périmètre de surveillance</div>
+            }
+          </div>
+        </section>
+
+        <!-- ─── Seuils de déclenchement ─── -->
+        <section class="param-card">
+          <header class="param-card-head">
+            <div class="param-card-icon param-icon-orange">
+              <lucide-icon [img]="BellRing" size="16"></lucide-icon>
+            </div>
+            <div>
+              <h3>Seuils de déclenchement</h3>
+              <p>Valeurs au-delà desquelles une alerte est levée</p>
+            </div>
+            <span class="param-compteur">{{ seuils().length }}</span>
+          </header>
+
+          <div class="param-form">
+            <div class="param-row">
+              <label>
+                <span>Intitulé</span>
+                <input type="text" [(ngModel)]="nvSeuilNom" [ngModelOptions]="{standalone:true}"
+                       placeholder="Qualité de l'air en zone dense" />
+              </label>
+              <label>
+                <span>Indicateur</span>
+                <select [(ngModel)]="nvSeuilIndicateur" [ngModelOptions]="{standalone:true}">
+                  <option value="NO2">NO₂ (dioxyde d'azote)</option>
+                  <option value="NDVI">NDVI (couvert végétal)</option>
+                  <option value="NDWI">NDWI (teneur en eau)</option>
+                  <option value="RISQUE_PLUIE">Risque pluie et relief</option>
+                </select>
+              </label>
+            </div>
+            <div class="param-row param-row-3">
+              <label>
+                <span>Valeur seuil</span>
+                <input type="number" step="0.01" [(ngModel)]="nvSeuilValeur"
+                       [ngModelOptions]="{standalone:true}" placeholder="50" />
+              </label>
+              <label>
+                <span>Gravité</span>
+                <select [(ngModel)]="nvSeuilNiveau" [ngModelOptions]="{standalone:true}">
+                  <option value="WARNING">Avertissement</option>
+                  <option value="CRITIQUE">Critique</option>
+                </select>
+              </label>
+              <label>
+                <span>Portée</span>
+                <select [(ngModel)]="nvSeuilChantier" [ngModelOptions]="{standalone:true}">
+                  <option value="">Tous les chantiers</option>
+                  @for (c of chantiers(); track c.id) {
+                    <option [value]="c.id">{{ c.nom }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+            <p class="param-aide">
+              Un seuil sans chantier désigné vaut pour l'ensemble du programme. Restreint à
+              un ouvrage, il ne concerne que celui-ci : un chantier bordant une zone humide
+              peut ainsi être soumis à une exigence plus stricte que les autres.
+            </p>
+            <button class="param-btn" (click)="creerSeuil()">
+              <lucide-icon [img]="Plus" size="15"></lucide-icon>
+              Enregistrer le seuil
+            </button>
+          </div>
+
+          <div class="param-liste">
+            @for (s of seuils(); track s.id) {
+              <div class="param-item">
+                <div class="param-item-corps">
+                  <div class="param-item-titre">{{ s.nom }}</div>
+                  <div class="param-item-meta">
+                    <span>{{ typeLabel(s.indicateur) }}</span>
+                    <span class="param-sep">·</span>
+                    <span>{{ porteeSeuil(s) }}</span>
+                  </div>
+                </div>
+                <span class="param-badge"
+                      [class.param-badge-critique]="s.niveau === 'CRITIQUE'"
+                      [class.param-badge-warning]="s.niveau !== 'CRITIQUE'">
+                  {{ s.seuil }} {{ typeUnite(s.indicateur) }}
+                </span>
+                <button class="param-suppr" (click)="supprimerSeuil(s)" title="Supprimer le seuil">
+                  <lucide-icon [img]="Trash2" size="14"></lucide-icon>
+                </button>
+              </div>
+            }
+            @if (!seuils().length) {
+              <div class="param-vide">
+                Aucun seuil défini. Les alertes reposent alors sur les règles
+                d'interprétation par défaut de chaque indicateur.
+              </div>
+            }
+          </div>
+        </section>
+
       </div>
     </div>
   }

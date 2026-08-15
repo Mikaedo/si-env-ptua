@@ -687,3 +687,291 @@
   font-size: 11px;
   color: #6B7280;
 }
+
+// ══════════════════════════════════════════════════════════
+//  ONGLET PARAMÉTRAGE
+//  Le référentiel des chantiers et les seuils vivaient dans
+//  l'espace d'administration. Les rapprocher des indices
+//  qu'ils gouvernent évite au spécialiste de naviguer entre
+//  deux écrans pour mesurer l'effet d'une valeur modifiée.
+// ══════════════════════════════════════════════════════════
+
+.param-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.param-intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 14px 18px;
+  background: #F0F7FF;
+  border: 1px solid #CFE3FA;
+  border-radius: 10px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #1E3A5F;
+
+  lucide-icon {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: #004F9F;
+  }
+}
+
+.param-alerte {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 16px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 500;
+
+  lucide-icon { flex-shrink: 0; }
+}
+
+.param-alerte-erreur {
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #B91C1C;
+}
+
+.param-alerte-succes {
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  color: #15803D;
+}
+
+.param-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.param-card {
+  background: white;
+  border: 1px solid #E4E4E7;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.param-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #F1F1F3;
+
+  h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #18181B;
+    letter-spacing: -0.1px;
+  }
+
+  p {
+    margin: 2px 0 0;
+    font-size: 11.5px;
+    color: #A1A1AA;
+  }
+}
+
+.param-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.param-icon-bleu   { background: #E8F1FB; color: #004F9F; }
+.param-icon-orange { background: #FFF1E8; color: #F37021; }
+
+.param-compteur {
+  margin-left: auto;
+  padding: 3px 11px;
+  border-radius: 20px;
+  background: #F4F4F5;
+  font-size: 12px;
+  font-weight: 700;
+  color: #52525B;
+}
+
+// ─── Formulaire ───────────────────────────────────────────
+.param-form {
+  padding: 18px 20px;
+  border-bottom: 1px solid #F1F1F3;
+  background: #FCFCFD;
+}
+
+.param-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+
+  &.param-row-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  span {
+    font-size: 11px;
+    font-weight: 600;
+    color: #71717A;
+    letter-spacing: 0.15px;
+  }
+
+  input, select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1.5px solid #E4E4E7;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #18181B;
+    background: white;
+    outline: none;
+    transition: border-color 0.15s;
+
+    &:focus { border-color: #004F9F; }
+    &::placeholder { color: #C4C4CC; }
+  }
+}
+
+.param-aide {
+  margin: 0 0 12px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: #A1A1AA;
+}
+
+.param-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #004F9F, #0065cc);
+  color: white;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.14s, box-shadow 0.14s;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0, 79, 159, 0.25);
+  }
+}
+
+// ─── Listes ───────────────────────────────────────────────
+.param-liste {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.param-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #F7F7F8;
+  transition: background 0.13s;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: #FAFAFB; }
+}
+
+.param-item-corps {
+  flex: 1;
+  min-width: 0;
+}
+
+.param-item-titre {
+  font-size: 13px;
+  font-weight: 600;
+  color: #18181B;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.param-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: #A1A1AA;
+
+  lucide-icon { vertical-align: -1px; }
+}
+
+.param-sep { color: #D4D4D8; }
+
+.param-coord {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 11px;
+}
+
+.param-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.param-badge-rayon    { background: #F0F7FF; color: #004F9F; }
+.param-badge-warning  { background: #FFF7ED; color: #C2410C; }
+.param-badge-critique { background: #FEF2F2; color: #B91C1C; }
+
+.param-suppr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: #C62828;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.14s;
+
+  &:hover { background: #FEF2F2; }
+}
+
+.param-vide {
+  padding: 26px 20px;
+  text-align: center;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #A1A1AA;
+}
+
+@media (max-width: 900px) {
+  .param-row, .param-row.param-row-3 {
+    grid-template-columns: 1fr;
+  }
+}

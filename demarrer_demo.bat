@@ -83,8 +83,19 @@ if errorlevel 1 (
 echo   tcp:8000 et tcp:80 rediriges vers votre PC.
 
 echo.
-echo   Lancement de l'application sur le telephone...
+echo   Lancement de l'application des agents sur le telephone...
 "%ADB%" shell am start -n ci.ageroute.si_env/.MainActivity >nul 2>&1
+
+:: L'application citoyenne interroge le serveur en ligne et non la pile
+:: locale : la verification de zone s'appuie sur le referentiel de production.
+:: On se contente donc de signaler sa presence, sans la demarrer.
+"%ADB%" shell pm list packages | findstr /C:"ci.ageroute.si_env.citoyen" >nul 2>&1
+if not errorlevel 1 (
+    echo   Application citoyenne detectee sur le telephone.
+) else (
+    echo   Application citoyenne non installee. Pour l'ajouter :
+    echo     adb install -r "%~dp0SI-ENV_citoyen.apk"
+)
 
 :apres_adb
 

@@ -50,3 +50,6 @@ backend/uploads/
 .idea/
 .vscode/
 *.swp
+
+# Jeu de donnees TACO : depot externe clone localement, non versionne ici.
+ia/TACO/

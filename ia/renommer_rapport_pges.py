@@ -25,12 +25,17 @@ paragraphe entier apres regroupement. Ce qui echapperait aux deux est signale
 plutot que passe sous silence.
 """
 import shutil
+import sys
 from pathlib import Path
 
 from docx import Document
 
-SOURCE = Path(r"C:\Users\DELL\Downloads\MEMOIRE\MEMOIRE_FINAL.docx")
-SAUVEGARDE = SOURCE.with_name("MEMOIRE_FINAL_avant_renommage.docx")
+# Le guide de soutenance doit suivre le meme renommage que le memoire. Dire a
+# l'oral un terme que le document ecrit ne porte plus serait la contradiction
+# la plus facile a relever par un jury, et la plus evitable.
+SOURCE = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(
+    r"C:\Users\DELL\Downloads\MEMOIRE\MEMOIRE_FINAL.docx")
+SAUVEGARDE = SOURCE.with_name(SOURCE.stem + "_avant_renommage.docx")
 
 REMPLACEMENTS = [
     ("Génération rapport PGES PDF", "Génération du rapport de suivi (PDF)"),

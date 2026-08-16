@@ -310,7 +310,10 @@ relation(util, alerte, "reçoit", "0..1", "0..*", frac=0.6)
 relation(chantier, plainte, "concerne", "1", "0..*")
 # Un seuil peut etre global, sans chantier : d'ou le 0..1 de ce cote.
 relation(chantier, seuil, "paramètre", "0..1", "0..*", frac=0.5)
-dependance(journal, util, "«trace»")
+# Association simple : trait plein, sans fleche. Le journal conserve le login
+# de l auteur sous forme de libelle recopie et non de cle etrangere, afin que
+# la trace survive a la suppression du compte : d ou le 0..1 de ce cote.
+relation(util, journal, "trace", "0..1", "0..*")
 # Un riverain est rattache au chantier dont il subit les nuisances ;
 # les autres profils n'ont pas de rattachement, d'ou le 0..1.
 relation(chantier, util, "rattache", "0..1", "0..*", frac=0.42)

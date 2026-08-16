@@ -141,8 +141,20 @@ transmission = Table("TRANSMISSION", "idTransmission",
                       "tailleOctets", "succes", "dateTransmission"],
                      [], 1560, 950, 360)
 
+# Le parametrage des seuils et le journal figuraient au schema sans apparaitre
+# au modele logique. ALERTESEUIL porte une cle etrangere nullable vers CHANTIER,
+# un seuil pouvant etre global. JOURNAL n en porte aucune : la colonne
+# utilisateur y est un libelle recopie, pour que la trace survive au compte.
+seuil = Table("ALERTESEUIL", "idSeuil",
+              ["nom", "indicateur", "seuil", "operateur", "actif"],
+              ["idChantier (nullable)"], 1500, 500, 340)
+
+journal = Table("JOURNAL", "idJournal",
+                ["niveau", "message", "utilisateur", "ipSource", "horodatage"],
+                [], 1900, 780, 340)
+
 tables = [util, chantier, plainte, signalement, alerte, photo, action, nc,
-          rapport, transmission]
+          rapport, transmission, seuil, journal]
 for t in tables:
     t.draw()
 
@@ -158,6 +170,7 @@ relation_fk(nc, signalement)
 relation_fk(rapport, util)
 relation_fk(plainte, util)
 relation_fk(util, chantier)
+relation_fk(seuil, chantier)
 
 d.text((20, H - 90),
       "Note : la spécialisation d'UTILISATEUR en huit sous-types (cf. figure 4.8) est résolue en table unique",

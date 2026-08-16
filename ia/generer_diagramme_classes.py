@@ -222,6 +222,21 @@ nc = Box("NonConformite",
           "resolue : Booléen"],
          ["marquerResolue()"], 1300, 1170, 320)
 
+# Le parametrage des seuils et la journalisation figuraient au schema et au
+# memoire mais pas au modele. AlerteSeuil est passe a gauche : place a droite de
+# Rapport, le trait venant de Chantier traversait cette boite et rayait ses
+# attributs. Journal reste isole, sa colonne utilisateur etant un libelle
+# recopie et non une cle etrangere : aucune association ne s'y rattache.
+seuil = Box("AlerteSeuil",
+            ["idSeuil : Entier", "indicateur : Texte", "seuil : Decimal",
+             "actif : Booleen"],
+            ["evaluer(mesure)", "activer()"], 20, 380, 300)
+
+journal = Box("Journal",
+              ["idJournal : Entier", "niveau : Texte", "message : Texte",
+               "utilisateur : Texte", "ipSource : Texte", "horodatage : Horodatage"],
+              ["tracer()", "purger(anciennete)"], 2050, 620, 320)
+
 transmission = Box("TransmissionRapport",
                    ["idTransmission : Entier", "emetteur : Texte",
                     "destinataire : Texte", "organisme : Texte",
@@ -230,7 +245,7 @@ transmission = Box("TransmissionRapport",
 
 boxes = [resp, hse, spec, par, admin, ande, bad, riverain, util, plainte,
         chantier, signalement, rapport, indice, alerte, photo, action, nc,
-        transmission]
+        transmission, seuil, journal]
 for b in boxes:
     b.draw()
 
@@ -257,6 +272,8 @@ relation(util, rapport, "rédige", "1", "0..*")
 relation(rapport, transmission, "fait l'objet de", "1", "0..*")
 relation(util, alerte, "reçoit", "0..1", "0..*", frac=0.6)
 relation(chantier, plainte, "concerne", "1", "0..*")
+# Un seuil peut etre global, sans chantier : d'ou le 0..1 de ce cote.
+relation(chantier, seuil, "paramètre", "0..1", "0..*", frac=0.5)
 # Un riverain est rattache au chantier dont il subit les nuisances ;
 # les autres profils n'ont pas de rattachement, d'ou le 0..1.
 relation(chantier, util, "rattache", "0..1", "0..*", frac=0.42)

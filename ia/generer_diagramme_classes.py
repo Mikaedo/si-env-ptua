@@ -108,6 +108,42 @@ def losange(p_bord, p_vers, plein):
     d.polygon(pts, outline=FG, fill=FG if plein else (255, 255, 255))
 
 
+def ligne_pointillee(p1, p2, tiret=12, blanc=8):
+    """Trait discontinu, PIL ne sachant pas le faire nativement."""
+    lg = math.hypot(p2[0] - p1[0], p2[1] - p1[1])
+    if lg == 0:
+        return
+    ux, uy = (p2[0] - p1[0]) / lg, (p2[1] - p1[1]) / lg
+    pos = 0.0
+    while pos < lg:
+        fin = min(pos + tiret, lg)
+        d.line([(p1[0] + ux * pos, p1[1] + uy * pos),
+                (p1[0] + ux * fin, p1[1] + uy * fin)], fill=FG, width=LINE_W)
+        pos = fin + blanc
+
+
+def dependance(b1, b2, stereotype):
+    """Dependance UML : trait pointille et fleche ouverte, sans multiplicite.
+
+    Journal conserve le login de l'auteur d'une action sous forme de libelle
+    recopie, non de cle etrangere, afin que la trace survive a la suppression
+    du compte. Ce n'est donc pas une association, et lui en donner une
+    contredirait le schema. Mais laisser la classe isolee la faisait passer
+    pour un oubli : la dependance dit le lien sans mentir sur sa nature.
+    """
+    p1 = b1.bord(b2.centre())
+    p2 = b2.bord(b1.centre())
+    ligne_pointillee(p1, p2)
+    ang = math.atan2(p1[1] - p2[1], p1[0] - p2[0])
+    for signe in (1, -1):
+        a = ang + signe * 0.42
+        d.line([p2, (p2[0] + 20 * math.cos(a), p2[1] + 20 * math.sin(a))],
+               fill=FG, width=LINE_W)
+    mx, my = (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2
+    tw = d.textlength(stereotype, font=F_LABEL)
+    d.text((mx - tw / 2, my - 22), stereotype, font=F_LABEL, fill=FG)
+
+
 def relation(b1, b2, verbe_txt, card1, card2, heritage=False, frac=0.5,
              agregation=None):
     """Ligne droite simple de b1 a b2, cardinalites aux extremites, verbe a
@@ -235,7 +271,7 @@ seuil = Box("AlerteSeuil",
 journal = Box("Journal",
               ["idJournal : Entier", "niveau : Texte", "message : Texte",
                "utilisateur : Texte", "ipSource : Texte", "horodatage : Horodatage"],
-              ["tracer()", "purger(anciennete)"], 2050, 620, 320)
+              ["tracer()", "purger(anciennete)"], 1900, 300, 320)
 
 transmission = Box("TransmissionRapport",
                    ["idTransmission : Entier", "emetteur : Texte",
@@ -274,6 +310,7 @@ relation(util, alerte, "reçoit", "0..1", "0..*", frac=0.6)
 relation(chantier, plainte, "concerne", "1", "0..*")
 # Un seuil peut etre global, sans chantier : d'ou le 0..1 de ce cote.
 relation(chantier, seuil, "paramètre", "0..1", "0..*", frac=0.5)
+dependance(journal, util, "«trace»")
 # Un riverain est rattache au chantier dont il subit les nuisances ;
 # les autres profils n'ont pas de rattachement, d'ou le 0..1.
 relation(chantier, util, "rattache", "0..1", "0..*", frac=0.42)

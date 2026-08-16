@@ -131,7 +131,7 @@ par = Entite("SPEC_PAR", ["secteurAffecte"], 620, 380, 180)
 admin = Entite("ADMIN", ["niveauAcces"], 820, 380, 150)
 ande = Entite("ANDE", ["referenceAgrement"], 990, 380, 180)
 bad = Entite("BAD", ["codeMission"], 1190, 380, 170)
-riverain = Entite("PLAIGNANT", ["# chantierRattachement"], 1380, 380, 250)
+riverain = Entite("PLAIGNANT", ["dateRattachement"], 1380, 380, 250)
 
 sous_types = [resp, hse, spec, par, admin, ande, bad, riverain]
 
@@ -191,6 +191,10 @@ relation(signalement, nc, "SIGNALE", "0,n", "1,1", 0.45)
 relation(chantier, alerte, "DECLENCHE", "0,n", "0,1", 0.5)
 relation(util, alerte, "DESTINATAIRE", "0,n", "0,1", 0.6)
 relation(chantier, plainte, "CONCERNE", "0,n", "0,1", 0.22)
+# Le rattachement du riverain a son chantier. La relation part du sous-type
+# et non d'UTILISATEUR : seul le plaignant en porte un, les sept autres
+# profils n'etant rattaches a aucun ouvrage.
+relation(riverain, chantier, "RATTACHE_A", "0,1", "0,n", 0.5)
 relation(util, rapport, "REDIGE", "0,n", "1,1", 0.55)
 # Un rapport peut etre remis plusieurs fois, a des organismes differents.
 # Le verbe etait plus large que le losange qui le porte : il debordait sur

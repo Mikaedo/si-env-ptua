@@ -141,7 +141,7 @@ valider = cas(COL_A, 870, "Valider une\naction corrective")
 # Specialiste Suivi Environnemental
 bord_cas = cas(COL_A, 1060, "Visualiser le\ntableau de bord")
 gerer_alertes = cas(COL_B, 1135, "Gérer\nles alertes")
-rapport = cas(COL_A, 1210, "Générer un\nrapport PGES")
+rapport = cas(COL_A, 1210, "Générer le rapport\nde suivi")
 histo_rapports = cas(COL_B, 1285, "Consulter l'historique\ndes rapports")
 export = cas(COL_A, 1360, "Exporter\nles données")
 satellite = cas(COL_B, 1435, "Lancer une\nanalyse satellitaire")

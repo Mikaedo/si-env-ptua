@@ -85,10 +85,17 @@ def generate_pges_pdf(chantiers_data, start_date, end_date, entreprise_destinata
     story.append(Paragraph("PROJET DE TRANSPORT URBAIN D'ABIDJAN<br/>------------------ PTUA -------------------", box_style))
     story.append(Spacer(1, 1.5*cm))
     
-    story.append(Paragraph("PLAN DE GESTION<br/>ENVIRONNEMENTALE ET SOCIALE<br/>(PGES)", title_style))
+    # Le document produit ici n'est pas un PGES. Le Plan de Gestion
+    # Environnementale et Sociale est un document de planification, etabli en
+    # amont avec l'etude d'impact : il fixe les mesures d'attenuation, les
+    # responsabilites, le programme de surveillance et son budget. Ce que le
+    # systeme genere rend compte de sa mise en oeuvre sur une periode donnee.
+    # Le PGES reste donc le referentiel cite, non le titre du rapport.
+    story.append(Paragraph("RAPPORT DE SUIVI<br/>ENVIRONNEMENTAL ET SOCIAL", title_style))
     story.append(Spacer(1, 1*cm))
-    
-    story.append(Paragraph("RAPPORT DE SUIVI ENVIRONNEMENTAL ET SOCIAL", subtitle_style))
+
+    story.append(Paragraph("MISE EN &Oelig;UVRE DU PLAN DE GESTION "
+                           "ENVIRONNEMENTALE ET SOCIALE (PGES)", subtitle_style))
     story.append(Spacer(1, 0.5*cm))
     
     period_str = f"P\u00e9riode: {start_date} au {end_date}" if start_date and end_date else "P\u00e9riode Globale"

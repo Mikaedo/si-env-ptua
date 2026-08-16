@@ -100,7 +100,7 @@ chantier = Table("CHANTIER", "idChantier",
                  ["nom", "commune", "geom", "rayonInfluence"], [],
                  1900, 20, 300)
 
-# Archive des rapports PGES : place en haut, a cote d'UTILISATEUR, pour que le
+# Archive des rapports de suivi : place en haut, a cote d'UTILISATEUR, pour que le
 # trait de sa cle etrangere reste court et ne traverse aucune autre table.
 rapport = Table("RAPPORT", "idRapport",
                ["periodeDebut", "periodeFin", "cheminFichier", "destinataire",

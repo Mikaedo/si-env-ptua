@@ -82,7 +82,7 @@ export class Shell implements OnInit, OnDestroy {
     { label: 'Signalements', icon: MapPin, route: '/signalements', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE', 'ANDE', 'BAD'] },
     { label: 'Alertes', icon: Bell, route: '/alertes', roles: ['SPEC_ENV', 'SPEC_PAR', 'ANDE', 'BAD'] },
     { label: 'Analyse satellitaire', icon: Satellite, route: '/satellite', roles: ['SPEC_ENV', 'ANDE', 'BAD'] },
-    { label: 'Rapports PGES', icon: FileText, route: '/rapports', roles: ['SPEC_ENV', 'ANDE', 'BAD'] },
+    { label: 'Rapports de suivi', icon: FileText, route: '/rapports', roles: ['SPEC_ENV', 'ANDE', 'BAD'] },
     { label: 'Plaintes (MGP)', icon: ShieldAlert, route: '/plaintes', roles: ['SPEC_PAR', 'BAD'] },
     // Admin: section label
     { label: 'Administration', icon: Users, route: '', roles: ['ADMIN'], isSection: true },

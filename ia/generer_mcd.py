@@ -159,7 +159,7 @@ action = Entite("ACTIONCORRECTIVE", ["# idAction", "description", "echeance",
 nc = Entite("NONCONFORMITE", ["# idNonConformite", "description", "severite",
                               "resolue", "dateCreation"], 1180, 1150, 340)
 
-# Le rapport PGES est desormais archive (PDF sur disque + ligne de suivi en
+# Le rapport de suivi est desormais archive (PDF sur disque + ligne de suivi en
 # base), ce qui rend l'historisation possible : il redevient une entite.
 rapport = Entite("RAPPORT", ["# idRapport", "periodeDebut", "periodeFin",
                              "cheminFichier", "destinataire", "nbChantiers",

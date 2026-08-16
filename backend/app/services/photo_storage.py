@@ -65,7 +65,7 @@ class _StockageSupabase:
     """Depose l'objet dans un bucket Supabase Storage public.
 
     Choix du bucket public plutot que d'URL signees : les URL signees expirent,
-    or les rapports PGES et les captures de detail doivent rester consultables
+    or les rapports de suivi et les captures de detail doivent rester consultables
     indefiniment. Le bucket public reste protege par les regles Row Level
     Security cote base ; seuls les octets bruts sont accessibles a qui possede
     l'URL, ce qui est le contrat attendu pour une photo de terrain.

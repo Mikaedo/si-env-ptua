@@ -124,11 +124,11 @@ export class Rapports implements OnInit {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `rapport_pges_${this.dateDebut()}_${this.dateFin()}.pdf`;
+        a.download = `rapport_suivi_environnemental_${this.dateDebut()}_${this.dateFin()}.pdf`;
         a.click();
         window.URL.revokeObjectURL(url);
         this.generating.set(false);
-        this.toast.success('Rapport PGES généré avec succès');
+        this.toast.success('Rapport de suivi généré avec succès');
       },
       error: () => {
         this.error.set('Erreur lors de la génération du rapport');

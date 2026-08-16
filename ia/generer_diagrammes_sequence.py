@@ -311,7 +311,7 @@ b.message('retour', "rediriger vers l'espace applicatif", retour=True)
 s.dans(f, 1).message('retour', "message d'erreur explicite", retour=True)
 print("Figure 4.5 :", s.dessiner(SC + r"\seq45.png"))
 
-# ─── Figure 4.6 : generation d'un rapport PGES ─────────────────────────
+# ─── Figure 4.6 : generation du rapport de suivi ─────────────────────────
 s = Sequence("Spécialiste Suivi Environnemental")
 s.message('aller', "sélectionner(période, chantiers)")
 s.message('aller', "demander la génération du rapport")

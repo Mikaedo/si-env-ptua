@@ -151,12 +151,12 @@ def generate_rapport(
     current_user: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
                                                      models.RoleEnum.ANDE, models.RoleEnum.BAD))
 ):
-    """Genere le rapport PGES en PDF pour les chantiers et la periode retenus."""
+    """Genere le rapport de suivi environnemental en PDF pour la periode retenue."""
     chantiers_data = _collecter_donnees(db, req)
     pdf_buffer = generate_pges_pdf(chantiers_data, req.date_debut, req.date_fin,
                                    req.entreprise_destinataire)
 
-    filename = f"Rapport_PGES_{datetime.now().strftime('%Y%m%d')}.pdf"
+    filename = f"Rapport_suivi_environnemental_{datetime.now().strftime('%Y%m%d')}.pdf"
 
     return StreamingResponse(
         pdf_buffer,
@@ -236,7 +236,7 @@ def transmettre_rapport(
 
     pdf = generate_pges_pdf(chantiers_data, req.date_debut, req.date_fin, organisme)
     contenu = pdf.getvalue() if hasattr(pdf, "getvalue") else pdf.read()
-    nom_fichier = f"Rapport_PGES_{datetime.now().strftime('%Y%m%d')}.pdf"
+    nom_fichier = f"Rapport_suivi_environnemental_{datetime.now().strftime('%Y%m%d')}.pdf"
 
     # La trace est constituee avant l'envoi : un acheminement qui echoue doit
     # laisser une empreinte, sans quoi la tentative passerait pour n'avoir
@@ -256,7 +256,7 @@ def transmettre_rapport(
     try:
         envoye = envoyer_email(
             destinataire,
-            f"[SI-ENV] Rapport PGES du {datetime.now().strftime('%d/%m/%Y')}",
+            f"[SI-ENV] Rapport de suivi environnemental du {datetime.now().strftime('%d/%m/%Y')}",
             _corps_html_transmission(chantiers_data, req, organisme, courant, nom_fichier),
             _corps_texte_transmission(chantiers_data, req, organisme, courant),
             piece_jointe=(nom_fichier, contenu),

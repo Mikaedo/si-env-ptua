@@ -88,6 +88,27 @@ def relation_fk(t_source, t_cible):
     d.line([p1, p2], fill=FG, width=2)
 
 
+def lien_annote(t_source, t_cible, note):
+    """Rapprochement logique entre deux tables, sans contrainte d'integrite.
+
+    JOURNAL conserve le login de l'auteur d'une action, mais sous forme de
+    libelle recopie et non de cle etrangere : une contrainte ferait disparaitre
+    la trace en meme temps que le compte, ce qu'un journal d'audit doit
+    justement empecher. Le lien existe donc dans les faits sans exister au
+    schema. Le tracer sans le dire laisserait croire a une cle etrangere ;
+    ne pas le tracer laisserait la table orpheline. L'annotation leve
+    l'ambiguite.
+    """
+    p1 = t_source.bord(t_cible.centre())
+    p2 = t_cible.bord(t_source.centre())
+    d.line([p1, p2], fill=FG, width=2)
+    mx, my = (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2
+    tw = d.textlength(note, font=F_NOTE)
+    d.rectangle([mx - tw / 2 - 6, my - 20, mx + tw / 2 + 6, my - 2],
+                fill=(255, 255, 255))
+    d.text((mx - tw / 2, my - 18), note, font=F_NOTE, fill=FG)
+
+
 # ─── Tables (deux « hubs » en haut, references par plusieurs tables) ────
 util = Table("UTILISATEUR", "idUtilisateur",
              ["nom", "email", "motDePasseHash", "role", "premiereConnexion",
@@ -150,8 +171,8 @@ seuil = Table("ALERTESEUIL", "idSeuil",
               ["idChantier (nullable)"], 1500, 500, 340)
 
 journal = Table("JOURNAL", "idJournal",
-                ["niveau", "message", "utilisateur", "ipSource", "horodatage"],
-                [], 1900, 780, 340)
+                ["niveau", "message", "utilisateurLogin", "ipSource", "horodatage"],
+                [], 520, 250, 340)
 
 tables = [util, chantier, plainte, signalement, alerte, photo, action, nc,
           rapport, transmission, seuil, journal]
@@ -171,6 +192,12 @@ relation_fk(rapport, util)
 relation_fk(plainte, util)
 relation_fk(util, chantier)
 relation_fk(seuil, chantier)
+# Les tables sont tracees avant les liaisons : celles qui rejoignent
+# UTILISATEUR depuis le bas du schema passaient donc par-dessus JOURNAL, place
+# sur leur trajet. La redessiner en dernier laisse son fond blanc les masquer,
+# et sa liaison est retracee ensuite pour rester visible.
+journal.draw()
+lien_annote(journal, util, "login recopié, sans contrainte")
 
 d.text((20, H - 90),
       "Note : la spécialisation d'UTILISATEUR en huit sous-types (cf. figure 4.8) est résolue en table unique",

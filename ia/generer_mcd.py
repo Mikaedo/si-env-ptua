@@ -165,9 +165,14 @@ rapport = Entite("RAPPORT", ["# idRapport", "periodeDebut", "periodeFin",
                              "cheminFichier", "destinataire", "nbChantiers",
                              "dateGeneration"], 1560, 1150, 330)
 
+# TRANSMISSION se trouvait a soixante pixels de RAPPORT, en diagonale. Le
+# losange de l'association, place a mi-chemin des deux centres, tombait donc
+# sur le coin de l'entite : le verbe et ses cardinalites se lisaient par-dessus
+# le cadre. L'entite est ecartee vers la droite et remontee, ce qui degage un
+# couloir de cent soixante-dix pixels ou le losange tient sans recouvrement.
 transmission = Entite("TRANSMISSION",
                       ["# idTransmission", "emetteur", "destinataire",
-                       "organisme", "dateTransmission", "succes"], 1950, 1330, 340)
+                       "organisme", "dateTransmission", "succes"], 2100, 1250, 320)
 
 toutes = [util, resp, hse, spec, par, admin, ande, bad, riverain, chantier,
          signalement, plainte, photo, action, nc, alerte, rapport,
@@ -188,7 +193,9 @@ relation(util, alerte, "DESTINATAIRE", "0,n", "0,1", 0.6)
 relation(chantier, plainte, "CONCERNE", "0,n", "0,1", 0.22)
 relation(util, rapport, "REDIGE", "0,n", "1,1", 0.55)
 # Un rapport peut etre remis plusieurs fois, a des organismes differents.
-relation(rapport, transmission, "FAIT_L_OBJET_DE", "0,n", "1,1", 0.5)
+# Le verbe etait plus large que le losange qui le porte : il debordait sur
+# les cardinalites. Raccourci a la longueur des autres verbes du modele.
+relation(rapport, transmission, "OBJET_DE", "0,n", "1,1", 0.5)
 
 d.text((20, H - 28),
       "Note : les 8 sous-types reprennent les valeurs de l'énumération role du modèle Utilisateur. "

@@ -197,7 +197,9 @@ relation_fk(seuil, chantier)
 # sur leur trajet. La redessiner en dernier laisse son fond blanc les masquer,
 # et sa liaison est retracee ensuite pour rester visible.
 journal.draw()
-lien_annote(journal, util, "login recopié, sans contrainte")
+relation_fk(journal, util)
+# La trace de remise se rattache au rapport qu'elle transmet.
+relation_fk(transmission, rapport)
 
 d.text((20, H - 90),
       "Note : la spécialisation d'UTILISATEUR en huit sous-types (cf. figure 4.8) est résolue en table unique",
@@ -207,6 +209,12 @@ d.text((20, H - 70),
       font=F_NOTE, fill=FG)
 d.text((20, H - 48),
       "Chaque table ne porte que des attributs dépendant uniquement de sa clé primaire (aucune dépendance transitive) : le MLD est déjà en 3NF.",
+      font=F_NOTE, fill=FG)
+# JOURNAL et TRANSMISSION conservent le login ou l'adresse de leur auteur en
+# clair plutot qu'en cle etrangere : une contrainte ferait disparaitre la trace
+# en meme temps que le compte, ce qu'un journal d'audit doit justement empecher.
+d.text((20, H - 108),
+      "JOURNAL et TRANSMISSION conservent le login ou l'adresse de leur auteur en clair, sans contrainte d'intégrité : la trace doit survivre à la suppression du compte.",
       font=F_NOTE, fill=FG)
 d.text((20, H - 25),
       "Légende : # clé primaire · ## clé étrangère (trait plein = référence FK)",

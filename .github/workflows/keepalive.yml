@@ -1,0 +1,72 @@
+name: Maintien des taches planifiees
+
+# GitHub desactive les workflows planifies apres 60 jours sans activite sur le
+# depot. Le watchdog et le health check s'arreteraient alors en silence, sans
+# notification, et plus rien ne reveillerait le service Render. Le jour de la
+# soutenance, la premiere requete du jury tomberait sur un demarrage a froid.
+#
+# Ce workflow ecrit chaque semaine un horodatage et le pousse. Le compteur des
+# 60 jours repart de zero a chaque push, quel qu'en soit l'auteur.
+#
+# Une precision utile : un push signe par GITHUB_TOKEN ne declenche pas les
+# autres workflows, ce qui evite toute boucle, mais il compte bien comme une
+# activite du depot. C'est exactement le comportement recherche ici.
+#
+# Le rythme hebdomadaire laisse une marge large. Meme si huit executions
+# consecutives echouaient, le delai ne serait pas atteint.
+
+on:
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  maintenir:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verifier l'etat des taches planifiees
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Etat des workflows du depot :"
+          gh workflow list --all --repo "${{ github.repository }}" \
+            --json name,state \
+            --jq '.[] | "  \(.state)\t\(.name)"'
+
+          # Un workflow desactive ne peut pas se relancer seul. On le signale
+          # ici pour qu'il apparaisse dans le journal d'execution, la reparation
+          # se faisant depuis un poste avec deploy/reactiver_workflows.ps1.
+          desactives=$(gh workflow list --all --repo "${{ github.repository }}" \
+            --json name,state --jq '[.[] | select(.state != "active")] | length')
+          if [ "$desactives" -gt 0 ]; then
+            echo "::warning::$desactives workflow(s) desactive(s), voir deploy/reactiver_workflows.ps1"
+          fi
+
+      - name: Horodater et pousser
+        run: |
+          mkdir -p .github
+          cat > .github/derniere_activite.txt <<EOF
+          Ce fichier n'a qu'un role : produire une activite reguliere sur le
+          depot, afin que GitHub ne desactive pas les workflows planifies.
+
+          Derniere mise a jour : $(date -u '+%Y-%m-%d %H:%M:%S') UTC
+          Execution : ${{ github.run_id }}
+          EOF
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/derniere_activite.txt
+
+          if git diff --cached --quiet; then
+            echo "Aucun changement, rien a pousser."
+          else
+            git commit -m "Maintien de l'activite du depot pour les taches planifiees"
+            git push
+            echo "Compteur des 60 jours remis a zero."
+          fi

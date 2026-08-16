@@ -206,8 +206,24 @@ def _envoyer_email_bienvenue(email_dest: str,
         "EXPERT_HSE": "Expert HSE",
         "SPEC_ENV": "Spécialiste Suivi Environnemental",
         "SPEC_PAR": "Spécialiste Suivi du P.A.R",
+        "ANDE": "Agence Nationale de l'Environnement",
+        "BAD": "Banque Africaine de Développement",
+        "PLAIGNANT": "Riverain d'un chantier",
     }
     libelle = libelles_role.get(role_str, role_str)
+
+    # Tous les profils n'entrent pas par la meme porte. Envoyer un agent de
+    # terrain vers le tableau de bord web le mene a un ecran ou son compte ne
+    # lui donne rien : les deux profils mobiles et les riverains passent par
+    # l'application, les autres par le navigateur.
+    if role_str in ("RESP_ENV", "EXPERT_HSE"):
+        acces = ("Votre compte s'utilise depuis l'application mobile SI-ENV, "
+                 "installee sur votre telephone de service.")
+    elif role_str == "PLAIGNANT":
+        acces = ("Votre compte s'utilise depuis l'application mobile "
+                 "SI-ENV Citoyen.")
+    else:
+        acces = "Votre compte s'utilise depuis le tableau de bord en ligne."
 
     # Le lien vise la page d'activation et non la racine du tableau de bord.
     # Pointer vers la racine renvoyait l'utilisateur sur la session deja
@@ -225,6 +241,7 @@ def _envoyer_email_bienvenue(email_dest: str,
         f"Un compte SI-ENV vient de vous etre attribue par {email_admin}.\n\n"
         f"  Email        : {email_dest}\n"
         f"  Role         : {libelle}\n\n"
+        f"{acces}\n\n"
         f"Pour activer votre compte et definir votre mot de passe,\n"
         f"rendez-vous sur :\n"
         f"{lien_activation}\n\n"
@@ -259,6 +276,7 @@ def _envoyer_email_bienvenue(email_dest: str,
               <td style="padding:12px 16px;font-size:13px;font-weight:600;color:#0F172A">{libelle}</td>
             </tr>
           </table>
+          <p style="margin:0 0 12px;font-size:14px;color:#475569">{acces}</p>
           <p style="margin:0 0 20px;font-size:14px;color:#475569">
             Cliquez sur le bouton ci-dessous pour activer votre compte
             et choisir votre mot de passe.

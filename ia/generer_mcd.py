@@ -151,6 +151,16 @@ plainte = Entite("PLAINTE", ["# idPlainte", "nomPlaignant", "contact", "descript
 alerte = Entite("ALERTE", ["# idAlerte", "message", "niveau", "valeur",
                            "dateDeclenchement", "recue"], 1950, 900, 340)
 
+# Le journal figurait au diagramme de classes et au MLD mais pas ici. Il se
+# place a gauche d'UTILISATEUR, ou la relation se reduit a un trait court.
+#
+# Une divergence assumee avec le MLD : au niveau conceptuel, un utilisateur
+# produit bien des entrees de journal, d'ou la relation. Au niveau logique, la
+# table ne porte pas de cle etrangere, le login etant recopie pour que la trace
+# survive a la suppression du compte. Le MLD denormalise donc volontairement.
+journal = Entite("JOURNAL", ["# idJournal", "niveau", "message",
+                             "ipSource", "horodatage"], 560, 40, 320)
+
 photo = Entite("PHOTO", ["# idPhoto", "cheminStockage"], 380, 1150, 260)
 
 action = Entite("ACTIONCORRECTIVE", ["# idAction", "description", "echeance",
@@ -176,7 +186,7 @@ transmission = Entite("TRANSMISSION",
 
 toutes = [util, resp, hse, spec, par, admin, ande, bad, riverain, chantier,
          signalement, plainte, photo, action, nc, alerte, rapport,
-         transmission]
+         transmission, journal]
 for e in toutes:
     e.draw()
 
@@ -196,6 +206,7 @@ relation(chantier, plainte, "CONCERNE", "0,n", "0,1", 0.22)
 # profils n'etant rattaches a aucun ouvrage.
 relation(riverain, chantier, "RATTACHE_A", "0,1", "0,n", 0.5)
 relation(util, rapport, "REDIGE", "0,n", "1,1", 0.55)
+relation(util, journal, "TRACE", "0,n", "0,1", 0.5)
 # Un rapport peut etre remis plusieurs fois, a des organismes differents.
 # Le verbe etait plus large que le losange qui le porte : il debordait sur
 # les cardinalites. Raccourci a la longueur des autres verbes du modele.

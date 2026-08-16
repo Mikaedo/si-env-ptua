@@ -255,8 +255,11 @@ relation(util, rapport, "rédige", "1", "0..*")
 # compte qui l'a produite, sans quoi la preuve de la remise disparaitrait avec
 # son auteur.
 relation(rapport, transmission, "fait l'objet de", "1", "0..*")
-relation(util, alerte, "reçoit", "1", "0..*", frac=0.6)
+relation(util, alerte, "reçoit", "0..1", "0..*", frac=0.6)
 relation(chantier, plainte, "concerne", "1", "0..*")
+# Un riverain est rattache au chantier dont il subit les nuisances ;
+# les autres profils n'ont pas de rattachement, d'ou le 0..1.
+relation(chantier, util, "rattache", "0..1", "0..*", frac=0.42)
 relation(chantier, alerte, "déclenche", "1", "0..*")
 
 #   Agregations (losange vide) : le chantier possede ses signalements et ses

@@ -177,7 +177,8 @@ def evaluer_et_creer_alerte(
         return None
 
     seuil_txt = f" (seuil configure : {seuil_valeur})" if seuil_valeur is not None else ""
-    message = f"{chantier_nom} — indicateur {indicateur} en niveau {statut}{seuil_txt} : valeur mesuree {valeur:.2f}"
+    message = (f"{chantier_nom}, indicateur {indicateur} en niveau {statut}"
+               f"{seuil_txt} : valeur mesuree {valeur:.2f}")
     alerte = models.Alerte(message=message, niveau=niveau, valeur=valeur, chantier_id=chantier_id)
     db.add(alerte)
     # Trace d'audit : l'alerte etant declenchee par le systeme et non par un

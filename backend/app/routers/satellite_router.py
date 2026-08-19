@@ -31,6 +31,7 @@ from ..gee_service import (
 )
 from ..gee_service import get_serie_temporelle as _fetch_serie_temporelle
 from ..services.geo_service import chantiers_geolocalises, chantier_geolocalise
+from ..services.alert_service import evaluer_et_creer_alerte
 
 logger = logging.getLogger("satellite_router")
 router = APIRouter(prefix="/satellite", tags=["Satellite"])
@@ -199,6 +200,7 @@ def get_tous_indices(
                     else:
                         continue
 
+                    statut = _build_statut(t, data["valeur"])
                     results.append(IndicePoint(
                         id=idx,
                         type_indice=t,
@@ -206,10 +208,31 @@ def get_tous_indices(
                         unite=UNITES.get(t, data.get("unite", "")),
                         date_calcule=today,
                         chantier={"id": c["id"], "nom": c["nom"], "commune": c["commune"]},
-                        statut=_build_statut(t, data["valeur"]),
+                        statut=statut,
                         tendance="STABLE",
                         source=SOURCES.get(t, "GEE"),
                     ))
+
+                    # Confrontation de la mesure aux seuils parametres par le
+                    # specialiste. Le service existait et n'etait appele nulle
+                    # part : les seuils se configuraient sans que rien ne les
+                    # evalue, si bien qu'aucune alerte automatique ne pouvait
+                    # se declencher.
+                    #
+                    # L'appel est isole : une anomalie dans l'evaluation ou
+                    # dans l'envoi du courriel ne doit pas priver l'utilisateur
+                    # de l'affichage des indices, qui reste la raison d'etre de
+                    # cet endpoint. Le service deduplique par ailleurs sur
+                    # vingt-quatre heures, ce qui evite de recreer la meme
+                    # alerte a chaque consultation de la page.
+                    try:
+                        evaluer_et_creer_alerte(
+                            db, c["id"], c["nom"], t, data["valeur"], statut)
+                    except Exception as e:
+                        logger.warning(
+                            "Evaluation des seuils impossible (%s, %s) : %s",
+                            t, c["nom"], e)
+
                     idx += 1
                 except Exception as e:
                     logger.warning(f"Erreur {t} chantier {c['nom']}: {e}")

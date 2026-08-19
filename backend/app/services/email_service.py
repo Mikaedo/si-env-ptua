@@ -43,6 +43,40 @@ def envoyer_email(destinataire: str, sujet: str, html: str, texte: str,
     # avec des majuscules.
     destinataire = destinataire.strip().lower()
 
+    # Redirection de courrier, pour la demonstration.
+    #
+    # Les comptes du dispositif portent des adresses institutionnelles qui
+    # n'existent pas reellement (resp.env@ageroute.ci, controle@ande.ci). Sans
+    # boite derriere, aucun message ne peut aboutir, et l'offre gratuite de
+    # Resend n'autorise de toute facon l'envoi qu'a l'adresse proprietaire du
+    # compte.
+    #
+    # EMAIL_REDIRECTION, lorsqu'elle est definie, detourne tout message vers
+    # cette adresse unique. Le destinataire prevu n'est pas perdu : il passe
+    # dans l'objet et en tete du corps, de sorte qu'on lit qui aurait du
+    # recevoir quoi. C'est le procede des environnements de recette, pas un
+    # artifice : le systeme envoie reellement, seule la boite d'arrivee change.
+    #
+    # Variable absente en production : chaque destinataire recoit son courrier.
+    redirection = (os.getenv("EMAIL_REDIRECTION") or "").strip().lower()
+    if redirection and redirection != destinataire:
+        logger.info("[email] redirection de %s vers %s", destinataire, redirection)
+        sujet = f"[Pour {destinataire}] {sujet}"
+        entete = (
+            f"Message destine a {destinataire}, redirige vers cette boite "
+            f"pour la demonstration."
+        )
+        texte = f"{entete}\n{'-' * 68}\n\n{texte}"
+        html = (
+            '<div style="background:#FFF4E5;border-left:4px solid #F37021;'
+            'padding:12px 16px;margin-bottom:16px;font-family:Arial,sans-serif;'
+            'font-size:13px;color:#7A4A15">'
+            f'Message destin&eacute; &agrave; <b>{destinataire}</b>, '
+            'redirig&eacute; vers cette bo&icirc;te pour la d&eacute;monstration.'
+            '</div>'
+        ) + html
+        destinataire = redirection
+
     cle_resend = (os.getenv("RESEND_API_KEY") or "").strip()
     if cle_resend:
         return _envoyer_via_resend(cle_resend, destinataire, sujet, html,

@@ -199,6 +199,43 @@ def au_demarrage():
                 except Exception as e:  # pragma: no cover
                     logger.warning("ALTER TYPE roleenum %s : %s", valeur, e)
 
+    # Verrouillage des tables au niveau de la ligne.
+    #
+    # L'hebergeur expose la base derriere une API publique, joignable par une
+    # cle anonyme que n'importe qui peut lire dans une page ou une application.
+    # Sans Row Level Security, cette cle donne un acces complet en lecture et en
+    # ecriture a toutes les tables, y compris les comptes, les jetons de session
+    # et les codes a usage unique.
+    #
+    # Aucune politique n'est definie, et c'est voulu : activer RLS sans
+    # politique revient a tout refuser. Le backend n'en souffre pas, puisqu'il
+    # se connecte en direct avec le role proprietaire, lequel contourne RLS.
+    # Aucun client n'interroge la base autrement que par ce backend.
+    #
+    # Le blocage est rejoue a chaque demarrage plutot qu'applique une fois a la
+    # main : une table recreee repartirait sans protection, et l'oubli ne se
+    # verrait qu'au prochain courriel d'alerte.
+    if engine.dialect.name == "postgresql":
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("""
+                    DO $$
+                    DECLARE t record;
+                    BEGIN
+                      FOR t IN SELECT tablename FROM pg_tables
+                               WHERE schemaname = 'public'
+                      LOOP
+                        EXECUTE format(
+                          'ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',
+                          t.tablename);
+                      END LOOP;
+                    END $$;
+                """))
+                conn.commit()
+                logger.info("Row Level Security actif sur les tables publiques")
+            except Exception as e:  # pragma: no cover
+                logger.warning("Activation de RLS impossible : %s", e)
+
     # 3) Seed idempotent, uniquement si demande explicitement. Utile pour un
     # premier bootstrap sur une base neuve (Supabase, HF Spaces).
     if os.getenv("SEED_ON_STARTUP", "").lower() in ("1", "true", "yes"):

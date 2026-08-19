@@ -1,0 +1,82 @@
+name: Poser une variable d'environnement sur Render
+
+# Render conserve ses variables d'environnement cote plateforme, hors du depot.
+# Les modifier par l'interface fonctionne mais ne laisse aucune trace : on ne
+# sait plus, deux semaines apres, quelle valeur a ete posee ni quand. Ce
+# workflow fait passer l'operation par l'historique des executions, ou elle
+# reste consultable.
+#
+# La valeur ne transite jamais en clair : elle est lue dans un secret du depot,
+# dont seul le nom est saisi au declenchement.
+#
+# L'API de Render remplace l'integralite du jeu de variables a chaque appel.
+# Les variables existantes sont donc relues d'abord, puis renvoyees avec la
+# nouvelle : sans cette precaution, poser une variable effacerait toutes les
+# autres, dont l'URL de la base.
+
+on:
+  workflow_dispatch:
+    inputs:
+      cle:
+        description: "Nom de la variable a poser (ex. EMAIL_REDIRECTION)"
+        required: true
+      secret:
+        description: "Nom du secret du depot contenant la valeur"
+        required: true
+
+jobs:
+  poser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mettre a jour la variable
+        env:
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          CLE: ${{ github.event.inputs.cle }}
+          VALEUR: ${{ secrets[github.event.inputs.secret] }}
+        run: |
+          if [ -z "$VALEUR" ]; then
+            echo "::error::Le secret « ${{ github.event.inputs.secret }} » est vide ou inexistant."
+            exit 1
+          fi
+
+          echo "Lecture des variables actuelles"
+          actuelles=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$RENDER_SERVICE_ID/env-vars?limit=100")
+
+          # Les variables existantes sont conservees, celle du jour est ajoutee
+          # ou remplacee. jq recoit la valeur par --arg, jamais par
+          # interpolation, ce qui evite toute fuite dans la trace de commande.
+          charge=$(echo "$actuelles" | jq --arg k "$CLE" --arg v "$VALEUR" \
+            '[.[].envVar | {key, value}] | map(select(.key != $k)) + [{key: $k, value: $v}]')
+
+          nb=$(echo "$charge" | jq 'length')
+          echo "$nb variable(s) seront envoyees, dont $CLE"
+
+          code=$(curl -s -o /tmp/reponse.json -w "%{http_code}" -X PUT \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$charge" \
+            "https://api.render.com/v1/services/$RENDER_SERVICE_ID/env-vars")
+
+          echo "HTTP $code"
+          if [ "$code" -ge 300 ]; then
+            cat /tmp/reponse.json
+            exit 1
+          fi
+
+          echo "Variables presentes apres l'operation :"
+          jq -r '.[].envVar.key' /tmp/reponse.json | sort | sed 's/^/  /'
+
+      - name: Redeployer pour prendre la variable en compte
+        env:
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          # Une variable posee ne s'applique qu'au prochain demarrage du
+          # conteneur : sans ce redeploiement, le service continuerait de
+          # tourner avec l'ancien environnement.
+          curl -s -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
+            -H "Content-Type: application/json" -d '{"clearCache":"do_not_clear"}' \
+            | jq -r '"Deploiement declenche : \(.id // "reponse inattendue")"'

@@ -2,10 +2,12 @@
 """
 Regenere le MLD (figure 4.9), version complete et strictement alignee sur le
 schema reel (backend/app/models.py), en coherence avec le MCD corrige :
-  - memes entites persistees que le MCD (hors ALERTESEUIL/JOURNAL, retirees
-    des deux diagrammes car sans lien avec le reste du modele)
-  - suppression d'INDICESATELLITE (non persiste) ; RAPPORT est present,
-    le PDF etant archive sur disque et suivi en base (historisation)
+  - toutes les tables persistees, ALERTESEUIL et JOURNAL compris
+  - RAPPORT en est absent : aucune table de ce nom n'existe au schema, le
+    rapport produit etant un fichier archive sur le serveur dont seule la
+    remise est enregistree, dans TRANSMISSION. Le MCD le represente en
+    revanche comme une entite, ce qu'il est au niveau conceptuel
+  - suppression d'INDICESATELLITE, calcule a la demande et non persiste
   - correction des cles etrangeres : alertes.chantier_id / alertes.utilisateur_id
     (pas de FK vers signalement) ; plaintes.chantier_id (pas de FK utilisateur)
   - la specialisation d'UTILISATEUR (visible au niveau conceptuel du MCD) est
@@ -121,12 +123,11 @@ chantier = Table("CHANTIER", "idChantier",
                  ["nom", "commune", "geom", "rayonInfluence"], [],
                  1900, 20, 300)
 
-# Archive des rapports de suivi : place en haut, a cote d'UTILISATEUR, pour que le
-# trait de sa cle etrangere reste court et ne traverse aucune autre table.
-rapport = Table("RAPPORT", "idRapport",
-               ["periodeDebut", "periodeFin", "cheminFichier", "destinataire",
-                "nbChantiers", "dateGeneration"],
-               ["idUtilisateur"], 520, 20, 360)
+# RAPPORT ne figure pas ici. Le modele logique decrit le schema tel qu'il
+# existe, et aucune table de ce nom n'y est creee : le rapport produit est un
+# fichier archive sur le serveur, dont seule la remise est enregistree, dans
+# TRANSMISSION. Le modele conceptuel le represente en revanche comme une
+# entite, ce qu'il est a ce niveau d'analyse.
 
 plainte = Table("PLAINTE", "idPlainte",
                 ["nomPlaignant", "contact", "description", "statut", "dateCreation",
@@ -160,7 +161,7 @@ transmission = Table("TRANSMISSION", "idTransmission",
                      ["emetteurEmail", "destinataireEmail", "organisme",
                       "periodeDebut", "periodeFin", "chantiers", "nomFichier",
                       "tailleOctets", "succes", "dateTransmission"],
-                     [], 1560, 950, 360)
+                     [], 520, 20, 360)
 
 # Le parametrage des seuils et le journal figuraient au schema sans apparaitre
 # au modele logique. ALERTESEUIL porte une cle etrangere nullable vers CHANTIER,
@@ -172,10 +173,10 @@ seuil = Table("ALERTESEUIL", "idSeuil",
 
 journal = Table("JOURNAL", "idJournal",
                 ["niveau", "message", "utilisateurLogin", "ipSource", "horodatage"],
-                [], 520, 250, 340)
+                [], 520, 330, 340)
 
 tables = [util, chantier, plainte, signalement, alerte, photo, action, nc,
-          rapport, transmission, seuil, journal]
+          transmission, seuil, journal]
 for t in tables:
     t.draw()
 
@@ -188,7 +189,6 @@ relation_fk(alerte, util)
 relation_fk(photo, signalement)
 relation_fk(action, signalement)
 relation_fk(nc, signalement)
-relation_fk(rapport, util)
 relation_fk(plainte, util)
 relation_fk(util, chantier)
 relation_fk(seuil, chantier)
@@ -198,8 +198,18 @@ relation_fk(seuil, chantier)
 # et sa liaison est retracee ensuite pour rester visible.
 journal.draw()
 relation_fk(journal, util)
-# La trace de remise se rattache au rapport qu'elle transmet.
-relation_fk(transmission, rapport)
+# TRANSMISSION ne porte aucune cle etrangere : ni vers le rapport, qui n'a pas
+# de table, ni vers son emetteur, conserve en adresse pour que la trace survive
+# a la suppression du compte. Elle se rattache neanmoins a UTILISATEUR par le
+# meme trait que JOURNAL, qui est dans la situation identique : la note du bas
+# explique pour les deux que ce rapprochement ne porte pas de contrainte.
+#
+# Les deux boites sont redessinees en dernier. Les tables etant tracees avant
+# les liaisons, celles qui remontent du bas passaient par-dessus elles ; leur
+# fond blanc les masque desormais.
+journal.draw()
+transmission.draw()
+relation_fk(transmission, util)
 
 d.text((20, H - 90),
       "Note : la spécialisation d'UTILISATEUR en huit sous-types (cf. figure 4.8) est résolue en table unique",

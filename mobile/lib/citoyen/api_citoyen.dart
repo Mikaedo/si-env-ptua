@@ -106,11 +106,13 @@ class ApiCitoyen {
   ApiCitoyen._interne();
 
   static const _cleJeton = 'citoyen_token';
+  static const _cleRenouvellement = 'citoyen_refresh';
   static const _cleNom = 'citoyen_nom';
   static const _cleEmail = 'citoyen_email';
   static const _cleChantier = 'citoyen_chantier';
 
   String? _jeton;
+  String? _renouvellement;
   String? nom;
   String? email;
   String? chantierRattachement;
@@ -126,15 +128,25 @@ class ApiCitoyen {
   Future<void> charger() async {
     final prefs = await SharedPreferences.getInstance();
     _jeton = prefs.getString(_cleJeton);
+    _renouvellement = prefs.getString(_cleRenouvellement);
     nom = prefs.getString(_cleNom);
     email = prefs.getString(_cleEmail);
     chantierRattachement = prefs.getString(_cleChantier);
   }
 
-  Future<void> _enregistrer(String jeton, {String? nom, String? email}) async {
+  Future<void> _enregistrer(String jeton,
+      {String? nom, String? email, String? renouvellement}) async {
     _jeton = jeton;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_cleJeton, jeton);
+    // Le jeton de renouvellement etait jusqu'ici ignore, alors que le serveur
+    // le renvoie a chaque connexion. Sans lui, l'expiration de l'acces ne
+    // laissait aucune issue : l'application se croyait connectee et tous ses
+    // appels echouaient.
+    if (renouvellement != null) {
+      _renouvellement = renouvellement;
+      await prefs.setString(_cleRenouvellement, renouvellement);
+    }
     if (nom != null) {
       this.nom = nom;
       await prefs.setString(_cleNom, nom);
@@ -153,11 +165,13 @@ class ApiCitoyen {
 
   Future<void> deconnecter() async {
     _jeton = null;
+    _renouvellement = null;
     nom = null;
     email = null;
     chantierRattachement = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_cleJeton);
+    await prefs.remove(_cleRenouvellement);
     await prefs.remove(_cleNom);
     await prefs.remove(_cleEmail);
     await prefs.remove(_cleChantier);
@@ -176,6 +190,53 @@ class ApiCitoyen {
       if (detail is String && detail.isNotEmpty) return detail;
     } catch (_) {}
     return defaut;
+  }
+
+  /// Redemande un acces au serveur avec le jeton de renouvellement.
+  ///
+  /// Retourne vrai si un nouvel acces a ete obtenu. En cas d'echec, la session
+  /// est effacee : mieux vaut renvoyer la personne vers l'ecran de connexion
+  /// que la laisser devant un bouton « Reessayer » qui echouera toujours.
+  Future<bool> _renouveler() async {
+    if (_renouvellement == null) {
+      await deconnecter();
+      return false;
+    }
+    try {
+      final res = await http
+          .post(
+            Uri.parse('$kApiBaseUrl/auth/refresh'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'refresh_token': _renouvellement}),
+          )
+          .timeout(const Duration(seconds: 20));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes));
+        await _enregistrer(data['access_token'],
+            renouvellement: data['refresh_token'] ?? _renouvellement);
+        return true;
+      }
+    } catch (_) {
+      // Une coupure reseau ne doit pas effacer la session : l'acces est
+      // peut-etre encore valable, seul le serveur etait injoignable.
+      return false;
+    }
+    await deconnecter();
+    return false;
+  }
+
+  /// Envoie une requete authentifiee, en renouvelant l'acces si besoin.
+  ///
+  /// L'expiration d'un jeton est un evenement ordinaire, pas une panne. Elle
+  /// se rattrape sans que l'utilisateur ait rien a faire, et ne devient
+  /// visible que lorsque le renouvellement lui-meme echoue.
+  Future<http.Response> _authentifie(
+      Future<http.Response> Function() envoyer) async {
+    var res = await envoyer();
+    if (res.statusCode == 401 && await _renouveler()) {
+      res = await envoyer();
+    }
+    return res;
   }
 
   Future<ZoneVerifiee> verifierZone(double latitude, double longitude) async {
@@ -216,7 +277,8 @@ class ApiCitoyen {
         .timeout(const Duration(seconds: 30));
     if (res.statusCode == 200) {
       final data = jsonDecode(utf8.decode(res.bodyBytes));
-      await _enregistrer(data['access_token'], nom: nom, email: email);
+      await _enregistrer(data['access_token'],
+        nom: nom, email: email, renouvellement: data['refresh_token']);
       return;
     }
     throw Exception(_motif(res, 'La création du compte a échoué.'));
@@ -241,13 +303,14 @@ class ApiCitoyen {
         'Les agents AGEROUTE disposent d\'une application distincte.',
       );
     }
-    await _enregistrer(data['access_token'], email: email);
+    await _enregistrer(data['access_token'],
+        email: email, renouvellement: data['refresh_token']);
   }
 
   Future<String> monChantier() async {
-    final res = await http
+    final res = await _authentifie(() => http
         .get(Uri.parse('$kApiBaseUrl/citoyen/mon-chantier'), headers: _entetes)
-        .timeout(const Duration(seconds: 20));
+        .timeout(const Duration(seconds: 20)));
     if (res.statusCode == 200) {
       final c = jsonDecode(utf8.decode(res.bodyBytes));
       final libelle = c['commune'] != null && (c['commune'] as String).isNotEmpty
@@ -265,7 +328,7 @@ class ApiCitoyen {
     double? latitude,
     double? longitude,
   }) async {
-    final res = await http
+    final res = await _authentifie(() => http
         .post(
           Uri.parse('$kApiBaseUrl/citoyen/doleances'),
           headers: _entetes,
@@ -276,7 +339,7 @@ class ApiCitoyen {
             'longitude': longitude,
           }),
         )
-        .timeout(const Duration(seconds: 30));
+        .timeout(const Duration(seconds: 30)));
     if (res.statusCode == 200) {
       return Doleance.fromJson(jsonDecode(utf8.decode(res.bodyBytes)));
     }
@@ -296,9 +359,9 @@ class ApiCitoyen {
   }
 
   Future<List<Doleance>> mesDoleances() async {
-    final res = await http
+    final res = await _authentifie(() => http
         .get(Uri.parse('$kApiBaseUrl/citoyen/doleances'), headers: _entetes)
-        .timeout(const Duration(seconds: 20));
+        .timeout(const Duration(seconds: 20)));
     if (res.statusCode == 200) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('citoyen_cache_doleances', utf8.decode(res.bodyBytes));
@@ -310,7 +373,7 @@ class ApiCitoyen {
   }
 
   Future<void> changerMotDePasse(String ancien, String nouveau) async {
-    final res = await http
+    final res = await _authentifie(() => http
         .post(
           Uri.parse('$kApiBaseUrl/auth/change-password'),
           headers: _entetes,
@@ -319,7 +382,7 @@ class ApiCitoyen {
             'nouveau_mot_de_passe': nouveau,
           }),
         )
-        .timeout(const Duration(seconds: 20));
+        .timeout(const Duration(seconds: 20)));
     if (res.statusCode != 200) {
       throw Exception(_motif(res, 'Le mot de passe n\'a pas pu être modifié.'));
     }

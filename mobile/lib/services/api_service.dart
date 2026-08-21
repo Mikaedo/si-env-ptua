@@ -11,6 +11,7 @@ class ApiService {
   ApiService._internal();
 
   String? _token;
+  String? _refresh;
   String? _role;
   bool? _premiereConnexion;
 
@@ -21,26 +22,37 @@ class ApiService {
   Future<void> loadToken() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
+    _refresh = prefs.getString('refresh_token');
     _role = prefs.getString('role');
     _premiereConnexion = prefs.getBool('premiere_connexion');
   }
 
-  Future<void> _saveToken(String token, String role, bool premiere) async {
+  Future<void> _saveToken(String token, String role, bool premiere,
+      {String? refresh}) async {
     _token = token;
     _role = role;
     _premiereConnexion = premiere;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', token);
+    // Le serveur renvoie un jeton de renouvellement a chaque connexion. Il
+    // etait jusqu'ici ignore : a l'expiration de l'acces, l'application se
+    // croyait connectee et tous ses appels echouaient sans issue.
+    if (refresh != null) {
+      _refresh = refresh;
+      await prefs.setString('refresh_token', refresh);
+    }
     await prefs.setString('role', role);
     await prefs.setBool('premiere_connexion', premiere);
   }
 
   Future<void> clearToken() async {
     _token = null;
+    _refresh = null;
     _role = null;
     _premiereConnexion = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
+    await prefs.remove('refresh_token');
     await prefs.remove('role');
     await prefs.remove('premiere_connexion');
     await prefs.remove('user_profil');
@@ -53,6 +65,63 @@ class ApiService {
         if (_token != null) 'Authorization': 'Bearer $_token',
       };
 
+  /// Redemande un acces au serveur avec le jeton de renouvellement.
+  ///
+  /// L'expiration d'un acces est un evenement ordinaire, pas une panne : elle
+  /// se rattrape sans que l'agent ait rien a faire. Une coupure reseau, en
+  /// revanche, ne doit pas effacer la session, l'acces etant peut-etre encore
+  /// valable et seul le serveur injoignable.
+  Future<bool> _renouveler() async {
+    if (_refresh == null) return false;
+    try {
+      final res = await http
+          .post(
+            Uri.parse('$kApiBaseUrl/auth/refresh'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'refresh_token': _refresh}),
+          )
+          .timeout(const Duration(seconds: 20));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        await _saveToken(data['access_token'], _role ?? '', false,
+            refresh: data['refresh_token'] ?? _refresh);
+        return true;
+      }
+    } catch (_) {
+      return false;
+    }
+    await clearToken();
+    return false;
+  }
+
+  /// Envoie une requete authentifiee, en renouvelant l'acces si besoin.
+  Future<http.Response> _authentifie(
+      Future<http.Response> Function() envoyer) async {
+    var res = await envoyer();
+    if (res.statusCode == 401 && await _renouveler()) {
+      res = await envoyer();
+    }
+    return res;
+  }
+
+  /// Lecture authentifiee, avec renouvellement transparent de l'acces.
+  Future<http.Response> _get(Uri url, {Duration? delai}) =>
+      _authentifie(() {
+        final envoi = http.get(url, headers: _headers);
+        return delai == null ? envoi : envoi.timeout(delai);
+      });
+
+  /// Ecriture authentifiee, avec renouvellement transparent de l'acces.
+  Future<http.Response> _post(Uri url, {Object? body, Duration? delai}) =>
+      _authentifie(() {
+        final envoi = http.post(url, headers: _headers, body: body);
+        return delai == null ? envoi : envoi.timeout(delai);
+      });
+
+  /// Mise a jour authentifiee, avec renouvellement transparent de l'acces.
+  Future<http.Response> _patch(Uri url, {Object? body}) =>
+      _authentifie(() => http.patch(url, headers: _headers, body: body));
+
   Future<Map<String, dynamic>> login(String email, String password) async {
     final res = await http.post(
       Uri.parse('$kApiBaseUrl/auth/login'),
@@ -60,7 +129,8 @@ class ApiService {
     );
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);
-      await _saveToken(data['access_token'], data['role'] ?? '', data['premiere_connexion'] ?? false);
+      await _saveToken(data['access_token'], data['role'] ?? '',
+          data['premiere_connexion'] ?? false, refresh: data['refresh_token']);
       return data;
     }
     final err = jsonDecode(res.body);
@@ -82,8 +152,7 @@ class ApiService {
   }
 
   Future<Utilisateur> me() async {
-    final res = await http
-        .get(Uri.parse('$kApiBaseUrl/auth/me'), headers: _headers)
+    final res = await _get(Uri.parse('$kApiBaseUrl/auth/me'))
         .timeout(const Duration(seconds: 12));
     if (res.statusCode == 200) {
       final prefs = await SharedPreferences.getInstance();
@@ -94,30 +163,28 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> firstLogin(String nom, String telephone, String password) async {
-    final res = await http.post(
+    final res = await _post(
       Uri.parse('$kApiBaseUrl/auth/first-login'),
-      headers: _headers,
       body: jsonEncode({'nom': nom, 'telephone': telephone, 'mot_de_passe': password}),
     );
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);
-      await _saveToken(data['access_token'], data['role'] ?? '', false);
+      await _saveToken(data['access_token'], data['role'] ?? '', false,
+          refresh: data['refresh_token']);
       return data;
     }
     throw Exception('Erreur premiere connexion');
   }
 
   Future<void> changePassword(String oldPassword, String newPassword) async {
-    final res = await http
-        .post(
-          Uri.parse('$kApiBaseUrl/auth/change-password'),
-          headers: _headers,
-          body: jsonEncode({
-            'ancien_mot_de_passe': oldPassword,
-            'nouveau_mot_de_passe': newPassword,
-          }),
-        )
-        .timeout(const Duration(seconds: 15));
+    final res = await _post(
+      Uri.parse('$kApiBaseUrl/auth/change-password'),
+      body: jsonEncode({
+        'ancien_mot_de_passe': oldPassword,
+        'nouveau_mot_de_passe': newPassword,
+      }),
+      delai: const Duration(seconds: 15),
+    );
     if (res.statusCode == 200) return;
     // Le serveur renvoie un motif precis ("Ancien mot de passe incorrect").
     // L'ecraser par un texte generique laissait l'utilisateur devant un echec
@@ -139,9 +206,8 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> forgotPassword(String email) async {
-    final res = await http.post(
+    final res = await _post(
       Uri.parse('$kApiBaseUrl/auth/forgot'),
-      headers: _headers,
       body: jsonEncode({'email': email}),
     );
     if (res.statusCode == 200) {
@@ -151,9 +217,8 @@ class ApiService {
   }
 
   Future<void> verifyCode(String email, String code) async {
-    final res = await http.post(
+    final res = await _post(
       Uri.parse('$kApiBaseUrl/auth/verify-code'),
-      headers: _headers,
       body: jsonEncode({'email': email, 'code': code}),
     );
     if (res.statusCode != 200) {
@@ -162,9 +227,8 @@ class ApiService {
   }
 
   Future<void> resetPassword(String email, String code, String newPassword) async {
-    final res = await http.post(
+    final res = await _post(
       Uri.parse('$kApiBaseUrl/auth/reset-password'),
-      headers: _headers,
       body: jsonEncode({'email': email, 'code': code, 'nouveau_mot_de_passe': newPassword}),
     );
     if (res.statusCode != 200) {
@@ -188,7 +252,7 @@ class ApiService {
   }
 
   Future<List<Chantier>> getChantiers() async {
-    final res = await http.get(Uri.parse('$kApiBaseUrl/chantiers'), headers: _headers);
+    final res = await _get(Uri.parse('$kApiBaseUrl/chantiers'));
     if (res.statusCode == 200) {
       final list = jsonDecode(res.body) as List;
       return list.map((e) => Chantier.fromJson(e)).toList();
@@ -197,9 +261,8 @@ class ApiService {
   }
 
   Future<Signalement> createSignalement(Signalement s) async {
-    final res = await http.post(
+    final res = await _post(
       Uri.parse('$kApiBaseUrl/signalements'),
-      headers: _headers,
       body: jsonEncode(s.toJson()),
     );
     if (res.statusCode == 200) {
@@ -223,8 +286,7 @@ class ApiService {
     if (periodeJours != null) params['periode_jours'] = periodeJours.toString();
 
     final uri = Uri.parse('$kApiBaseUrl/signalements').replace(queryParameters: params);
-    final res = await http
-        .get(uri, headers: _headers)
+    final res = await _get(uri)
         .timeout(const Duration(seconds: 20));
     if (res.statusCode == 200) {
       // Ne met en cache que la liste "sans filtre" : evite d'ecraser le
@@ -241,7 +303,7 @@ class ApiService {
   }
 
   Future<Signalement> getSignalementDetail(int id) async {
-    final res = await http.get(Uri.parse('$kApiBaseUrl/signalements/$id'), headers: _headers);
+    final res = await _get(Uri.parse('$kApiBaseUrl/signalements/$id'));
     if (res.statusCode == 200) {
       return Signalement.fromJson(jsonDecode(res.body));
     }
@@ -249,9 +311,8 @@ class ApiService {
   }
 
   Future<Signalement> updateStatut(int id, String statut) async {
-    final res = await http.patch(
+    final res = await _patch(
       Uri.parse('$kApiBaseUrl/signalements/$id/statut?nouveau_statut=$statut'),
-      headers: _headers,
     );
     if (res.statusCode == 200) {
       return Signalement.fromJson(jsonDecode(res.body));
@@ -260,9 +321,8 @@ class ApiService {
   }
 
   Future<void> addActionCorrective(int id, String description, DateTime? echeance) async {
-    final res = await http.post(
+    final res = await _post(
       Uri.parse('$kApiBaseUrl/signalements/$id/action'),
-      headers: _headers,
       body: jsonEncode({
         'description': description,
         'echeance': echeance?.toIso8601String(),
@@ -274,9 +334,8 @@ class ApiService {
   }
 
   Future<void> retournerAgent(int id, String motif) async {
-    final res = await http.post(
+    final res = await _post(
       Uri.parse('$kApiBaseUrl/signalements/$id/retour'),
-      headers: _headers,
       body: jsonEncode({'motif': motif}),
     );
     if (res.statusCode != 200) {
@@ -285,7 +344,7 @@ class ApiService {
   }
 
   Future<List<Alerte>> getAlertes() async {
-    final res = await http.get(Uri.parse('$kApiBaseUrl/alertes'), headers: _headers);
+    final res = await _get(Uri.parse('$kApiBaseUrl/alertes'));
     if (res.statusCode == 200) {
       final list = jsonDecode(res.body) as List;
       return list.map((e) => Alerte.fromJson(e)).toList();
@@ -294,9 +353,8 @@ class ApiService {
   }
 
   Future<void> accuserReception(int alerteId) async {
-    final res = await http.post(
+    final res = await _post(
       Uri.parse('$kApiBaseUrl/alertes/$alerteId/accuser'),
-      headers: _headers,
     );
     if (res.statusCode != 200) {
       throw Exception('Erreur accusation reception');
@@ -318,8 +376,7 @@ class ApiService {
   }
 
   Future<Statistiques> getStatistiques() async {
-    final res = await http
-        .get(Uri.parse('$kApiBaseUrl/stats'), headers: _headers)
+    final res = await _get(Uri.parse('$kApiBaseUrl/stats'))
         .timeout(const Duration(seconds: 15));
     if (res.statusCode == 200) {
       final prefs = await SharedPreferences.getInstance();
@@ -357,7 +414,7 @@ class ApiService {
   }
 
   Future<List<Map<String, dynamic>>> getPhotos(int signalementId) async {
-    final res = await http.get(Uri.parse('$kApiBaseUrl/signalements/$signalementId/photos'), headers: _headers);
+    final res = await _get(Uri.parse('$kApiBaseUrl/signalements/$signalementId/photos'));
     if (res.statusCode == 200) {
       final list = jsonDecode(res.body) as List;
       return list.cast<Map<String, dynamic>>();

@@ -228,12 +228,33 @@ def _envoyer_email_bienvenue(email_dest: str,
     # Le lien vise la page d'activation et non la racine du tableau de bord.
     # Pointer vers la racine renvoyait l'utilisateur sur la session deja
     # ouverte dans son navigateur au lieu de son propre parcours.
+    #
+    # Ce lien n'a de sens que pour les roles web : pour un profil mobile ou
+    # riverain, le mail dit deja d'ouvrir l'application, et un lien pointant
+    # quand meme vers le tableau de bord invitait a l'ouvrir par erreur. Le
+    # compte s'activait bien depuis le navigateur (aucun controle de role a
+    # cette etape), mais une connexion normale depuis le tableau de bord
+    # etait ensuite refusee pour ce role, qui n'est autorise que cote mobile.
+    est_mobile = role_str in ("RESP_ENV", "EXPERT_HSE", "PLAIGNANT")
     lien_activation = (
         f"{dashboard_url}/premiere-connexion"
         f"?email={quote(email_dest, safe='')}"
     )
 
     sujet = "[SI-ENV] Bienvenue - votre compte a ete cree"
+
+    if est_mobile:
+        instructions_texte = (
+            f"Pour activer votre compte, ouvrez l'application SI-ENV sur\n"
+            f"votre telephone, saisissez votre adresse email ci-dessus, puis\n"
+            f"choisissez votre mot de passe.\n"
+        )
+    else:
+        instructions_texte = (
+            f"Pour activer votre compte et definir votre mot de passe,\n"
+            f"rendez-vous sur :\n"
+            f"{lien_activation}\n"
+        )
 
     texte = (
         f"SI-ENV AGEROUTE\n\n"
@@ -242,12 +263,23 @@ def _envoyer_email_bienvenue(email_dest: str,
         f"  Email        : {email_dest}\n"
         f"  Role         : {libelle}\n\n"
         f"{acces}\n\n"
-        f"Pour activer votre compte et definir votre mot de passe,\n"
-        f"rendez-vous sur :\n"
-        f"{lien_activation}\n\n"
+        f"{instructions_texte}\n"
         f"--\n"
         f"AGEROUTE - Projet de Transport Urbain d'Abidjan\n"
     )
+
+    if est_mobile:
+        bloc_activation = ""
+    else:
+        bloc_activation = f"""<p style="margin:0 0 20px;font-size:14px;color:#475569">
+            Cliquez sur le bouton ci-dessous pour activer votre compte
+            et choisir votre mot de passe.
+          </p>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto" align="center">
+            <tr><td style="background:#F37021;border-radius:10px">
+              <a href="{lien_activation}" style="display:inline-block;padding:12px 28px;color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;border-radius:10px">Activer mon compte</a>
+            </td></tr>
+          </table>"""
 
     html = f"""<!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8"></head>
@@ -277,15 +309,7 @@ def _envoyer_email_bienvenue(email_dest: str,
             </tr>
           </table>
           <p style="margin:0 0 12px;font-size:14px;color:#475569">{acces}</p>
-          <p style="margin:0 0 20px;font-size:14px;color:#475569">
-            Cliquez sur le bouton ci-dessous pour activer votre compte
-            et choisir votre mot de passe.
-          </p>
-          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto" align="center">
-            <tr><td style="background:#F37021;border-radius:10px">
-              <a href="{lien_activation}" style="display:inline-block;padding:12px 28px;color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;border-radius:10px">Activer mon compte</a>
-            </td></tr>
-          </table>
+          {bloc_activation}
         </td></tr>
         <tr><td style="background:#F8FAFC;padding:18px 32px;border-top:1px solid #E2E8F0;text-align:center">
           <div style="font-size:12px;color:#64748B;font-weight:600">AGEROUTE &middot; Agence de Gestion des Routes</div>

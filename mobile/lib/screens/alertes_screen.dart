@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../widgets/ptua_logo.dart';
 import '../core/constants.dart';
 import '../services/api_service.dart';
@@ -14,6 +15,7 @@ class AlertesScreen extends StatefulWidget {
 class _AlertesScreenState extends State<AlertesScreen> {
   List<Alerte> _alertes = [];
   bool _loading = true;
+  bool _hasError = false;
 
   @override
   void initState() {
@@ -22,11 +24,15 @@ class _AlertesScreenState extends State<AlertesScreen> {
   }
 
   Future<void> _loadAlertes() async {
+    setState(() { _loading = true; _hasError = false; });
     try {
       final list = await ApiService().getAlertes();
       setState(() { _alertes = list; _loading = false; });
     } catch (_) {
-      setState(() => _loading = false);
+      // Auparavant silencieux : la liste restait simplement vide, sans dire
+      // a l'agent qu'il s'agissait d'un echec reseau et non d'une absence
+      // reelle d'alertes.
+      setState(() { _loading = false; _hasError = true; });
     }
   }
 
@@ -44,7 +50,7 @@ class _AlertesScreenState extends State<AlertesScreen> {
         ]),
         actions: [
           IconButton(
-            onPressed: () { setState(() => _loading = true); _loadAlertes(); },
+            onPressed: _loadAlertes,
             icon: const Icon(Icons.refresh_rounded, color: kGray600),
           ),
         ],
@@ -52,7 +58,24 @@ class _AlertesScreenState extends State<AlertesScreen> {
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator(color: kBlue))
-            : ListView.builder(
+            : _hasError
+                ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Container(width: 72, height: 72,
+                      decoration: BoxDecoration(color: kRedLight, borderRadius: BorderRadius.circular(22)),
+                      child: const Icon(LucideIcons.cloudOff, color: kRed, size: 32)),
+                    const SizedBox(height: 16),
+                    const Text('Alertes indisponibles', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: kGray800)),
+                    const SizedBox(height: 8),
+                    const Text('Vérifiez votre connexion\net reconnectez-vous si nécessaire.',
+                      textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: kGray500)),
+                    const SizedBox(height: 24),
+                    SizedBox(width: 180, child: ElevatedButton.icon(
+                      onPressed: _loadAlertes,
+                      icon: const Icon(LucideIcons.refreshCw, size: 16),
+                      label: const Text('Réessayer'),
+                    )),
+                  ]))
+                : ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 itemCount: _alertes.length,
                 itemBuilder: (_, i) {

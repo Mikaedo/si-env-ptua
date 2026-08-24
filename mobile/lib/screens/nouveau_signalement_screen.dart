@@ -17,7 +17,16 @@ import 'confirmation_screen.dart';
 
 class NouveauSignalementScreen extends StatefulWidget {
   final String typeNuisance;
-  const NouveauSignalementScreen({super.key, required this.typeNuisance});
+  // Chantier tape sur la carte avant d'arriver ici (ecran carte, bouton
+  // "Signaler"). Absent quand l'ecran s'ouvre depuis la navigation
+  // principale : dans ce cas seulement, on retombe sur le premier chantier
+  // de la liste.
+  final String? chantierInitial;
+  const NouveauSignalementScreen({
+    super.key,
+    required this.typeNuisance,
+    this.chantierInitial,
+  });
 
   @override
   State<NouveauSignalementScreen> createState() => _NouveauSignalementScreenState();
@@ -25,7 +34,7 @@ class NouveauSignalementScreen extends StatefulWidget {
 
 class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
   late String _selectedType;
-  String _selectedChantier = kChantiers.first;
+  late String _selectedChantier;
   String _criticite = 'FAIBLE';
   String _gpsSource = 'AUTO';
   double? _latitude;
@@ -45,6 +54,10 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
   void initState() {
     super.initState();
     _selectedType = widget.typeNuisance;
+    _selectedChantier = widget.chantierInitial != null &&
+            kChantiers.contains(widget.chantierInitial)
+        ? widget.chantierInitial!
+        : kChantiers.first;
     _getGps();
     IaService().loadModels();
   }

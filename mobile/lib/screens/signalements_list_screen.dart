@@ -380,8 +380,10 @@ class _SignalementCard extends StatelessWidget {
     final statusColor = kStatutColors[signalement.statut] ?? kGray500;
     final criticiteColor = kCriticiteColors[signalement.criticite] ?? kGray500;
     final chantierId = signalement.chantierId ?? 0;
-    final chantierName = chantierId >= 1 && chantierId <= kChantiers.length
-        ? kChantiers[chantierId - 1] : 'Chantier $chantierId';
+    final chantierName = signalement.chantierNom ??
+        (chantierId >= 1 && chantierId <= kChantiers.length
+            ? kChantiers[chantierId - 1]
+            : 'Chantier $chantierId');
     final date = signalement.creeLe != null ? _formatDate(signalement.creeLe!) : '—';
 
     return InkWell(

@@ -59,6 +59,10 @@ class Signalement {
   final DateTime? creeLe;
   final int? auteurId;
   final int? chantierId;
+  // Nom envoye directement par le serveur (route GET /signalements, objet
+  // "chantier" imbriqué). Prioritaire sur toute resolution locale par
+  // kChantiers, qui ne doit plus servir que de repli si absent.
+  final String? chantierNom;
   final double? latitude;
   final double? longitude;
 
@@ -75,11 +79,13 @@ class Signalement {
     this.creeLe,
     this.auteurId,
     this.chantierId,
+    this.chantierNom,
     this.latitude,
     this.longitude,
   });
 
   factory Signalement.fromJson(Map<String, dynamic> json) {
+    final chantier = json['chantier'] as Map<String, dynamic>?;
     return Signalement(
       id: json['id'],
       uuidMobile: json['uuid_mobile'],
@@ -92,7 +98,8 @@ class Signalement {
       statut: json['statut'] ?? 'NOUVEAU',
       creeLe: json['cree_le'] != null ? DateTime.parse(json['cree_le']) : null,
       auteurId: json['auteur_id'],
-      chantierId: json['chantier_id'],
+      chantierId: json['chantier_id'] ?? chantier?['id'],
+      chantierNom: chantier?['nom'],
     );
   }
 

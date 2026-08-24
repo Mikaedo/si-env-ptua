@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../core/constants.dart';
 import '../widgets/ptua_logo.dart';
+import 'nouveau_signalement_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -33,8 +34,11 @@ class _MapScreenState extends State<MapScreen> {
     'ECHANGEURS_CG': Color(0xFF2E7D32),
   };
 
+  // Doit correspondre mot pour mot aux entrees de kChantiers (constants.dart) :
+  // le libelle tape sur la carte est transmis tel quel a l'ecran de
+  // signalement, qui le retrouve par egalite de chaine dans cette liste.
   static const _projetLabels = <String, String>{
-    '4EME_PONT': '4e Pont',
+    '4EME_PONT': "4e Pont d'Abidjan",
     'Y4': 'Rocade Y4',
     'LATRILLE': 'Bd Latrille',
     'SORTIE_EST': 'Sortie Est',
@@ -313,7 +317,15 @@ class _MapScreenState extends State<MapScreen> {
                       key: ValueKey(_selectedChantier),
                       chantier: _chantiers[_selectedChantier],
                       onClose: () => setState(() => _selectedChantier = -1),
-                      onNavigate: () => Navigator.pushNamed(context, '/nouveau-signalement'),
+                      onNavigate: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => NouveauSignalementScreen(
+                            typeNuisance: 'Déchets de chantier',
+                            chantierInitial: _chantiers[_selectedChantier].label,
+                          ),
+                        ),
+                      ),
                     )
                   : _LegendSheet(
                       key: const ValueKey('legend'),

@@ -344,7 +344,8 @@ class ApiService {
   }
 
   Future<List<Alerte>> getAlertes() async {
-    final res = await _get(Uri.parse('$kApiBaseUrl/alertes'));
+    final res = await _get(Uri.parse('$kApiBaseUrl/alertes'))
+        .timeout(const Duration(seconds: 15));
     if (res.statusCode == 200) {
       final list = jsonDecode(res.body) as List;
       return list.map((e) => Alerte.fromJson(e)).toList();

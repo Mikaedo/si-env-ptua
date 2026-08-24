@@ -31,7 +31,33 @@ def _serialize_alerte(alerte: models.Alerte, db: Session):
 def lister_alertes(db: Session = Depends(get_db),
                    courant: models.Utilisateur = Depends(auth.utilisateur_courant)):
     alertes = db.query(models.Alerte).order_by(models.Alerte.cree_le.desc()).all()
-    return [_serialize_alerte(alerte, db) for alerte in alertes]
+
+    # Une requete par alerte pour retrouver son chantier rendait cet endpoint
+    # tres lent des que la liste grossissait (N+1). Les chantiers necessaires
+    # sont desormais recuperes en un seul aller-retour, par lot.
+    ids_chantiers = {a.chantier_id for a in alertes if a.chantier_id}
+    chantiers_par_id = {
+        c.id: c for c in (
+            db.query(models.Chantier).filter(models.Chantier.id.in_(ids_chantiers)).all()
+            if ids_chantiers else []
+        )
+    }
+
+    def serialiser(alerte):
+        chantier = chantiers_par_id.get(alerte.chantier_id)
+        return {
+            "id": alerte.id,
+            "message": alerte.message,
+            "niveau": alerte.niveau,
+            "valeur": alerte.valeur,
+            "cree_le": alerte.cree_le,
+            "chantier_id": alerte.chantier_id,
+            "chantier": ({"id": chantier.id, "nom": chantier.nom, "commune": chantier.commune}
+                        if chantier else None),
+            "recue": alerte.recue,
+        }
+
+    return [serialiser(a) for a in alertes]
 
 
 @router.post("/{alerte_id}/accuser", response_model=schemas.AlerteOut)

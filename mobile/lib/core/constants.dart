@@ -33,11 +33,17 @@ const String kApiBaseUrl = String.fromEnvironment(
   defaultValue: 'https://si-env-ptua.onrender.com',
 );
 
+// Doit rester dans l'ordre exact des identifiants cote backend (1 a 6,
+// cf. backend/seed.py) : plusieurs ecrans deduisent encore chantierId de la
+// position dans cette liste (index + 1). Cette liste avait fini avec quatre
+// noms obsoletes, dont deux qui ne correspondaient a aucun chantier reel.
 const List<String> kChantiers = [
-  '4eme Pont',
-  'Pont de Bassam · Lot 1',
-  'Bd Latrille · Lot 3',
-  'Rocade Marcory · Lot 2',
+  'Rocade Y4',
+  "4e Pont d'Abidjan",
+  'Bd Latrille',
+  'Sortie Est',
+  'Sortie Ouest',
+  'Echangeurs CG',
 ];
 
 const List<String> kNuisanceTypes = [

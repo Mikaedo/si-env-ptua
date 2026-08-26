@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../core/constants.dart';
 import '../widgets/ptua_logo.dart';
+import '../services/api_service.dart';
 import 'nouveau_signalement_screen.dart';
 
 class MapScreen extends StatefulWidget {
@@ -24,6 +25,10 @@ class _MapScreenState extends State<MapScreen> {
   bool _satelliteMode = false;
   String _zoneFilter = 'Toutes';
   final MapController _mapController = MapController();
+  // Le point orange etait fixe, affiche que des alertes existent ou non.
+  // Il reflete desormais le vrai nombre d'alertes non accusees : c'est le
+  // seul indice que l'agent ait, sur cet ecran, qu'une alerte l'attend.
+  int _alertesNonLues = 0;
 
   static const _projetColors = <String, Color>{
     '4EME_PONT': Color(0xFFE8770E),
@@ -50,6 +55,7 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _loadZones();
+    _chargerAlertesNonLues();
   }
 
   Future<void> _loadZones() async {
@@ -119,6 +125,17 @@ class _MapScreenState extends State<MapScreen> {
       });
     } catch (e) {
       setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _chargerAlertesNonLues() async {
+    try {
+      final alertes = await ApiService().getAlertes();
+      if (!mounted) return;
+      setState(() => _alertesNonLues = alertes.where((a) => !a.recue).length);
+    } catch (_) {
+      // Echec silencieux : le point ne s'affiche simplement pas, comme
+      // avant. Ce n'est pas la fonction critique de cet ecran.
     }
   }
 
@@ -219,13 +236,21 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                     Stack(children: [
                       IconButton(
-                        onPressed: () => Navigator.pushNamed(context, '/alertes'),
+                        onPressed: () => Navigator.pushNamed(context, '/alertes')
+                            .then((_) => _chargerAlertesNonLues()),
                         icon: Icon(Icons.notifications_outlined, color: kWhite.withValues(alpha: 0.9), size: 22),
                       ),
-                      Positioned(top: 6, right: 6, child: Container(
-                        width: 8, height: 8,
-                        decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle, border: Border.all(color: kBlueDark, width: 2)),
-                      )),
+                      if (_alertesNonLues > 0)
+                        Positioned(top: 4, right: 4, child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                          decoration: BoxDecoration(color: kOrange, shape: BoxShape.circle, border: Border.all(color: kBlueDark, width: 2)),
+                          alignment: Alignment.center,
+                          child: Text(
+                            _alertesNonLues > 9 ? '9+' : '$_alertesNonLues',
+                            style: const TextStyle(color: kWhite, fontSize: 9, fontWeight: FontWeight.w700),
+                          ),
+                        )),
                     ]),
                   ],
                 ),

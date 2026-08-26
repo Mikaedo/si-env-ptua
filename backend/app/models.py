@@ -152,15 +152,24 @@ class Alerte(Base):
 
 
 class ActionCorrective(Base):
+    """Action engagee pour traiter un signalement ou une plainte.
+
+    Rattachee a l'un ou l'autre (jamais force a choisir un objet generique
+    plus difficile a interroger) : signalement_id pour le suivi
+    environnemental, plainte_id pour le suivi du P.A.R. Les deux colonnes
+    restent facultatives individuellement, une seule doit etre renseignee.
+    """
     __tablename__ = "actions_correctives"
 
     id = Column(Integer, primary_key=True, index=True)
     description = Column(Text, nullable=False)
     echeance = Column(DateTime)
     cree_le = Column(DateTime, default=datetime.utcnow)
-    signalement_id = Column(Integer, ForeignKey("signalements.id"))
+    signalement_id = Column(Integer, ForeignKey("signalements.id"), nullable=True)
+    plainte_id = Column(Integer, ForeignKey("plaintes.id"), nullable=True)
 
     signalement = relationship("Signalement", back_populates="actions")
+    plainte = relationship("Plainte", back_populates="actions")
 
 
 class NonConformite(Base):
@@ -211,6 +220,7 @@ class Plainte(Base):
     canal = Column(String(20), default="GUICHET")
 
     plaignant = relationship("Utilisateur", foreign_keys=[plaignant_id])
+    actions = relationship("ActionCorrective", back_populates="plainte", cascade="all, delete-orphan")
 
 
 class AlerteSeuil(Base):

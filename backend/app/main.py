@@ -174,6 +174,14 @@ def au_demarrage():
     ):
         _ajouter_colonne_si_absente("plaintes", nom_colonne, definition)
 
+    # Une plainte peut desormais recevoir une action corrective, comme un
+    # signalement. La colonne est facultative : signalement_id l'est deja,
+    # aucune des deux ne devient donc NOT NULL, ce qui aurait exige de
+    # trancher entre les deux cas sur les lignes existantes.
+    _ajouter_colonne_si_absente(
+        "actions_correctives", "plainte_id", "INTEGER"
+    )
+
     # La colonne geometrique passe par le type PostGIS, absent sous SQLite ou
     # les tests tournent. On la traite donc a part, sans faire echouer le
     # demarrage si le dialecte ne la comprend pas.

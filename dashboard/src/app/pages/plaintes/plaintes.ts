@@ -70,6 +70,13 @@ export class Plaintes implements OnInit {
   newContact = signal('');
   newDescription = signal('');
   newChantierId = signal('');
+
+  // Meme trou que sur les signalements : passer « en cours » ne demandait
+  // rien de plus qu'une valeur de liste deroulante. Ce formulaire capture
+  // l'action engagee et son echeance avant de confirmer le passage en cours.
+  showActionForm = signal(false);
+  actionDescription = signal('');
+  actionEcheance = signal('');
   ngOnInit() {
     this.api.getPlaintes().subscribe({
       next: (data) => { this.plaintes.set(data); this.loading.set(false); },
@@ -102,6 +109,12 @@ export class Plaintes implements OnInit {
   }
 
   updateStatut(id: number, statut: string) {
+    if (statut === 'EN_COURS') {
+      const p = this.plaintes().find(x => x.id === id);
+      if (p) this.selectedPlainte.set(p);
+      this.showActionForm.set(true);
+      return;
+    }
     this.api.updatePlainteStatut(id, statut).subscribe({
       next: updated => {
         this.plaintes.update(list => list.map(plainte => plainte.id === id ? updated : plainte));
@@ -124,6 +137,34 @@ export class Plaintes implements OnInit {
 
   closeDetail() {
     this.selectedPlainte.set(null);
+    this.showActionForm.set(false);
+    this.actionDescription.set('');
+    this.actionEcheance.set('');
+  }
+
+  validerPriseEnCharge() {
+    const p = this.selectedPlainte();
+    if (!p || !this.actionDescription().trim()) {
+      this.toast.error('Décrivez l\'action engagée avant de valider.');
+      return;
+    }
+    const echeance = this.actionEcheance() ? new Date(this.actionEcheance()).toISOString() : null;
+    this.api.ajouterActionPlainte(p.id, this.actionDescription().trim(), echeance).subscribe({
+      next: () => {
+        this.api.getPlaintes().subscribe({
+          next: (data) => {
+            this.plaintes.set(data);
+            const misAJour = data.find(x => x.id === p.id) ?? null;
+            this.selectedPlainte.set(misAJour);
+            this.showActionForm.set(false);
+            this.actionDescription.set('');
+            this.actionEcheance.set('');
+            this.toast.success('Action engagée, plainte prise en charge.');
+          }
+        });
+      },
+      error: () => this.toast.error('Échec de l\'enregistrement de l\'action')
+    });
   }
 
   get chantierNom(): string {

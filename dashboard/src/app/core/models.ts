@@ -81,6 +81,7 @@ export interface Plainte {
   canal?: string | null;
   /** Nature déclarée par le riverain : bruit, poussière, circulation... */
   categorie?: string | null;
+  actions?: ActionCorrective[];
 }
 
 export interface NonConformite {

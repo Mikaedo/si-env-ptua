@@ -297,6 +297,41 @@
             </select>
           }
         </div>
+
+        <!-- Action engagee : demandee avant de confirmer "En cours" -->
+        @if (showActionForm()) {
+          <div style="padding:14px 16px; background:#F0F8FF; border:1px solid #BFDBFE; border-radius:10px;">
+            <div style="font-size:11px; color:#1565C0; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Action engagée pour cette plainte</div>
+            <textarea [value]="actionDescription()" (input)="actionDescription.set($any($event.target).value)"
+              placeholder="Ex. : visite programmée avec le riverain pour constater la nuisance"
+              style="width:100%; padding:8px 10px; border:1px solid #D4D4D8; border-radius:8px; font-size:13px; font-family:inherit; min-height:56px; resize:vertical;"></textarea>
+            <label style="font-size:11px; font-weight:600; color:#3F3F46; margin-top:8px; display:block;">Échéance (optionnelle)</label>
+            <input type="date" [value]="actionEcheance()" (input)="actionEcheance.set($any($event.target).value)"
+              style="margin-top:4px; padding:8px 10px; border:1px solid #D4D4D8; border-radius:8px; font-size:13px;">
+            <div style="display:flex; gap:8px; margin-top:10px;">
+              <button (click)="validerPriseEnCharge()" class="btn" style="background:#1565C0; color:white; font-size:12px; padding:8px 14px;">Valider la prise en charge</button>
+              <button (click)="showActionForm.set(false)" class="btn" style="background:#F4F4F5; color:#52525B; font-size:12px; padding:8px 14px;">Annuler</button>
+            </div>
+          </div>
+        }
+
+        <!-- Historique des actions deja engagees -->
+        @if (p.actions && p.actions.length > 0) {
+          <div style="padding:14px 16px; background:#F8F8F9; border-radius:10px;">
+            <div style="font-size:11px; color:#A1A1AA; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Actions engagées</div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              @for (a of p.actions; track a.id) {
+                <div style="padding:10px 12px; background:white; border:1px solid #E4E4E7; border-radius:8px;">
+                  <div style="font-size:13px; color:#27272A;">{{ a.description }}</div>
+                  <div style="font-size:11px; color:#71717A; margin-top:4px;">
+                    Engagée le {{ formatDate(a.cree_le) }}
+                    @if (a.echeance) { · Échéance : {{ formatDate(a.echeance) }} }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
       </div>
     </div>
   </div>

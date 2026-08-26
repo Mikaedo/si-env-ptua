@@ -73,6 +73,11 @@ export class ApiService {
     return this.http.patch<Plainte>(`${API_URL}/plaintes/${id}/statut`, { statut }, { headers: this.headers });
   }
 
+  ajouterActionPlainte(id: number, description: string, echeance: string | null): Observable<ActionCorrective> {
+    return this.http.post<ActionCorrective>(`${API_URL}/plaintes/${id}/action`,
+      { description, echeance }, { headers: this.headers });
+  }
+
   // Non-conformités
   getNonConformites(): Observable<NonConformite[]> {
     return this.http.get<NonConformite[]>(`${API_URL}/non-conformites`, { headers: this.headers });

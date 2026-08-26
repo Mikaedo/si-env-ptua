@@ -54,6 +54,32 @@ def creer_plainte(
     return plainte
 
 
+@router.post("/{plainte_id}/action", response_model=schemas.ActionCorrectiveOut)
+def ajouter_action_plainte(
+    plainte_id: int,
+    data: schemas.ActionCorrectiveCreate,
+    db: Session = Depends(get_db),
+    courant: models.Utilisateur = Depends(_require_plainte_role),
+):
+    """Meme principe que pour un signalement (paragraphe precedent) : la
+    plainte disposait d'un statut qui basculait sans laisser de trace de ce
+    qui avait ete fait. Enregistrer l'action, avec son echeance, et faire
+    passer la plainte « en cours » du meme geste."""
+    plainte = db.query(models.Plainte).filter(models.Plainte.id == plainte_id).first()
+    if not plainte:
+        raise HTTPException(status_code=404, detail="Plainte introuvable")
+    action = models.ActionCorrective(
+        description=data.description,
+        echeance=data.echeance,
+        plainte_id=plainte_id,
+    )
+    db.add(action)
+    plainte.statut = "EN_COURS"
+    db.commit()
+    db.refresh(action)
+    return action
+
+
 @router.patch("/{plainte_id}/statut", response_model=schemas.PlainteOut)
 def modifier_statut_plainte(
     plainte_id: int,

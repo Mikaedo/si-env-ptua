@@ -172,7 +172,8 @@ class ActionCorrectiveOut(BaseModel):
     description: str
     echeance: Optional[datetime]
     cree_le: datetime
-    signalement_id: int
+    signalement_id: Optional[int] = None
+    plainte_id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -291,6 +292,7 @@ class PlainteOut(BaseModel):
     # ou un agent a pu preciser les circonstances de vive voix.
     canal: Optional[str] = None
     categorie: Optional[str] = None
+    actions: List[ActionCorrectiveOut] = []
 
     class Config:
         from_attributes = True

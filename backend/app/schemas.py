@@ -162,6 +162,22 @@ class PhotoResume(BaseModel):
     signalement_id: int
 
 
+class ActionCorrectiveCreate(BaseModel):
+    description: str
+    echeance: Optional[datetime] = None
+
+
+class ActionCorrectiveOut(BaseModel):
+    id: int
+    description: str
+    echeance: Optional[datetime]
+    cree_le: datetime
+    signalement_id: int
+
+    class Config:
+        from_attributes = True
+
+
 class SignalementOut(BaseModel):
     id: int
     uuid_mobile: str
@@ -179,22 +195,10 @@ class SignalementOut(BaseModel):
     auteur: Optional[UtilisateurResume] = None
     chantier: Optional[ChantierResume] = None
     photos: List[PhotoResume] = []
-
-    class Config:
-        from_attributes = True
-
-
-class ActionCorrectiveCreate(BaseModel):
-    description: str
-    echeance: Optional[datetime] = None
-
-
-class ActionCorrectiveOut(BaseModel):
-    id: int
-    description: str
-    echeance: Optional[datetime]
-    cree_le: datetime
-    signalement_id: int
+    # Historique des actions correctives engagees, echeance comprise :
+    # permet a l'ecran de detail d'afficher ce qui est fait pendant qu'un
+    # signalement reste « en cours », pas seulement avant/apres ce statut.
+    actions: List[ActionCorrectiveOut] = []
 
     class Config:
         from_attributes = True

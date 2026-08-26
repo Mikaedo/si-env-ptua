@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Signalement, Chantier, Alerte, Plainte, NonConformite, IndiceSatellite, User, AlerteSeuil, Journal, TransmissionRapport } from './models';
+import { Signalement, Chantier, Alerte, Plainte, NonConformite, IndiceSatellite, User, AlerteSeuil, Journal, TransmissionRapport, ActionCorrective } from './models';
 import { AuthService } from './auth.service';
 
 import { environment } from '../../environments/environment';
@@ -31,6 +31,19 @@ export class ApiService {
   updateSignalementStatut(id: number, statut: string): Observable<Signalement> {
     return this.http.patch<Signalement>(`${API_URL}/signalements/${id}/statut`,
       { statut }, { headers: this.headers });
+  }
+
+  // Prise en charge avec une vraie procedure : la description et l'echeance
+  // de l'action corrective sont enregistrees, et le signalement passe en
+  // meme temps « en cours » cote serveur.
+  ajouterActionCorrective(id: number, description: string, echeance: string | null): Observable<ActionCorrective> {
+    return this.http.post<ActionCorrective>(`${API_URL}/signalements/${id}/action`,
+      { description, echeance }, { headers: this.headers });
+  }
+
+  retournerAgent(id: number, motif: string): Observable<Signalement> {
+    return this.http.post<Signalement>(`${API_URL}/signalements/${id}/retour`,
+      { motif }, { headers: this.headers });
   }
 
   // Chantiers

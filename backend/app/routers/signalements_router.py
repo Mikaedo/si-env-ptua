@@ -61,6 +61,9 @@ def _serialize_signalement(signalement: models.Signalement):
                      if signalement.chantier else None),
         "photos": [{"id": photo.id, "chemin": photo.chemin, "signalement_id": photo.signalement_id}
                    for photo in signalement.photos],
+        "actions": [{"id": a.id, "description": a.description, "echeance": a.echeance,
+                    "cree_le": a.cree_le, "signalement_id": a.signalement_id}
+                   for a in signalement.actions],
     }
 
 

@@ -146,6 +146,27 @@
       </div>
     }
 
+    <!-- Historique des actions correctives -->
+    @if (s.actions && s.actions.length > 0) {
+    <div class="card" style="padding:22px 28px;">
+      <div class="section-label">
+        <lucide-icon [img]="Wrench" size="13"></lucide-icon>
+        Actions correctives engagées
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px; margin-top:14px;">
+        @for (a of s.actions; track a.id) {
+          <div style="padding:12px 14px; background:#F8FAFC; border:1px solid #E4E4E7; border-radius:10px;">
+            <div style="font-size:13px; color:#27272A;">{{ a.description }}</div>
+            <div style="font-size:11px; color:#71717A; margin-top:4px;">
+              Engagée le {{ formatDate(a.cree_le) }}
+              @if (a.echeance) { · Échéance : {{ formatDate(a.echeance) }} }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+    }
+
     <!-- Actions -->
     @if (canUpdate) {
     <div class="card" style="padding:22px 28px;">
@@ -153,16 +174,43 @@
         <lucide-icon [img]="Wrench" size="13"></lucide-icon>
         Traitement & Décision
       </div>
+
+      @if (showActionForm()) {
+        <div style="margin-top:16px; padding:14px; background:#F8FAFC; border:1px solid #E4E4E7; border-radius:10px;">
+          <label style="font-size:12px; font-weight:600; color:#3F3F46;">Action corrective à engager</label>
+          <textarea [value]="actionDescription()" (input)="actionDescription.set($any($event.target).value)"
+            placeholder="Ex. : bâchage des déchets et évacuation sous 48h"
+            style="width:100%; margin-top:6px; padding:8px 10px; border:1px solid #D4D4D8; border-radius:8px; font-size:13px; font-family:inherit; min-height:60px; resize:vertical;"></textarea>
+          <label style="font-size:12px; font-weight:600; color:#3F3F46; margin-top:10px; display:block;">Échéance (optionnelle)</label>
+          <input type="date" [value]="actionEcheance()" (input)="actionEcheance.set($any($event.target).value)"
+            style="margin-top:6px; padding:8px 10px; border:1px solid #D4D4D8; border-radius:8px; font-size:13px;">
+          <div style="display:flex; gap:8px; margin-top:12px;">
+            <button (click)="validerPriseEnCharge()" [disabled]="updating()" class="btn" style="background:#1565C0; color:white;">Valider la prise en charge</button>
+            <button (click)="showActionForm.set(false)" class="btn" style="background:#F4F4F5; color:#52525B;">Annuler</button>
+          </div>
+        </div>
+      } @else if (showRejetForm()) {
+        <div style="margin-top:16px; padding:14px; background:#FFF8F8; border:1px solid #F4C7C7; border-radius:10px;">
+          <label style="font-size:12px; font-weight:600; color:#3F3F46;">Motif du rejet</label>
+          <textarea [value]="rejetMotif()" (input)="rejetMotif.set($any($event.target).value)"
+            placeholder="Ex. : doublon avec le signalement #42, hors périmètre du chantier..."
+            style="width:100%; margin-top:6px; padding:8px 10px; border:1px solid #D4D4D8; border-radius:8px; font-size:13px; font-family:inherit; min-height:60px; resize:vertical;"></textarea>
+          <div style="display:flex; gap:8px; margin-top:12px;">
+            <button (click)="validerRejet()" [disabled]="updating()" class="btn" style="background:#C62828; color:white;">Confirmer le rejet</button>
+            <button (click)="showRejetForm.set(false)" class="btn" style="background:#F4F4F5; color:#52525B;">Annuler</button>
+          </div>
+        </div>
+      } @else {
       <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:16px;">
-        <button (click)="updateStatut('EN_TRAITEMENT')"
-          [disabled]="updating() || s.statut === 'EN_TRAITEMENT' || s.statut === 'CLOTURE'"
+        <button (click)="showActionForm.set(true)"
+          [disabled]="updating() || s.statut === 'CLOTURE'"
           class="btn" style="background:#E3F2FD; color:#1565C0;"
-          [style.opacity]="updating() || s.statut === 'EN_TRAITEMENT' || s.statut === 'CLOTURE' ? '0.5' : '1'"
+          [style.opacity]="updating() || s.statut === 'CLOTURE' ? '0.5' : '1'"
           onmouseenter="if(!this.disabled) this.style.background='#BBDEFB'" onmouseleave="if(!this.disabled) this.style.background='#E3F2FD'">
           <lucide-icon [img]="Clock" size="15"></lucide-icon>
-          Prendre en charge
+          {{ s.statut === 'EN_TRAITEMENT' ? 'Ajouter une action corrective' : 'Prendre en charge' }}
         </button>
-        
+
         <button (click)="updateStatut('CLOTURE')"
           [disabled]="updating() || s.statut === 'CLOTURE'"
           class="btn" style="background:#E8F5E9; color:#16A34A;"
@@ -171,8 +219,8 @@
           <lucide-icon [img]="CheckCircle" size="15"></lucide-icon>
           Marquer comme résolu
         </button>
-        
-        <button (click)="updateStatut('REJETE')"
+
+        <button (click)="showRejetForm.set(true)"
           [disabled]="updating() || s.statut === 'REJETE' || s.statut === 'CLOTURE'"
           class="btn" style="background:#FFEBEE; color:#C62828;"
           [style.opacity]="updating() || s.statut === 'REJETE' || s.statut === 'CLOTURE' ? '0.5' : '1'"
@@ -181,6 +229,7 @@
           Rejeter le signalement
         </button>
       </div>
+      }
     </div>
     } @else {
       <div style="padding:16px 20px; background:#FAFAFA; border:1px solid #E4E4E7; border-radius:10px; display:flex; align-items:center; gap:12px;">

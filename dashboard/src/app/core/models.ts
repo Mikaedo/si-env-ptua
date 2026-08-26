@@ -47,6 +47,15 @@ export interface Signalement {
   auteur?: { id: number; nom: string | null; email: string } | null;
   chantier?: { id: number; nom: string; commune: string | null } | null;
   photos?: { id: number; chemin: string; signalement_id: number }[];
+  actions?: ActionCorrective[];
+}
+
+export interface ActionCorrective {
+  id: number;
+  description: string;
+  echeance: string | null;
+  cree_le: string;
+  signalement_id: number;
 }
 
 export interface Alerte {

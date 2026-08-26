@@ -42,6 +42,17 @@ export class SignalementDetail implements OnInit {
   loading = signal(true);
   updating = signal(false);
 
+  // Prise en charge : la simple bascule de statut ne disait rien de ce qui
+  // allait etre fait ni pour quand. Ces deux formulaires courts capturent
+  // la meme information que le backend sait deja enregistrer (description
+  // et echeance de l'action, motif du retour), jusqu'ici jamais demandee
+  // par cet ecran.
+  showActionForm = signal(false);
+  actionDescription = signal('');
+  actionEcheance = signal('');
+  showRejetForm = signal(false);
+  rejetMotif = signal('');
+
   get canUpdate(): boolean {
     return this.auth.hasRole('SPEC_ENV', 'EXPERT_HSE', 'RESP_ENV');
   }
@@ -83,6 +94,57 @@ export class SignalementDetail implements OnInit {
       error: () => {
         this.updating.set(false);
         this.toast.error('Échec de la mise à jour du statut');
+      }
+    });
+  }
+
+  validerPriseEnCharge() {
+    const s = this.signalement();
+    if (!s || !this.actionDescription().trim()) {
+      this.toast.error('Décrivez l\'action corrective avant de valider.');
+      return;
+    }
+    this.updating.set(true);
+    const echeance = this.actionEcheance() ? new Date(this.actionEcheance()).toISOString() : null;
+    this.api.ajouterActionCorrective(s.id, this.actionDescription().trim(), echeance).subscribe({
+      next: () => {
+        this.api.getSignalement(s.id).subscribe({
+          next: (updated) => {
+            this.signalement.set(updated);
+            this.updating.set(false);
+            this.showActionForm.set(false);
+            this.actionDescription.set('');
+            this.actionEcheance.set('');
+            this.toast.success('Action corrective enregistrée, signalement pris en charge.');
+          },
+          error: () => this.updating.set(false)
+        });
+      },
+      error: () => {
+        this.updating.set(false);
+        this.toast.error('Échec de l\'enregistrement de l\'action corrective');
+      }
+    });
+  }
+
+  validerRejet() {
+    const s = this.signalement();
+    if (!s || !this.rejetMotif().trim()) {
+      this.toast.error('Indiquez le motif du rejet avant de valider.');
+      return;
+    }
+    this.updating.set(true);
+    this.api.retournerAgent(s.id, this.rejetMotif().trim()).subscribe({
+      next: (updated) => {
+        this.signalement.set(updated);
+        this.updating.set(false);
+        this.showRejetForm.set(false);
+        this.rejetMotif.set('');
+        this.toast.success('Signalement rejeté, motif enregistré.');
+      },
+      error: () => {
+        this.updating.set(false);
+        this.toast.error('Échec du rejet du signalement');
       }
     });
   }

@@ -83,6 +83,29 @@ export class SignalementDetail implements OnInit {
     return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=16/${lat}/${lon}`;
   }
 
+  /**
+   * D'ou vient la position : du capteur, ou de la main de l'agent ?
+   *
+   * Le champ brut vaut AUTO ou MANUEL, ce qui ne dit rien a qui ne
+   * connait pas le modele. La distinction compte pourtant : une
+   * position relevee par le capteur atteste que l'agent etait sur
+   * place, une position saisie a la main n'atteste rien de tel. Le
+   * memoire prevoit ce second cas a la figure 4.4, le GPS n'etant pas
+   * garanti sous un ouvrage ; encore faut-il que le specialiste le
+   * voie, sans quoi il apprecie deux constats de meme valeur alors
+   * qu'ils n'en ont pas.
+   */
+  get positionRelevee(): boolean {
+    return (this.signalement()?.gps_source ?? 'AUTO')
+      .toUpperCase() !== 'MANUEL';
+  }
+
+  get libelleSourceGps(): string {
+    return this.positionRelevee
+      ? 'Position relevée par le capteur'
+      : 'Position saisie par l\'agent';
+  }
+
   ngOnInit() {
     const id = +this.route.snapshot.paramMap.get('id')!;
     this.api.getSignalement(id).subscribe({

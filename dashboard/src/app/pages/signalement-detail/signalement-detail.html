@@ -88,9 +88,16 @@
           <div style="font-size:13px; font-weight:700; color:#18181B; margin-top:8px; font-variant-numeric:tabular-nums;">
             {{ coords[1] | number:'1.4-4' }}, {{ coords[0] | number:'1.4-4' }}
           </div>
-          <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
-            <span style="font-size:11px; color:#A1A1AA; display:flex; align-items:center; gap:3px;">
-              <lucide-icon [img]="Smartphone" size="10"></lucide-icon> {{ s.gps_source }}
+          <div style="display:flex; align-items:center; gap:6px; margin-top:6px; flex-wrap:wrap;">
+            <!-- La provenance de la position, en clair. Une position
+                 saisie a la main n'atteste pas la presence sur place :
+                 le specialiste doit pouvoir en tenir compte, et le
+                 libelle brut « MANUEL » ne le lui disait pas. -->
+            <span [style.color]="positionRelevee ? '#71717A' : '#B3332B'"
+                  [style.background]="positionRelevee ? '#F4F4F5' : '#FDECEA'"
+                  style="font-size:11px; font-weight:600; display:flex; align-items:center; gap:4px; padding:3px 8px; border-radius:4px;">
+              <lucide-icon [img]="positionRelevee ? Smartphone : AlertTriangle" size="10"></lucide-icon>
+              {{ libelleSourceGps }}
             </span>
             @if (gpsUrl) {
               <a [href]="gpsUrl" target="_blank" rel="noreferrer" style="font-size:11px; color:#004F9F; font-weight:600; text-decoration:none; display:flex; align-items:center; gap:3px;" onmouseenter="this.style.opacity='0.7'" onmouseleave="this.style.opacity='1'">

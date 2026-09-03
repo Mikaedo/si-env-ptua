@@ -303,7 +303,8 @@ class TestT07AlerteSeuil:
         assert data[0]["message"] == "Depassement seuil poussieres"
         assert data[0]["niveau"] == "CRITIQUE"
 
-    def test_accuser_reception_alerte(self, client, agent_headers, db_session, chantier, resp_env_user):
+    def test_accuser_reception_alerte(self, client, agent_headers,
+                                      db_session, chantier, resp_env_user):
         """L'accuse de reception d'une alerte fonctionne."""
         alerte = models.Alerte(
             message="Niveau sonore eleve",
@@ -315,9 +316,32 @@ class TestT07AlerteSeuil:
         db_session.commit()
         db_session.refresh(alerte)
 
+        # La matrice des habilitations ouvre la revue des alertes aux
+        # profils operationnels : l'agent de terrain qui recoit l'alerte
+        # peut confirmer l'avoir vue.
         response = client.post(f"/alertes/{alerte.id}/accuser", headers=agent_headers)
         assert response.status_code == 200
         assert response.json()["recue"] is True
+        assert response.json()["recue_par"], "l'auteur de l'accuse doit etre restitue"
+
+    def test_accuse_refuse_aux_organismes_de_controle(self, client, ande_headers,
+                                                      bad_headers, db_session, chantier):
+        """L'agence de tutelle et le bailleur n'ont que la lecture.
+
+        Toute ecriture emise avec leur jeton doit etre rejetee par le
+        serveur, non simplement masquee dans l'interface : un rapport de
+        conformite perdrait sa valeur si celui qui le controle pouvait
+        retoucher les donnees qu'il examine.
+        """
+        alerte = models.Alerte(message="Poussieres elevees", niveau="ALERTE",
+                               valeur=95.0, chantier_id=chantier.id)
+        db_session.add(alerte)
+        db_session.commit()
+        db_session.refresh(alerte)
+
+        for entetes in (ande_headers, bad_headers):
+            refus = client.post(f"/alertes/{alerte.id}/accuser", headers=entetes)
+            assert refus.status_code == 403
 
 
 # ============================================================
@@ -460,3 +484,72 @@ class TestT12IndiceRisquePluieRelief:
         assert classify_risque(3.0) == "FAIBLE"
         assert classify_risque(7.5) == "MODERE"
         assert classify_risque(15.0) == "ELEVE"
+
+
+class TestProcedureDeCloture:
+    """La cloture d'un signalement suppose un traitement effectif.
+
+    Le tableau de bord permettait de passer un signalement de « Nouveau »
+    a « Resolu » sans qu'aucune action corrective ne soit enregistree :
+    le dossier ne gardait alors aucune trace de ce qui avait ete fait.
+    """
+
+    def _creer_signalement(self, db_session, chantier, resp_env_user):
+        import uuid
+        s = models.Signalement(
+            uuid_mobile=str(uuid.uuid4()),
+            type_nuisance="Eaux stagnantes",
+            description="Stagnation apres pluie",
+            criticite=models.CriticiteEnum.MODERE,
+            statut=models.StatutSignalement.NOUVEAU,
+            auteur_id=resp_env_user.id,
+            chantier_id=chantier.id,
+        )
+        db_session.add(s)
+        db_session.commit()
+        db_session.refresh(s)
+        return s
+
+    def test_cloture_refusee_sans_action(self, client, db_session, chantier,
+                                         resp_env_user, spec_env_headers):
+        s = self._creer_signalement(db_session, chantier, resp_env_user)
+        reponse = client.patch(f"/signalements/{s.id}/statut",
+                               json={"statut": "CLOTURE"},
+                               headers=spec_env_headers)
+        assert reponse.status_code == 409
+        assert "action corrective" in reponse.json()["detail"].lower()
+
+    def test_cloture_acceptee_apres_action(self, client, db_session, chantier,
+                                           resp_env_user, spec_env_headers):
+        s = self._creer_signalement(db_session, chantier, resp_env_user)
+        client.post(f"/signalements/{s.id}/action",
+                    json={"description": "Pompage et remblai de la zone"},
+                    headers=spec_env_headers)
+        reponse = client.patch(f"/signalements/{s.id}/statut",
+                               json={"statut": "CLOTURE"},
+                               headers=spec_env_headers)
+        assert reponse.status_code == 200
+        assert reponse.json()["statut"] == "CLOTURE"
+
+    def test_rejet_preserve_la_description(self, client, db_session, chantier,
+                                           resp_env_user, spec_env_headers):
+        """Le motif du rejet ne doit pas alterer le constat de l'agent."""
+        s = self._creer_signalement(db_session, chantier, resp_env_user)
+        origine = s.description
+        reponse = client.post(f"/signalements/{s.id}/retour",
+                              json={"motif": "Hors du perimetre du chantier"},
+                              headers=spec_env_headers)
+        assert reponse.status_code == 200
+        assert reponse.json()["description"] == origine
+
+    def test_un_rejet_n_autorise_pas_la_cloture(self, client, db_session, chantier,
+                                               resp_env_user, spec_env_headers):
+        """Le motif de rejet est consigne comme action, sans valoir traitement."""
+        s = self._creer_signalement(db_session, chantier, resp_env_user)
+        client.post(f"/signalements/{s.id}/retour",
+                    json={"motif": "Doublon"},
+                    headers=spec_env_headers)
+        reponse = client.patch(f"/signalements/{s.id}/statut",
+                               json={"statut": "CLOTURE"},
+                               headers=spec_env_headers)
+        assert reponse.status_code == 409

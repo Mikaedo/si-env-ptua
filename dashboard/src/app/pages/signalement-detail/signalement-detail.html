@@ -105,7 +105,7 @@
 
       <div class="card" style="padding:18px 20px;">
         <div class="kpi-label" style="display:flex; align-items:center; gap:6px;">
-          <lucide-icon [img]="Cpu" size="12"></lucide-icon> Analyse IA Mobile
+          <lucide-icon [img]="Cpu" size="12"></lucide-icon> Diagnostic mobile
         </div>
         @if (s.criticite_ia) {
           <div style="font-size:13.5px; font-weight:700; color:#18181B; margin-top:8px;">{{ s.criticite_ia }}</div>
@@ -211,10 +211,16 @@
           {{ s.statut === 'EN_TRAITEMENT' ? 'Ajouter une action corrective' : 'Prendre en charge' }}
         </button>
 
+        <!-- La cloture suppose qu'une action corrective ait ete menee :
+             le bouton reste inactif tant qu'aucune n'est enregistree, et
+             dit pourquoi plutot que de laisser l'utilisateur buter sur un
+             refus du serveur. -->
         <button (click)="updateStatut('CLOTURE')"
-          [disabled]="updating() || s.statut === 'CLOTURE'"
+          [disabled]="updating() || s.statut === 'CLOTURE' || !aUneActionCorrective"
+          [title]="!aUneActionCorrective ? 'Enregistrez d\'abord l\'action corrective menée' : ''"
           class="btn" style="background:#E8F5E9; color:#16A34A;"
-          [style.opacity]="updating() || s.statut === 'CLOTURE' ? '0.5' : '1'"
+          [style.opacity]="updating() || s.statut === 'CLOTURE' || !aUneActionCorrective ? '0.5' : '1'"
+          [style.cursor]="!aUneActionCorrective ? 'not-allowed' : 'pointer'"
           onmouseenter="if(!this.disabled) this.style.background='#C8E6C9'" onmouseleave="if(!this.disabled) this.style.background='#E8F5E9'">
           <lucide-icon [img]="CheckCircle" size="15"></lucide-icon>
           Marquer comme résolu

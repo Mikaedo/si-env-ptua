@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import '../core/constants.dart';
 import '../widgets/ptua_logo.dart';
 import '../services/api_service.dart';
+import '../services/ia_service.dart';
 import 'nouveau_signalement_screen.dart';
 
 class MapScreen extends StatefulWidget {
@@ -56,6 +57,39 @@ class _MapScreenState extends State<MapScreen> {
     super.initState();
     _loadZones();
     _chargerAlertesNonLues();
+    _verifierMiseAJourModele();
+  }
+
+  /// Propose la mise a jour des modeles IA quand l'administrateur en a
+  /// deploye une nouvelle depuis le tableau de bord. Un message simple,
+  /// pas une inscription forcee : l'agent continue de travailler avec la
+  /// version en place tant qu'il n'a pas cliqué.
+  Future<void> _verifierMiseAJourModele() async {
+    final disponibles = await IaService().verifierMisesAJourDisponibles();
+    if (disponibles.isEmpty || !mounted) return;
+
+    final libelle = disponibles.length == 1
+        ? (disponibles.first == 'detection' ? 'de détection' : 'de classification')
+        : 'de détection et de classification';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Un modèle IA $libelle a été mis à jour par l\'administrateur.'),
+        duration: const Duration(seconds: 8),
+        action: SnackBarAction(
+          label: 'Mettre à jour',
+          onPressed: () async {
+            for (final type in disponibles) {
+              await IaService().telechargerEtInstaller(type);
+            }
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Modèle IA mis à jour.')),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _loadZones() async {
@@ -187,10 +221,14 @@ class _MapScreenState extends State<MapScreen> {
                   // re-instancier le layer et vider son cache de tiles,
                   // sans quoi le switch Plan/Satellite ne rechargeait rien.
                   key: ValueKey(_satelliteMode),
+                  // Fond de plan OpenStreetMap : libre d'acces et sans
+                  // cle. Le fond sombre de CARTO en reclame une desormais
+                  // et affichait, faute de cle, un filigrane « API KEY
+                  // REQUIRED » en travers de la carte.
                   urlTemplate: _satelliteMode
                       ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-                      : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-                  subdomains: _satelliteMode ? const ['a'] : const ['a', 'b', 'c', 'd'],
+                      : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  subdomains: const ['a'],
                   userAgentPackageName: 'ci.ageroute.sienv',
                 ),
                 PolygonLayer(polygons: _filteredZones),

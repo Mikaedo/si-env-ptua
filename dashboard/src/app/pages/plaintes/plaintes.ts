@@ -22,6 +22,17 @@ export class Plaintes implements OnInit {
     return this.auth.hasRole('SPEC_PAR');
   }
 
+  /**
+   * Un traitement a-t-il ete enregistre pour cette plainte ?
+   *
+   * Le mecanisme de gestion des plaintes suppose qu'on puisse dire au
+   * plaignant ce qui a ete fait de sa doleance : clore une plainte sans
+   * cette trace priverait la reponse de son contenu.
+   */
+  aUnTraitement(p: Plainte): boolean {
+    return (p.actions ?? []).length > 0;
+  }
+
   readonly ShieldAlert = ShieldAlert;
   readonly Search = Search;
   readonly MapPin = MapPin;
@@ -127,7 +138,14 @@ export class Plaintes implements OnInit {
         };
         this.toast.success(labels[statut] ?? 'Statut mis à jour');
       },
-      error: () => { this.error.set('La mise à jour du statut a échoué.'); this.toast.error('Échec de la mise à jour du statut'); }
+      error: (err) => {
+        // Le serveur explique pourquoi il refuse, par exemple qu'aucun
+        // traitement n'a ete enregistre : autant le dire a l'utilisateur
+        // plutot que de lui opposer un echec sans raison.
+        const motif = err?.error?.detail || 'La mise à jour du statut a échoué.';
+        this.error.set(motif);
+        this.toast.error(motif);
+      }
     });
   }
 

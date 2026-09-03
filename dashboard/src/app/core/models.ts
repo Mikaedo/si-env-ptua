@@ -67,6 +67,8 @@ export interface Alerte {
   chantier_id?: number | null;
   chantier?: { id: number; nom: string; commune?: string | null } | null;
   recue: boolean;
+  /** Nom de la personne qui a confirmé avoir pris connaissance de l'alerte. */
+  recue_par?: string | null;
 }
 
 export interface Plainte {

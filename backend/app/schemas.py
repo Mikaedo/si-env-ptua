@@ -246,6 +246,11 @@ class AlerteOut(BaseModel):
     chantier_id: Optional[int] = None
     chantier: Optional[ChantierResume] = None
     recue: bool = False
+    # Qui a confirme avoir pris connaissance de l'alerte. Le backend
+    # enregistrait deja cette information sans jamais la restituer :
+    # l'ecran indiquait qu'une alerte etait vue, sans dire par qui, ce
+    # qui privait la tracabilite de son interet.
+    recue_par: Optional[str] = None
 
     class Config:
         from_attributes = True

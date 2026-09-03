@@ -1,15 +1,11 @@
-from datetime import datetime
-from pathlib import Path
-
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from .. import auth, models, schemas
 from ..database import get_db
+from ..services import modele_service
 
 router = APIRouter(prefix="/admin", tags=["Administration"])
-MODEL_DIR = Path(__file__).resolve().parents[2] / "uploads" / "models"
-MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _admin_only(courant: models.Utilisateur = Depends(auth.utilisateur_courant)):
@@ -91,34 +87,25 @@ def lister_erreurs(
 
 @router.get("/model", response_model=dict)
 def statut_modele(_: models.Utilisateur = Depends(_admin_only)):
-    models_files = sorted(MODEL_DIR.glob("*.onnx"), key=lambda path: path.stat().st_mtime, reverse=True)
-    current = models_files[0] if models_files else None
-    return {
-        "nom": current.name if current else "Aucun modèle déployé",
-        "taille_octets": current.stat().st_size if current else 0,
-        "deploye_le": datetime.fromtimestamp(current.stat().st_mtime).isoformat() if current else None,
-    }
+    return modele_service.toutes_les_infos()
 
 
 @router.post("/model", response_model=dict)
 def deployer_modele(
+    type_modele: str = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     courant: models.Utilisateur = Depends(_admin_only),
 ):
+    if type_modele not in modele_service.NOMS_FICHIERS:
+        raise HTTPException(status_code=400, detail="type_modele doit être 'detection' ou 'classification'")
     if not file.filename or not file.filename.lower().endswith(".onnx"):
         raise HTTPException(status_code=400, detail="Seuls les fichiers .onnx sont acceptés")
-    safe_name = Path(file.filename).name
-    destination = MODEL_DIR / safe_name
+    destination = modele_service.chemin_modele(type_modele)
     destination.write_bytes(file.file.read())
-    _journal(db, f"Déploiement du modèle IA {safe_name}", courant)
+    _journal(db, f"Déploiement du modèle IA ({type_modele}) : {file.filename}", courant)
     db.commit()
-    return {
-        "message": "Modèle déployé",
-        "nom": safe_name,
-        "taille_octets": destination.stat().st_size,
-        "deploye_le": datetime.fromtimestamp(destination.stat().st_mtime).isoformat(),
-    }
+    return {"message": "Modèle déployé", "type_modele": type_modele, **modele_service.info_modele(type_modele)}
 
 
 @router.get("/seuils", response_model=list[schemas.AlerteSeuilOut])

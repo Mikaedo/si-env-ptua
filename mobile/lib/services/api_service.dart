@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -308,6 +309,27 @@ class ApiService {
       return Signalement.fromJson(jsonDecode(res.body));
     }
     throw Exception('Signalement introuvable');
+  }
+
+  /// Version courante des modeles IA cote serveur (cle : 'detection' ou
+  /// 'classification'), pour comparaison avec la version deja telechargee.
+  Future<Map<String, dynamic>> getModelVersions() async {
+    final res = await _get(Uri.parse('$kApiBaseUrl/model/versions'))
+        .timeout(const Duration(seconds: 10));
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    }
+    throw Exception('Erreur recuperation des versions de modele');
+  }
+
+  /// Telecharge le modele du type demande et retourne ses octets bruts.
+  Future<Uint8List> downloadModel(String typeModele) async {
+    final res = await _get(Uri.parse('$kApiBaseUrl/model/download/$typeModele'))
+        .timeout(const Duration(seconds: 60));
+    if (res.statusCode == 200) {
+      return res.bodyBytes;
+    }
+    throw Exception('Erreur telechargement du modele');
   }
 
   Future<Signalement> updateStatut(int id, String statut) async {

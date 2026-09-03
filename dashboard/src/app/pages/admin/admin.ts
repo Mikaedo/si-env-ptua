@@ -41,7 +41,8 @@ export class Admin implements OnInit {
   logs = signal<any[]>([]);
   chantiers = signal<Chantier[]>([]);
   seuils = signal<AlerteSeuil[]>([]);
-  model = signal<{ nom: string; taille_octets: number; deploye_le?: string } | null>(null);
+  modeles = signal<Record<string, { disponible: boolean; version: number; taille_octets: number; deploye_le?: string }>>({});
+  readonly typesModeles: ('detection' | 'classification')[] = ['detection', 'classification'];
   loading = signal(true);
   error = signal('');
 
@@ -49,8 +50,8 @@ export class Admin implements OnInit {
   newUserEmail = signal('');
   newUserRole = signal('RESP_ENV');
   creating = signal(false);
-  modelUploading = signal(false);
-  dragOver = signal(false);
+  modelUploading = signal<'detection' | 'classification' | null>(null);
+  dragOverType = signal<'detection' | 'classification' | null>(null);
   newChantierNom = signal('');
   newChantierCommune = signal('');
   newSeuilNom = signal('');
@@ -65,7 +66,7 @@ export class Admin implements OnInit {
       }
     });
     this.loadUsers();
-    this.api.getModelStatus().subscribe({ next: status => this.model.set(status) });
+    this.api.getModelStatus().subscribe({ next: status => this.modeles.set(status) });
   }
 
   loadUsers() {
@@ -127,29 +128,33 @@ export class Admin implements OnInit {
     });
   }
 
-  deployModel(event: Event) {
+  deployModel(type: 'detection' | 'classification', event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    this.uploadFile(file);
+    this.uploadFile(type, file);
   }
 
-  onDrop(event: DragEvent) {
+  onDrop(type: 'detection' | 'classification', event: DragEvent) {
     event.preventDefault();
-    this.dragOver.set(false);
+    this.dragOverType.set(null);
     const file = event.dataTransfer?.files?.[0];
     if (!file) return;
     if (!file.name.endsWith('.onnx')) {
       this.toast.error('Seuls les fichiers .onnx sont acceptés');
       return;
     }
-    this.uploadFile(file);
+    this.uploadFile(type, file);
   }
 
-  private uploadFile(file: File) {
-    this.modelUploading.set(true);
-    this.api.uploadModel(file).subscribe({
-      next: result => { this.model.set({ nom: result.nom, taille_octets: result.taille_octets, deploye_le: result.deploye_le }); this.modelUploading.set(false); this.toast.success('Modèle IA déployé avec succès'); },
-      error: () => { this.modelUploading.set(false); this.toast.error('Le déploiement du modèle a échoué.'); }
+  private uploadFile(type: 'detection' | 'classification', file: File) {
+    this.modelUploading.set(type);
+    this.api.uploadModel(type, file).subscribe({
+      next: result => {
+        this.modeles.update(m => ({ ...m, [type]: { disponible: result.disponible, version: result.version, taille_octets: result.taille_octets, deploye_le: result.deploye_le } }));
+        this.modelUploading.set(null);
+        this.toast.success('Modèle IA déployé : les mobiles verront la mise à jour proposée à leur prochaine synchronisation.');
+      },
+      error: () => { this.modelUploading.set(null); this.toast.error('Le déploiement du modèle a échoué.'); }
     });
   }
 

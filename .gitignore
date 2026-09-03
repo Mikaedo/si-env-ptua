@@ -53,3 +53,8 @@ backend/uploads/
 
 # Jeu de donnees TACO : depot externe clone localement, non versionne ici.
 ia/TACO/
+
+# Les APK compiles : 110 Mo chacun, et reconstructibles par
+# `flutter build apk --release --flavor agent|citoyen`. Les versionner
+# alourdirait le depot sans rien apporter.
+*.apk

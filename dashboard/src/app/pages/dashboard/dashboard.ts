@@ -5,6 +5,7 @@ import { Subscription, timer } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { Signalement, Alerte, Chantier } from '../../core/models';
+import { environment } from '../../../environments/environment';
 import { LucideAngularModule, MapPin, AlertTriangle, CheckCircle, Clock, TrendingUp,
   Activity, FileText, Satellite, Filter, Wrench, BarChart2, ChevronRight, Bell } from 'lucide-angular';
 import * as L from 'leaflet';
@@ -130,10 +131,14 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
       attributionControl: false
     });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // Fond de plan OpenStreetMap : libre d'acces et sans cle. Le fond
+    // sombre de CARTO exige desormais une cle d'API, et affichait en son
+    // absence un filigrane « API KEY REQUIRED » en travers de la carte.
+    // Le rendu clair fait par ailleurs mieux ressortir les traces du
+    // programme et les points de signalement.
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      subdomains: ['a','b','c','d'],
-      attribution: '© OpenStreetMap © CARTO'
+      attribution: '© OpenStreetMap'
     }).addTo(this.map);
 
     // Fallback: if tiles fail to load, try OSM standard
@@ -166,32 +171,94 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
           style: (feature) => {
             const projet = feature?.properties?.projet;
             const color = projetColors[projet] || '#004F9F';
-            return { color: color, weight: 2.5, fillColor: color, fillOpacity: 0.12 };
+            // Ce sont des traces routiers, non des surfaces : un trait
+            // franc les rend lisibles sur le fond de plan clair.
+            return { color: color, weight: 4, opacity: 0.85 };
           },
           onEachFeature: (feature, layer) => {
             const projet = feature?.properties?.projet;
             const label = projetLabels[projet] || feature?.properties?.nom || 'Zone';
             const color = projetColors[projet] || '#004F9F';
-            const coords = (feature?.geometry as any)?.coordinates?.[0] as number[][];
+            // Le fichier decrit des LineString : `coordinates[0]` y designe
+            // le premier point du trace, non un contour. Le libelle se
+            // posait donc a l'extremite de l'ouvrage au lieu de son milieu.
+            const geometrie = (feature?.geometry as any);
+            const coords: number[][] = geometrie?.type === 'LineString'
+              ? geometrie.coordinates
+              : geometrie?.coordinates?.[0] ?? [];
             if (coords && coords.length > 0) {
-              let sumLat = 0, sumLng = 0;
-              for (const c of coords) { sumLat += c[1]; sumLng += c[0]; }
-              const center: L.LatLngExpression = [sumLat / coords.length, sumLng / coords.length];
+              const milieu = coords[Math.floor(coords.length / 2)];
+              const center: L.LatLngExpression = [milieu[1], milieu[0]];
+              // Halo blanc, et non plus noir : le fond de plan est clair.
               const labelIcon = L.divIcon({
-                html: `<div style="font-size:11px;font-weight:700;color:${color};text-shadow:0 0 4px rgba(0,0,0,0.8),0 1px 3px rgba(0,0,0,0.9);white-space:nowrap;font-family:Inter,sans-serif;">${label}</div>`,
+                html: `<div style="font-size:11px;font-weight:700;color:${color};text-shadow:0 0 4px #fff,0 0 8px #fff,0 1px 2px rgba(255,255,255,0.9);white-space:nowrap;font-family:Inter,sans-serif;">${label}</div>`,
                 className: '',
                 iconSize: [100, 20],
                 iconAnchor: [50, -10]
               });
               L.marker(center, { icon: labelIcon, interactive: false, keyboard: false }).addTo(this.map!);
             }
-            layer.bindTooltip(label, { sticky: true, className: 'zone-tooltip' });
+            const longueur = feature?.properties?.longueur_km;
+            layer.bindTooltip(
+              longueur ? `${label} · ${longueur} km` : label,
+              { sticky: true, className: 'zone-tooltip' });
           }
         }).addTo(this.map!);
       })
       .catch(err => console.error("Could not load zones:", err));
 
+    this.ajouterLegende();
     this.addMarkers();
+  }
+
+  /**
+   * Legende de la carte.
+   *
+   * Rien n'expliquait ce que signifiaient la couleur d'un point ni sa
+   * taille : un utilisateur qui decouvrait l'ecran ne pouvait que le
+   * deviner. Les deux dimensions sont desormais nommees.
+   */
+  private ajouterLegende() {
+    if (!this.map) return;
+    const legende = new L.Control({ position: 'bottomright' });
+    legende.onAdd = () => {
+      const boite = L.DomUtil.create('div');
+      boite.style.cssText =
+        'background:rgba(255,255,255,0.94);color:#3F3F46;padding:10px 12px;' +
+        'border-radius:8px;font:11px Inter,sans-serif;line-height:1.7;' +
+        'backdrop-filter:blur(4px);border:1px solid rgba(0,0,0,0.12);' +
+        'box-shadow:0 2px 8px rgba(0,0,0,0.15);';
+      const pastille = (couleur: string, taille: number) =>
+        `<span style="display:inline-block;width:${taille}px;height:${taille}px;` +
+        `border-radius:50%;background:${couleur};margin-right:6px;` +
+        'vertical-align:middle;"></span>';
+      boite.innerHTML =
+        '<div style="font-weight:700;margin-bottom:6px;color:#18181B;">Légende</div>' +
+        `<div>${pastille('#F37021', 9)}Nouveau</div>` +
+        `<div>${pastille('#1565C0', 9)}En traitement</div>` +
+        `<div>${pastille('#16A34A', 9)}Résolu</div>` +
+        `<div>${pastille('#D32F2F', 9)}Rejeté</div>` +
+        '<div style="margin-top:6px;padding-top:6px;' +
+        'border-top:1px solid rgba(0,0,0,0.12);">' +
+        `${pastille('#A1A1AA', 13)}Criticité élevée<br>` +
+        `${pastille('#A1A1AA', 9)}Modérée<br>` +
+        `${pastille('#A1A1AA', 6)}Faible</div>`;
+      // Sans cela, un clic sur la legende deplacerait la carte.
+      L.DomEvent.disableClickPropagation(boite);
+      return boite;
+    };
+    legende.addTo(this.map);
+  }
+
+  /**
+   * URL d'affichage d'une photo.
+   *
+   * Le backend stocke soit une URL absolue (stockage distant), soit un
+   * simple nom de fichier servi par l'API en developpement.
+   */
+  private urlPhoto(chemin: string): string {
+    if (chemin.startsWith('http')) return chemin;
+    return `${environment.apiUrl}/uploads/photos/${chemin}`;
   }
 
   private addMarkers() {
@@ -214,6 +281,9 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
       'MODERE': 16,
       'FAIBLE': 12,
     };
+
+    // Coordonnees des points affiches, pour cadrer la carte a la fin.
+    const limites: L.LatLngTuple[] = [];
 
     for (const s of this.filteredSignalements) {
       if (!s.geom?.coordinates) continue;
@@ -239,20 +309,52 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
       const marker = L.marker([lat, lon], { icon }).addTo(this.map);
       const criticiteLabel = s.criticite === 'ELEVE' ? '🔴 Élevée' : s.criticite === 'MODERE' ? '🟠 Modérée' : '🟢 Faible';
       const statutLabel = s.statut === 'EN_TRAITEMENT' ? 'En cours' : s.statut === 'CLOTURE' ? 'Résolu' : s.statut === 'REJETE' ? 'Rejeté' : 'Nouveau';
+      // La photo prise sur le terrain est ce qu'un specialiste regarde en
+      // premier : la voir des la carte lui evite d'ouvrir chaque dossier
+      // pour savoir lequel merite son deplacement.
+      const vignette = s.photos?.length
+        ? `<img src="${this.urlPhoto(s.photos[0].chemin)}" alt=""
+                style="width:100%;height:110px;object-fit:cover;border-radius:6px;margin-bottom:8px;background:#F4F4F5;"
+                onerror="this.style.display='none'">`
+        : '';
       marker.bindPopup(`
         <div style="font-family:Inter,sans-serif;min-width:220px;">
+          ${vignette}
           <div style="font-weight:700;font-size:14px;color:#004F9F;margin-bottom:6px;">${s.type_nuisance}</div>
           <div style="font-size:12px;color:#71717A;margin-bottom:8px;">📍 ${s.chantier?.nom ?? 'N/A'} ${s.chantier?.commune ? '· ' + s.chantier.commune : ''}</div>
           ${s.description ? `<div style="font-size:11.5px;color:#52525B;margin-bottom:8px;line-height:1.5;">${s.description}</div>` : ''}
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
             <span style="padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;background:${color}22;color:${color};">${statutLabel}</span>
             <span style="padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;background:#F4F4F5;color:#52525B;">${criticiteLabel}</span>
-            ${s.criticite_ia ? `<span style="padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;background:#EEF1F8;color:#004F9F;">IA: ${s.criticite_ia} (${s.confiance_ia}%)</span>` : ''}
+            ${s.criticite_ia ? `<span style="padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;background:#EEF1F8;color:#004F9F;">Diagnostic mobile : ${s.criticite_ia} (${s.confiance_ia}%)</span>` : ''}
           </div>
           <div style="margin-top:8px;font-size:10px;color:#A1A1AA;">${new Date(s.cree_le).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</div>
-          <a href="/signalements/${s.id}" style="display:block;margin-top:8px;padding:6px 12px;background:#004F9F;color:white;border-radius:6px;font-size:11px;font-weight:600;text-align:center;text-decoration:none;">Voir le détail</a>
+          <button data-detail="${s.id}" style="display:block;width:100%;margin-top:8px;padding:6px 12px;background:#004F9F;color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;text-align:center;cursor:pointer;font-family:inherit;">Voir le détail</button>
         </div>
       `);
+
+      // Le lien rechargeait l'application entiere a chaque consultation :
+      // on passe par le routeur, qui garde la carte et ses filtres en
+      // memoire si l'utilisateur revient en arriere.
+      marker.on('popupopen', (e) => {
+        const bouton = (e as L.PopupEvent).popup.getElement()
+          ?.querySelector<HTMLButtonElement>('button[data-detail]');
+        bouton?.addEventListener('click', () => {
+          this.router.navigate(['/signalements', s.id]);
+        }, { once: true });
+      });
+
+      limites.push([lat, lon]);
+    }
+
+    // La carte restait figee sur Abidjan quels que soient les filtres :
+    // un specialiste qui isolait un chantier devait chercher ses points a
+    // la main. Elle se cadre desormais sur ce qui est affiche.
+    if (limites.length) {
+      this.map.fitBounds(L.latLngBounds(limites), {
+        padding: [60, 60],
+        maxZoom: 15,
+      });
     }
   }
 

@@ -5,7 +5,7 @@ stats_router.py
 """
 from datetime import datetime, timedelta
 from collections import Counter
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 
@@ -18,6 +18,16 @@ router = APIRouter(prefix="/stats", tags=["Statistiques"])
 @router.get("", response_model=schemas.Statistiques)
 def statistiques(db: Session = Depends(get_db),
                  courant: models.Utilisateur = Depends(auth.utilisateur_courant)):
+    # Le riverain n'a pas a connaitre le bilan du programme. Ces
+    # statistiques agregent les constats de tous les chantiers : les
+    # lui ouvrir reviendrait a publier l'etat environnemental du PTUA
+    # a quiconque s'inscrit depuis son telephone. Il consulte ses
+    # propres doleances, et rien de plus.
+    if courant.role == models.RoleEnum.PLAIGNANT:
+        raise HTTPException(
+            status_code=403,
+            detail="Consultez vos doléances sur /citoyen/doleances.")
+
     total = db.query(func.count(models.Signalement.id)).scalar() or 0
     traites = db.query(func.count(models.Signalement.id)).filter(
         models.Signalement.statut == models.StatutSignalement.CLOTURE).scalar() or 0

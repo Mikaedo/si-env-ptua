@@ -84,11 +84,20 @@ class _StockageSupabase:
                 "Ajouter 'supabase' a requirements.txt."
             ) from e
 
-        url = os.environ["SUPABASE_URL"]
-        cle = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-        self.bucket = os.getenv("SUPABASE_BUCKET", "photos")
+        # Les valeurs sont nettoyees avant usage. Une variable
+        # d'environnement saisie dans le tableau de bord d'un
+        # hebergeur emporte souvent un retour a la ligne final, que le
+        # copier-coller ajoute sans qu'on le voie. httpx refuse alors
+        # la requete avec « Invalid non-printable ASCII character in
+        # URL », et l'envoi de photo echoue en production alors que
+        # tous les tests passent en local : le seul `.rstrip('/')`
+        # d'origine retirait les barres obliques, non les blancs.
+        url = os.environ["SUPABASE_URL"].strip().rstrip("/")
+        cle = os.environ["SUPABASE_SERVICE_ROLE_KEY"].strip()
+        self.bucket = os.getenv("SUPABASE_BUCKET", "photos").strip()
         self._client = create_client(url, cle)
-        self._url_publique_base = f"{url.rstrip('/')}/storage/v1/object/public/{self.bucket}"
+        self._url_publique_base = (
+            f"{url}/storage/v1/object/public/{self.bucket}")
 
     def enregistrer(self, nom_fichier: str, donnees: bytes) -> str:
         # Le client Supabase leve si l'objet existe deja. On retente en

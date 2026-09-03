@@ -33,7 +33,13 @@ export class Alertes implements OnInit {
   selectedAlerte = signal<Alerte | null>(null);
 
   get canAcknowledge(): boolean {
-    return this.auth.hasRole('SPEC_ENV');
+    // La matrice des habilitations ouvre « Réception et revue des
+    // alertes » à tous les profils opérationnels : accuser réception
+    // retire l'alerte du compteur des non lues, c'est un geste de
+    // lecture. Seuls l'agence de tutelle et le bailleur en sont exclus,
+    // n'ayant sur ce domaine qu'un droit de consultation.
+    return this.auth.hasRole('SPEC_ENV', 'SPEC_PAR', 'RESP_ENV',
+                             'EXPERT_HSE', 'ADMIN');
   }
 
   ngOnInit() {
@@ -56,7 +62,7 @@ export class Alertes implements OnInit {
       next: (updated) => {
         this.alertes.update(list => list.map(a => a.id === id ? updated : a));
         if (this.selectedAlerte()?.id === id) this.selectedAlerte.set(updated);
-        this.toast.success('Alerte accusée de réception avec succès');
+        this.toast.success('Prise de connaissance enregistrée à votre nom');
       },
       error: () => {
         this.error.set('La réception de l\'alerte n\'a pas pu être enregistrée.');

@@ -99,6 +99,24 @@ def creer_signalement(data: schemas.SignalementCreate,
     return _serialize_signalement(signalement)
 
 
+def _valider_enumere(valeur: str, enumere, libelle: str) -> str:
+    """Refuse une valeur de filtre hors de l'enumere, avec un 422.
+
+    Sans cette verification, une valeur inconnue partait telle quelle
+    dans la clause WHERE et PostgreSQL levait un DataError, que le
+    gestionnaire d'exceptions traduisait en 500. Un filtre errone est
+    une faute du client, non une panne du serveur : il merite un 422
+    qui nomme les valeurs admises.
+    """
+    admises = {membre.value for membre in enumere}
+    if valeur not in admises:
+        raise HTTPException(
+            status_code=422,
+            detail=f"{libelle} invalide : « {valeur} ». "
+                   f"Valeurs admises : {', '.join(sorted(admises))}.")
+    return valeur
+
+
 @router.get("", response_model=list[schemas.SignalementOut])
 def lister_signalements(
     db: Session = Depends(get_db),
@@ -109,13 +127,24 @@ def lister_signalements(
     chantier_id: int = Query(None),
     periode_jours: int = Query(None),
 ):
+    # Le riverain n'a pas a voir les signalements de terrain : il ne
+    # depose que des doleances, et les consulte sur /citoyen/doleances.
+    # Lui ouvrir cette liste lui montrerait les constats des agents sur
+    # tous les chantiers du programme.
+    if courant.role == models.RoleEnum.PLAIGNANT:
+        raise HTTPException(
+            status_code=403,
+            detail="Consultez vos doléances sur /citoyen/doleances.")
+
     q = db.query(models.Signalement)
     # RBAC: RESP_ENV only sees their own signalements
     if courant.role == models.RoleEnum.RESP_ENV:
         q = q.filter(models.Signalement.auteur_id == courant.id)
     if statut:
+        _valider_enumere(statut, models.StatutSignalement, "Statut")
         q = q.filter(models.Signalement.statut == statut)
     if criticite:
+        _valider_enumere(criticite, models.CriticiteEnum, "Criticité")
         q = q.filter(models.Signalement.criticite == criticite)
     if type_nuisance:
         q = q.filter(models.Signalement.type_nuisance.ilike(f"%{type_nuisance}%"))
@@ -151,6 +180,26 @@ def changer_statut(signalement_id: int,
     statut = data.statut if data else nouveau_statut
     if statut is None:
         raise HTTPException(status_code=422, detail="Le nouveau statut est obligatoire")
+
+    # Un signalement ne se cloture pas sans qu'on sache ce qui a ete fait
+    # pour le resoudre. La procedure decrite au chapitre de la conception
+    # va du constat a la cloture en passant par une action corrective :
+    # sans ce controle, l'ecran permettait de sauter cette etape et le
+    # dossier ne gardait aucune trace du traitement.
+    if statut == models.StatutSignalement.CLOTURE:
+        # Un motif de rejet est lui aussi consigne comme action : il ne
+        # vaut pas traitement et ne doit donc pas ouvrir la cloture.
+        action = (db.query(models.ActionCorrective)
+                  .filter(models.ActionCorrective.signalement_id == signalement_id)
+                  .filter(~models.ActionCorrective.description.like(
+                      "Signalement retourné à l'agent.%"))
+                  .first())
+        if action is None:
+            raise HTTPException(
+                status_code=409,
+                detail="Enregistrez d'abord l'action corrective menée : "
+                       "un signalement ne peut être clôturé sans elle.")
+
     s.statut = statut
     db.commit()
     db.refresh(s)
@@ -189,8 +238,16 @@ def retourner_agent(signalement_id: int,
     s = db.query(models.Signalement).filter(models.Signalement.id == signalement_id).first()
     if not s:
         raise HTTPException(status_code=404, detail="Signalement introuvable")
+    # Le motif etait jusqu'ici prefixe a la description, ce qui alterait
+    # le constat ecrit par l'agent sur le terrain et s'empilait a chaque
+    # rejet. Il est desormais consigne comme une decision datee, au meme
+    # titre qu'une action corrective : la description reste intacte et le
+    # dossier garde l'historique de ce qui a ete decide.
+    db.add(models.ActionCorrective(
+        description=f"Signalement retourné à l'agent. Motif : {data.motif}",
+        signalement_id=signalement_id,
+    ))
     s.statut = models.StatutSignalement.REJETE
-    s.description = f"[RETOUR: {data.motif}] {s.description or ''}"
     db.commit()
     db.refresh(s)
     return _serialize_signalement(s)

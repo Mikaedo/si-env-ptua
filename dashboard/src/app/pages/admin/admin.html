@@ -131,44 +131,55 @@
   @if (activeTab() === 'ia') {
     <div class="card slide-in" style="padding:28px;">
 
-      <!-- Infos modèle actif -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div style="padding:18px; border-radius:11px; background:#FAFAFA; border:1.5px solid #F0F0F1;">
-          <div class="kpi-label">Modèle Actif</div>
-          <div style="font-size:15px; font-weight:800; color:#18181B;">{{ model()?.nom || 'Aucun modèle' }}</div>
-        </div>
-        <div style="padding:18px; border-radius:11px; background:#FAFAFA; border:1.5px solid #F0F0F1;">
-          <div class="kpi-label">Inférence locale</div>
-          <div style="font-size:15px; font-weight:800; color:#18181B;">MobileNetV2 Backend</div>
-        </div>
-        <div style="padding:18px; border-radius:11px; background:#FAFAFA; border:1.5px solid #F0F0F1;">
-          <div class="kpi-label">Dernier déploiement</div>
-          <div style="font-size:15px; font-weight:800; color:#18181B;">{{ model()?.deploye_le ? formatDate(model()!.deploye_le!.toString()) : 'Jamais' }}</div>
-        </div>
+      <div style="font-size:13px; color:#71717A; margin-bottom:24px; line-height:1.6;">
+        Chaque modèle déployé ici devient disponible en téléchargement pour les applications mobiles agent et riverain :
+        au prochain lancement, l'agent voit une bannière proposant la mise à jour, sans passer par le Play Store.
       </div>
 
-      <!-- Zone Upload -->
-      <div class="upload-zone"
-        (dragover)="$event.preventDefault(); dragOver.set(true)"
-        (dragleave)="dragOver.set(false)"
-        (drop)="onDrop($event)"
-        [class.drag-active]="dragOver()">
-        <div style="width:56px;height:56px;border-radius:14px;background:#EEF1F8;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
-          <lucide-icon [img]="Cpu" size="28" style="color:#004F9F;"></lucide-icon>
+      @for (type of typesModeles; track type) {
+        <div class="card" style="padding:22px; margin-bottom:20px; border:1.5px solid #F0F0F1;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+            <div style="font-size:15px; font-weight:800; color:#18181B;">
+              {{ type === 'detection' ? 'Détection (YOLOv8n)' : 'Classification (MobileNetV2)' }}
+            </div>
+            <div style="font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px;"
+                 [style.background]="modeles()[type]?.disponible ? '#E8F5E9' : '#F4F4F5'"
+                 [style.color]="modeles()[type]?.disponible ? '#2E7D32' : '#71717A'">
+              {{ modeles()[type]?.disponible ? 'Déployé' : 'Aucun modèle' }}
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div style="padding:14px; border-radius:9px; background:#FAFAFA;">
+              <div class="kpi-label">Taille</div>
+              <div style="font-size:14px; font-weight:700; color:#18181B;">
+                {{ modeles()[type]?.taille_octets ? ((modeles()[type]!.taille_octets / 1024 / 1024).toFixed(1) + ' Mo') : '—' }}
+              </div>
+            </div>
+            <div style="padding:14px; border-radius:9px; background:#FAFAFA;">
+              <div class="kpi-label">Dernier déploiement</div>
+              <div style="font-size:14px; font-weight:700; color:#18181B;">
+                {{ modeles()[type]?.deploye_le ? formatDate(modeles()[type]!.deploye_le!.toString()) : 'Jamais' }}
+              </div>
+            </div>
+          </div>
+
+          <div class="upload-zone"
+            (dragover)="$event.preventDefault(); dragOverType.set(type)"
+            (dragleave)="dragOverType.set(null)"
+            (drop)="onDrop(type, $event)"
+            [class.drag-active]="dragOverType() === type">
+            @if (dragOverType() === type) {
+              <div style="font-size:13px; color:#004F9F; font-weight:700; margin-bottom:8px;">Relâchez le fichier ici</div>
+            }
+            <label class="btn btn-primary" style="display:inline-flex; cursor:pointer;">
+              <lucide-icon [img]="Upload" size="16"></lucide-icon>
+              {{ modelUploading() === type ? 'Déploiement en cours...' : 'Sélectionner le fichier (.onnx)' }}
+              <input type="file" accept=".onnx" (change)="deployModel(type, $event)" [disabled]="modelUploading() !== null" style="display:none;" />
+            </label>
+          </div>
         </div>
-        <div style="font-size:16px; font-weight:800; color:#18181B; margin-bottom:8px; letter-spacing:-0.3px;">Déployer une nouvelle version du modèle</div>
-        <div style="font-size:13px; color:#71717A; margin-bottom:28px; max-width:420px; margin-left:auto; margin-right:auto; line-height:1.6;">
-          Glissez-déposez un fichier <code style="background:#F4F4F5; padding:2px 7px; border-radius:5px; font-size:12px; color:#C62828; font-weight:600;">.onnx</code> ici, ou cliquez pour sélectionner. Il sera téléchargé par les applications mobiles lors de la prochaine synchronisation.
-        </div>
-        @if (dragOver()) {
-          <div style="font-size:13px; color:#004F9F; font-weight:700; margin-bottom:16px;">Relâchez le fichier ici</div>
-        }
-        <label class="btn btn-primary" style="display:inline-flex; cursor:pointer;">
-          <lucide-icon [img]="Upload" size="16"></lucide-icon>
-          {{ modelUploading() ? 'Déploiement en cours...' : 'Sélectionner le fichier (.onnx)' }}
-          <input type="file" accept=".onnx" (change)="deployModel($event)" [disabled]="modelUploading()" style="display:none;" />
-        </label>
-      </div>
+      }
     </div>
   }
 

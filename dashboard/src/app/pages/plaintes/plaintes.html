@@ -194,7 +194,7 @@
                 <select [value]="p.statut" (click)="$event.stopPropagation()" (change)="updateStatut(p.id, $any($event.target).value)" class="form-select" style="font-size:12px; padding:6px 10px;">
                   <option value="OUVERTE">Ouverte</option>
                   <option value="EN_COURS">En cours</option>
-                  <option value="RESOLU">Résolue</option>
+                  <option value="RESOLU" [disabled]="!aUnTraitement(p)">Résolue</option>
                   <option value="REJETE">Rejetée</option>
                 </select>
               } @else {
@@ -289,10 +289,15 @@
             </div>
           </div>
           @if (canManage) {
+            <!-- « Résolue » suppose qu'un traitement ait été enregistré :
+                 l'option reste indisponible tant qu'aucun ne l'est, pour
+                 que le plaignant ait toujours une réponse à recevoir. -->
             <select [value]="p.statut" (change)="updateStatut(p.id, $any($event.target).value)" class="form-select" style="font-size:12px; padding:8px 12px;">
               <option value="OUVERTE">Ouverte</option>
               <option value="EN_COURS">En cours</option>
-              <option value="RESOLU">Résolue</option>
+              <option value="RESOLU" [disabled]="!aUnTraitement(p)">
+                Résolue{{ aUnTraitement(p) ? '' : ' (traitement à enregistrer)' }}
+              </option>
               <option value="REJETE">Rejetée</option>
             </select>
           }

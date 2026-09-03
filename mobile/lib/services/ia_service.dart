@@ -2,6 +2,9 @@ import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:onnxruntime/onnxruntime.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'api_service.dart';
 
 /// Boite de detection retournee par le detecteur YOLO. Coordonnees exprimees
 /// dans le repere normalise [0, 1] de l'image d'entree, afin que l'overlay
@@ -45,20 +48,85 @@ class IaService {
     }
   }
 
+  /// Chemin local d'un modele telecharge depuis le backend, s'il existe. Ce
+  /// fichier prend le pas sur celui embarque dans l'APK : c'est le mecanisme
+  /// qui permet a l'administrateur de redeployer un modele sans passer par
+  /// le Play Store (paragraphe 2.5 du chapitre V).
+  Future<File> _fichierLocal(String typeModele) async {
+    final dossier = await getApplicationDocumentsDirectory();
+    return File('${dossier.path}/modele_$typeModele.onnx');
+  }
+
   Future<void> _loadDetection() async {
     try {
-      final data = await rootBundle.load('assets/models/detection_yolov8n.onnx');
+      final local = await _fichierLocal('detection');
+      final octets = await local.exists()
+          ? await local.readAsBytes()
+          : (await rootBundle.load('assets/models/detection_yolov8n.onnx')).buffer.asUint8List();
       final options = OrtSessionOptions();
-      _detectionSession = OrtSession.fromBuffer(data.buffer.asUint8List(), options);
+      _detectionSession = OrtSession.fromBuffer(octets, options);
     } catch (_) {}
   }
 
   Future<void> _loadClassification() async {
     try {
-      final data = await rootBundle.load('assets/models/classification_mobilenetv2.onnx');
+      final local = await _fichierLocal('classification');
+      final octets = await local.exists()
+          ? await local.readAsBytes()
+          : (await rootBundle.load('assets/models/classification_mobilenetv2.onnx')).buffer.asUint8List();
       final options = OrtSessionOptions();
-      _classificationSession = OrtSession.fromBuffer(data.buffer.asUint8List(), options);
+      _classificationSession = OrtSession.fromBuffer(octets, options);
     } catch (_) {}
+  }
+
+  /// Compare la version deployee cote serveur a la derniere version
+  /// installee localement (SharedPreferences). Ne telecharge rien : sert
+  /// uniquement a decider si la banniere de mise a jour doit s'afficher.
+  Future<List<String>> verifierMisesAJourDisponibles() async {
+    try {
+      final versions = await ApiService().getModelVersions();
+      final prefs = await SharedPreferences.getInstance();
+      final disponibles = <String>[];
+      for (final type in ['detection', 'classification']) {
+        final info = versions[type] as Map<String, dynamic>?;
+        if (info == null || info['disponible'] != true) continue;
+        final versionServeur = info['version'] as int? ?? 0;
+        final versionLocale = prefs.getInt('modele_version_$type') ?? 0;
+        if (versionServeur > versionLocale) disponibles.add(type);
+      }
+      return disponibles;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Telecharge le modele demande, l'installe localement et recharge la
+  /// session ONNX correspondante. Retourne false si le telechargement echoue
+  /// (reseau absent, entre autres), sans jamais casser la session existante.
+  Future<bool> telechargerEtInstaller(String typeModele) async {
+    try {
+      final octets = await ApiService().downloadModel(typeModele);
+      final versions = await ApiService().getModelVersions();
+      final info = versions[typeModele] as Map<String, dynamic>?;
+      final version = info?['version'] as int? ?? 0;
+
+      final fichier = await _fichierLocal(typeModele);
+      await fichier.writeAsBytes(octets);
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('modele_version_$typeModele', version);
+
+      final options = OrtSessionOptions();
+      final session = OrtSession.fromBuffer(octets, options);
+      if (typeModele == 'detection') {
+        _detectionSession = session;
+      } else {
+        _classificationSession = session;
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   bool get isLoaded => _loaded;
@@ -90,8 +158,12 @@ class IaService {
       
       final outputData = outputs[0]!.value as List;
 
-      // Decoder les probabilites
-      final classes = ['FAIBLE', 'MODERE', 'ELEVE'];
+      // Decoder les probabilites.
+      // L'ordre est celui qu'impose torchvision : ImageFolder classe les
+      // dossiers par ordre alphabetique, soit faible(0), important(1),
+      // modere(2). Ranger « MODERE » en deuxieme position intervertissait donc
+      // les deux criticites les plus hautes a chaque diagnostic.
+      final classes = ['FAIBLE', 'ELEVE', 'MODERE'];
       int maxIdx = 0;
       double maxVal = 0;
       for (int i = 0; i < outputData[0].length; i++) {
@@ -153,8 +225,12 @@ class IaService {
       final nbClasses = canaux.length - 4;
 
       final resultats = <DetectionBox>[];
+      // L'ordre suit celui des classes du modele, lisible dans ses metadonnees
+      // ONNX : {0: cardboard, 1: glass, 2: metal, 3: organic, 4: paper,
+      // 5: plastic}. Toute modification du modele impose de relire ce champ :
+      // l'index seul est retourne par le reseau, la correspondance est ici.
       const etiquettes = [
-        'metal', 'plastique', 'papier', 'carton', 'verre', 'organique',
+        'carton', 'verre', 'métal', 'organique', 'papier', 'plastique',
       ];
 
       for (int i = 0; i < n; i++) {

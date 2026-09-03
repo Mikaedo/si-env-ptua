@@ -54,11 +54,26 @@ export class SignalementDetail implements OnInit {
   rejetMotif = signal('');
 
   get canUpdate(): boolean {
-    return this.auth.hasRole('SPEC_ENV', 'EXPERT_HSE', 'RESP_ENV');
+    // Le traitement d'un signalement revient au specialiste du suivi et a
+    // l'expert HSE. Le responsable environnement, lui, saisit depuis le
+    // terrain : l'ecran lui montrait des commandes que le serveur refuse,
+    // et il butait sur une erreur sans comprendre pourquoi.
+    return this.auth.hasRole('SPEC_ENV', 'EXPERT_HSE');
   }
 
   get isAdmin(): boolean {
     return this.auth.user()?.role === 'ADMIN';
+  }
+
+  /**
+   * Une action corrective a-t-elle ete menee sur ce signalement ?
+   *
+   * Le motif d'un rejet est lui aussi consigne comme action : il retrace
+   * une decision, non un traitement, et n'autorise donc pas la cloture.
+   */
+  get aUneActionCorrective(): boolean {
+    return (this.signalement()?.actions ?? [])
+      .some(a => !a.description?.startsWith('Signalement retourné à l\'agent.'));
   }
 
   get gpsUrl(): string {
@@ -91,9 +106,11 @@ export class SignalementDetail implements OnInit {
         };
         this.toast.success(labels[statut] ?? 'Statut mis à jour');
       },
-      error: () => {
+      error: (err) => {
         this.updating.set(false);
-        this.toast.error('Échec de la mise à jour du statut');
+        // Le refus du serveur porte son motif : le relayer evite a
+        // l'utilisateur de chercher pourquoi son action n'aboutit pas.
+        this.toast.error(err?.error?.detail || 'Échec de la mise à jour du statut');
       }
     });
   }

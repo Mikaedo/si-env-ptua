@@ -92,6 +92,21 @@ def modifier_statut_plainte(
     plainte = db.query(models.Plainte).filter(models.Plainte.id == plainte_id).first()
     if not plainte:
         raise HTTPException(status_code=404, detail="Plainte introuvable")
+
+    # Une plainte se clot sur un traitement, non sur un simple changement
+    # de statut. Le mecanisme de gestion des plaintes suppose qu'on puisse
+    # dire au plaignant ce qui a ete fait : sans action enregistree, la
+    # reponse qu'on lui doit reste introuvable.
+    if data.statut == "RESOLU":
+        action = (db.query(models.ActionCorrective)
+                  .filter(models.ActionCorrective.plainte_id == plainte_id)
+                  .first())
+        if action is None:
+            raise HTTPException(
+                status_code=409,
+                detail="Enregistrez d'abord le traitement apporté : "
+                       "une plainte ne peut être résolue sans réponse au plaignant.")
+
     plainte.statut = data.statut
     db.commit()
     db.refresh(plainte)

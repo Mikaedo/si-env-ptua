@@ -133,7 +133,8 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
   lastRefresh = signal(new Date());
   mapLayerSat = signal(false);
   private satLayer!: L.TileLayer;
-  private darkLayer!: L.TileLayer;
+  /** Fond de plan cartographique, alterné avec la vue satellite. */
+  private planLayer!: L.TileLayer;
 
   @ViewChild('mapSat') mapContainer!: ElementRef;
   private map!: L.Map;
@@ -212,24 +213,61 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
       center: [5.35, -4.02], zoom: 11,
       zoomControl: true, attributionControl: false
     });
-    this.darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_matter_no_labels/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19, subdomains: ['a','b','c','d']
+    // Meme fond que la carte des signalements : OpenStreetMap, libre et
+    // sans cle. Le fond sombre de CARTO en reclame une desormais, et la
+    // carte restait grise, sans repere geographique.
+    this.planLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '© OpenStreetMap'
     }).addTo(this.map);
     this.satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19
     });
+    this.ajouterZonesPtua();
     this.addSatOverlays();
+  }
+
+  /**
+   * Trace les six chantiers du programme sur la carte.
+   *
+   * La carte satellitaire n'affichait que des cercles d'indices, sans le
+   * moindre repere : on voyait des valeurs sans savoir a quel ouvrage
+   * elles se rapportaient. Les traces du PTUA donnent ce contexte.
+   */
+  private ajouterZonesPtua() {
+    if (!this.map) return;
+    const couleurs: Record<string, string> = {
+      '4EME_PONT': '#E8770E', 'Y4': '#1B2A4E', 'LATRILLE': '#7B1FA2',
+      'SORTIE_EST': '#00838F', 'SORTIE_OUEST': '#C62828',
+      'ECHANGEURS_CG': '#2E7D32',
+    };
+    fetch('/assets/zones_ptua.geojson')
+      .then(r => r.json())
+      .then(data => {
+        L.geoJSON(data, {
+          style: (f) => ({
+            color: couleurs[f?.properties?.projet] || '#004F9F',
+            weight: 4, opacity: 0.85,
+          }),
+          onEachFeature: (f, couche) => {
+            const p = f?.properties || {};
+            couche.bindTooltip(
+              `${p.nom}${p.longueur_km ? ` · ${p.longueur_km} km` : ''}`,
+              { sticky: true });
+          },
+        }).addTo(this.map);
+      })
+      .catch(() => { /* la carte reste exploitable sans les traces */ });
   }
 
   toggleMapLayer() {
     const useSat = !this.mapLayerSat();
     this.mapLayerSat.set(useSat);
     if (useSat) {
-      this.map.removeLayer(this.darkLayer);
+      this.map.removeLayer(this.planLayer);
       this.satLayer.addTo(this.map);
     } else {
       this.map.removeLayer(this.satLayer);
-      this.darkLayer.addTo(this.map);
+      this.planLayer.addTo(this.map);
     }
   }
 

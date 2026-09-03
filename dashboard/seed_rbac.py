@@ -48,11 +48,20 @@ for nom, email, mdp, role, premiere in users_data:
         print(f"  ✓ {email} | {role.value} | {'MOBILE' if role in (models.RoleEnum.RESP_ENV, models.RoleEnum.EXPERT_HSE) else 'WEB'} | {'1ère connexion' if premiere else 'actif'}")
 
 # ─── Chantiers ───
+#
+# Les six ouvrages du Programme de Transport Urbain d'Abidjan, avec leur
+# denomination officielle et le point median de leur trace. Le jeu de
+# demonstration comportait auparavant des chantiers inventes (Pont de
+# Bassam, Rocade Marcory) etrangers au programme : ils apparaissaient
+# dans la liste deroulante de l'application mobile, ou l'agent devait
+# choisir entre des ouvrages qui n'existent pas et ceux qu'il connait.
 chantiers_data = [
-    ("4eme Pont", "Yopougon", -4.05, 5.34),
-    ("Pont de Bassam · Lot 1", "Bassam", -3.75, 5.15),
-    ("Bd Latrille · Lot 3", "Cocody", -4.01, 5.36),
-    ("Rocade Marcory · Lot 2", "Marcory", -4.02, 5.30),
+    ("4e Pont", "Yopougon/Attécoubé/Adjamé", -4.0280, 5.3680),
+    ("Rocade Y4", "Cocody/Abobo/Anyama", -3.9700, 5.4300),
+    ("Bd Latrille - Prolongement", "Cocody", -3.9820, 5.3550),
+    ("Sortie Est", "Bingerville/Agboville", -3.9100, 5.4000),
+    ("Sortie Ouest", "Yopougon/Songon", -4.1400, 5.3120),
+    ("Échangeurs Bd Coffi Gadeau", "Plateau", -4.0000, 5.3580),
 ]
 
 for nom, commune, lon, lat in chantiers_data:
@@ -68,92 +77,70 @@ for nom, commune, lon, lat in chantiers_data:
 db.commit()
 
 # ─── Signalements de démo ───
-chantier_bassam = db.query(models.Chantier).filter_by(nom="Pont de Bassam · Lot 1").first()
-chantier_latrille = db.query(models.Chantier).filter_by(nom="Bd Latrille · Lot 3").first()
-chantier_marcory = db.query(models.Chantier).filter_by(nom="Rocade Marcory · Lot 2").first()
-chantier_4eme = db.query(models.Chantier).filter_by(nom="4eme Pont").first()
+# Les signalements de demonstration couvrent les cinq types de nuisance
+# du referentiel et les six ouvrages du programme. Le jeu precedent n'en
+# renseignait que trois : la repartition par nuisance, sur le tableau de
+# bord mobile, laissait croire que le bruit et la degradation de la
+# vegetation n'etaient pas suivis.
+def chantier(nom):
+    return db.query(models.Chantier).filter_by(nom=nom).first()
 
 agent = db.query(models.Utilisateur).filter_by(email="resp.env@ageroute.ci").first()
 expert = db.query(models.Utilisateur).filter_by(email="expert.hse@ageroute.ci").first()
 
-if agent and chantier_bassam and not db.query(models.Signalement).filter_by(uuid_mobile="demo-001").first():
-    s = models.Signalement(
-        uuid_mobile="demo-001",
-        type_nuisance="Dechets de chantier",
-        description="Accumulation importante pres du pont",
-        criticite=models.CriticiteEnum.ELEVE,
-        criticite_ia=models.CriticiteEnum.MODERE,
-        confiance_ia=87.0,
-        gps_source="AUTO",
-        statut=models.StatutSignalement.NOUVEAU,
-        geom=func.ST_SetSRID(func.ST_MakePoint(-3.75, 5.15), 4326),
-        auteur_id=agent.id,
-        chantier_id=chantier_bassam.id,
-    )
-    db.add(s)
-    print("  ✓ Signalement demo-001 (Resp. Env.)")
+DEMOS = [
+    # (uuid, auteur, chantier, type, description, criticite, statut, lon, lat,
+    #  criticite_ia, confiance_ia)
+    ("demo-001", "agent", "4e Pont", "Déchets de chantier",
+     "Accumulation importante en bordure d'emprise",
+     "ELEVE", "NOUVEAU", -4.0280, 5.3680, "MODERE", 87.0),
+    ("demo-002", "agent", "Sortie Ouest", "Eaux stagnantes",
+     "Stagnation apres pluie au droit du terrassement",
+     "MODERE", "EN_TRAITEMENT", -4.1400, 5.3120, None, None),
+    ("demo-003", "agent", "Bd Latrille - Prolongement", "Déchets de chantier",
+     "Gravats evacues apres intervention",
+     "FAIBLE", "CLOTURE", -3.9820, 5.3550, None, None),
+    ("demo-004", "agent", "Rocade Y4", "Bruit",
+     "Engins de compactage en activite au-dela de 18 h",
+     "MODERE", "EN_TRAITEMENT", -3.9700, 5.4300, None, None),
+    ("demo-005", "agent", "Sortie Est", "Dégradation végétation",
+     "Abattage non signale en limite d'emprise",
+     "ELEVE", "NOUVEAU", -3.9100, 5.4000, None, None),
+    ("demo-expert-001", "expert", "4e Pont", "Poussières",
+     "Nuisance de poussiere importante sur le terrassement",
+     "ELEVE", "NOUVEAU", -4.0280, 5.3680, "ELEVE", 92.0),
+    ("demo-expert-002", "expert", "Échangeurs Bd Coffi Gadeau", "Eaux stagnantes",
+     "Non-conformite : absence de drainage temporaire",
+     "MODERE", "EN_TRAITEMENT", -4.0000, 5.3580, None, None),
+    ("demo-expert-003", "expert", "Rocade Y4", "Poussières",
+     "Arrosage des pistes interrompu depuis deux jours",
+     "MODERE", "NOUVEAU", -3.9700, 5.4300, None, None),
+]
 
-if agent and chantier_marcory and not db.query(models.Signalement).filter_by(uuid_mobile="demo-002").first():
-    s2 = models.Signalement(
-        uuid_mobile="demo-002",
-        type_nuisance="Eaux stagnantes",
-        description="Stagnation apres pluie",
-        criticite=models.CriticiteEnum.MODERE,
+for (uid, qui, nom_chantier, type_n, desc, crit, statut,
+     lon, lat, crit_ia, conf_ia) in DEMOS:
+    auteur = agent if qui == "agent" else expert
+    site = chantier(nom_chantier)
+    if not auteur or not site:
+        continue
+    if db.query(models.Signalement).filter_by(uuid_mobile=uid).first():
+        continue
+    db.add(models.Signalement(
+        uuid_mobile=uid,
+        type_nuisance=type_n,
+        description=desc,
+        criticite=models.CriticiteEnum[crit],
+        criticite_ia=models.CriticiteEnum[crit_ia] if crit_ia else None,
+        confiance_ia=conf_ia,
         gps_source="AUTO",
-        statut=models.StatutSignalement.EN_TRAITEMENT,
-        geom=func.ST_SetSRID(func.ST_MakePoint(-4.02, 5.30), 4326),
-        auteur_id=agent.id,
-        chantier_id=chantier_marcory.id,
-    )
-    db.add(s2)
-    print("  ✓ Signalement demo-002 (Resp. Env.)")
+        statut=models.StatutSignalement[statut],
+        geom=func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326),
+        auteur_id=auteur.id,
+        chantier_id=site.id,
+    ))
+    print(f"  ✓ Signalement {uid} ({type_n})")
 
-if agent and chantier_latrille and not db.query(models.Signalement).filter_by(uuid_mobile="demo-003").first():
-    s3 = models.Signalement(
-        uuid_mobile="demo-003",
-        type_nuisance="Dechets de chantier",
-        description="Dechets evacues",
-        criticite=models.CriticiteEnum.FAIBLE,
-        gps_source="AUTO",
-        statut=models.StatutSignalement.CLOTURE,
-        geom=func.ST_SetSRID(func.ST_MakePoint(-4.01, 5.36), 4326),
-        auteur_id=agent.id,
-        chantier_id=chantier_latrille.id,
-    )
-    db.add(s3)
-    print("  ✓ Signalement demo-003 (Resp. Env.)")
-
-if expert and chantier_4eme and not db.query(models.Signalement).filter_by(uuid_mobile="demo-expert-001").first():
-    se1 = models.Signalement(
-        uuid_mobile="demo-expert-001",
-        type_nuisance="Poussieres",
-        description="Nuisance de poussiere importante sur le terrassement du 4eme Pont",
-        criticite=models.CriticiteEnum.ELEVE,
-        criticite_ia=models.CriticiteEnum.ELEVE,
-        confiance_ia=92.0,
-        gps_source="AUTO",
-        statut=models.StatutSignalement.NOUVEAU,
-        geom=func.ST_SetSRID(func.ST_MakePoint(-4.05, 5.34), 4326),
-        auteur_id=expert.id,
-        chantier_id=chantier_4eme.id,
-    )
-    db.add(se1)
-    print("  ✓ Signalement demo-expert-001 (Expert HSE)")
-
-if expert and chantier_marcory and not db.query(models.Signalement).filter_by(uuid_mobile="demo-expert-002").first():
-    se2 = models.Signalement(
-        uuid_mobile="demo-expert-002",
-        type_nuisance="Eaux stagnantes",
-        description="Non-conformite: absence de drainage temporaire",
-        criticite=models.CriticiteEnum.MODERE,
-        gps_source="AUTO",
-        statut=models.StatutSignalement.EN_TRAITEMENT,
-        geom=func.ST_SetSRID(func.ST_MakePoint(-4.02, 5.30), 4326),
-        auteur_id=expert.id,
-        chantier_id=chantier_marcory.id,
-    )
-    db.add(se2)
-    print("  ✓ Signalement demo-expert-002 (Expert HSE)")
+chantier_alerte = chantier("Rocade Y4")
 
 # ─── Alerte de démo ───
 if not db.query(models.Alerte).filter_by(message="Seuil qualite air depasse").first():
@@ -161,7 +148,7 @@ if not db.query(models.Alerte).filter_by(message="Seuil qualite air depasse").fi
         message="Seuil qualite air depasse",
         niveau="CRITIQUE",
         valeur=72.5,
-        chantier_id=chantier_marcory.id if chantier_marcory else None,
+        chantier_id=chantier_alerte.id if chantier_alerte else None,
     )
     db.add(a)
     print("  ✓ Alerte demo (CRITIQUE)")

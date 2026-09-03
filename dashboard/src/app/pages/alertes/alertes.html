@@ -90,7 +90,10 @@
               <span>Reçue</span>
             </div>
           } @else {
-            <span style="font-size:11.5px; color:#D1D1D6; font-weight:500;">Lecture seule</span>
+            <!-- « Lecture seule » renseignait sur les droits du lecteur,
+                 non sur l'alerte : un observateur ignorait si quelqu'un
+                 s'en occupait. C'est cet état qui l'intéresse. -->
+            <span style="font-size:11.5px; color:#F37021; font-weight:600;">En attente</span>
           }
           <span style="font-size:11px; color:#D1D1D6;">▶</span>
         </div>
@@ -178,10 +181,23 @@
         <!-- Statut -->
         <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:#F8F8F9; border-radius:10px;">
           <div>
-            <div style="font-size:11px; color:#A1A1AA; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Accusé de réception</div>
-            <div style="font-size:13px; font-weight:700; margin-top:4px;" [style.color]="a.recue ? '#16A34A' : '#F37021'">
-              {{ a.recue ? '✓ Alerte reçue et traitée' : '⚠ En attente de prise en charge' }}
+            <!-- Pour le spécialiste, cet encart porte une action. Pour les
+                 autres profils, qui suivent sans prendre en charge, c'est
+                 une information : le titre le dit, plutôt que de laisser
+                 croire à un droit qu'on leur refuse. -->
+            <div style="font-size:11px; color:#A1A1AA; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">
+              {{ canAcknowledge ? 'Accusé de réception' : 'Suivi de la prise en charge' }}
             </div>
+            <!-- Accuser reception, c'est attester avoir pris connaissance
+                 de l'alerte, non l'avoir traitee. L'ancien libelle disait
+                 « recue et traitee » : un responsable pouvait croire le
+                 dossier clos alors que rien n'avait ete entrepris. -->
+            <div style="font-size:13px; font-weight:700; margin-top:4px;" [style.color]="a.recue ? '#16A34A' : '#F37021'">
+              {{ a.recue ? '✓ Prise de connaissance confirmée' : '⚠ Personne n\'a encore confirmé l\'avoir vue' }}
+            </div>
+            @if (a.recue && a.recue_par) {
+              <div style="font-size:11.5px; color:#71717A; margin-top:3px; font-weight:500;">par {{ a.recue_par }}</div>
+            }
           </div>
           @if (!a.recue && canAcknowledge) {
             <button (click)="acknowledge(a.id)" class="btn btn-primary" style="font-size:12.5px; padding:9px 18px;">

@@ -165,15 +165,16 @@ export class ApiService {
     return this.http.delete<void>(`${API_URL}/admin/seuils/${id}`, { headers: this.headers });
   }
 
-  // Modèle IA (admin)
-  getModelStatus(): Observable<{ nom: string; taille_octets: number; deploye_le?: string }> {
-    return this.http.get<{ nom: string; taille_octets: number; deploye_le?: string }>(`${API_URL}/admin/model`, { headers: this.headers });
+  // Modèle IA (admin) : un statut par type de modèle (detection, classification).
+  getModelStatus(): Observable<Record<string, { disponible: boolean; version: number; taille_octets: number; deploye_le?: string }>> {
+    return this.http.get<Record<string, { disponible: boolean; version: number; taille_octets: number; deploye_le?: string }>>(`${API_URL}/admin/model`, { headers: this.headers });
   }
 
-  uploadModel(file: File): Observable<{ message: string; nom: string; taille_octets: number; deploye_le?: string }> {
+  uploadModel(typeModele: 'detection' | 'classification', file: File): Observable<{ message: string; type_modele: string; disponible: boolean; version: number; taille_octets: number; deploye_le?: string }> {
     const form = new FormData();
+    form.append('type_modele', typeModele);
     form.append('file', file);
-    return this.http.post<{ message: string; nom: string; taille_octets: number; deploye_le?: string }>(`${API_URL}/admin/model`, form, {
+    return this.http.post<{ message: string; type_modele: string; disponible: boolean; version: number; taille_octets: number; deploye_le?: string }>(`${API_URL}/admin/model`, form, {
       headers: { Authorization: `Bearer ${this.auth.token}` }
     });
   }

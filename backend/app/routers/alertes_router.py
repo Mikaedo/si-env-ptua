@@ -15,6 +15,9 @@ router = APIRouter(prefix="/alertes", tags=["Alertes"])
 
 def _serialize_alerte(alerte: models.Alerte, db: Session):
     chantier = db.query(models.Chantier).filter(models.Chantier.id == alerte.chantier_id).first() if alerte.chantier_id else None
+    auteur = (db.query(models.Utilisateur)
+              .filter(models.Utilisateur.id == alerte.utilisateur_id).first()
+              if alerte.utilisateur_id else None)
     return {
         "id": alerte.id,
         "message": alerte.message,
@@ -24,6 +27,7 @@ def _serialize_alerte(alerte: models.Alerte, db: Session):
         "chantier_id": alerte.chantier_id,
         "chantier": ({"id": chantier.id, "nom": chantier.nom, "commune": chantier.commune} if chantier else None),
         "recue": alerte.recue,
+        "recue_par": auteur.nom if auteur else None,
     }
 
 
@@ -43,8 +47,20 @@ def lister_alertes(db: Session = Depends(get_db),
         )
     }
 
+    # Les auteurs des accuses de reception sont charges de la meme facon,
+    # en un seul aller-retour : les resoudre alerte par alerte aurait
+    # ramene la lenteur que le regroupement ci-dessus vient d'ecarter.
+    ids_auteurs = {a.utilisateur_id for a in alertes if a.utilisateur_id}
+    auteurs_par_id = {
+        u.id: u for u in (
+            db.query(models.Utilisateur).filter(models.Utilisateur.id.in_(ids_auteurs)).all()
+            if ids_auteurs else []
+        )
+    }
+
     def serialiser(alerte):
         chantier = chantiers_par_id.get(alerte.chantier_id)
+        auteur = auteurs_par_id.get(alerte.utilisateur_id)
         return {
             "id": alerte.id,
             "message": alerte.message,
@@ -55,6 +71,7 @@ def lister_alertes(db: Session = Depends(get_db),
             "chantier": ({"id": chantier.id, "nom": chantier.nom, "commune": chantier.commune}
                         if chantier else None),
             "recue": alerte.recue,
+            "recue_par": auteur.nom if auteur else None,
         }
 
     return [serialiser(a) for a in alertes]
@@ -64,6 +81,19 @@ def lister_alertes(db: Session = Depends(get_db),
 def accuser_reception(alerte_id: int,
                       db: Session = Depends(get_db),
                       courant: models.Utilisateur = Depends(auth.utilisateur_courant)):
+    # « Reception et revue des alertes » est ouverte a tous les profils
+    # operationnels : accuser reception retire l'alerte du compteur des
+    # non lues, c'est un geste de lecture, non une decision de gestion.
+    # L'agence de tutelle et le bailleur, eux, n'y ont que la lecture :
+    # toute ecriture emise avec leur jeton doit etre rejetee par le
+    # serveur, non simplement masquee dans l'interface. L'endpoint
+    # n'imposait jusqu'ici aucune restriction, qu'un appel direct
+    # contournait.
+    if courant.role in models.ROLES_LECTURE_SEULE:
+        raise HTTPException(
+            status_code=403,
+            detail="Votre profil suit le programme en consultation : "
+                   "toute écriture est refusée.")
     a = db.query(models.Alerte).filter(models.Alerte.id == alerte_id).first()
     if not a:
         raise HTTPException(status_code=404, detail="Alerte introuvable")

@@ -133,6 +133,58 @@ export class Shell implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Ouvre l'alerte : accuse reception, puis mene au chantier concerne.
+   *
+   * Le panneau ne servait qu'a lire : une alerte y restait non lue
+   * indefiniment, et rien ne permettait d'aller voir le chantier
+   * qu'elle designe. Le badge rouge ne pouvait donc jamais redescendre.
+   *
+   * L'accuse est envoye avant la navigation, et le compteur est corrige
+   * localement sans attendre la reponse : quinze secondes separent deux
+   * rafraichissements, et le badge doit suivre le clic.
+   */
+  ouvrirAlerte(alerte: Alerte) {
+    if (!alerte.recue) {
+      this.alertes.update(liste => liste.map(
+        a => a.id === alerte.id ? { ...a, recue: true } : a));
+      this.api.acknowledgeAlerte(alerte.id).subscribe({
+        error: () => this.loadAlertes(),
+      });
+    }
+    this.closeNotif();
+    this.closeSidebar();
+    // Une alerte porte sur un chantier : la liste des signalements
+    // filtree sur ce chantier est ce que le specialiste veut voir.
+    if (alerte.chantier_id) {
+      this.router.navigate(['/signalements'],
+        { queryParams: { chantier: alerte.chantier_id } });
+    } else {
+      this.router.navigate(['/alertes']);
+    }
+  }
+
+  /**
+   * Accuse reception de toutes les alertes non lues.
+   *
+   * Sans cela, le badge affichait « 9+ » en permanence : rien ne
+   * permettait de le vider, et un compteur qui ne bouge jamais cesse
+   * d'etre lu.
+   */
+  toutMarquerLu() {
+    const nonLues = this.alertes().filter(a => !a.recue);
+    if (nonLues.length === 0) return;
+
+    this.alertes.update(liste => liste.map(a => ({ ...a, recue: true })));
+    let restantes = nonLues.length;
+    for (const alerte of nonLues) {
+      this.api.acknowledgeAlerte(alerte.id).subscribe({
+        next: () => { if (--restantes === 0) this.loadAlertes(); },
+        error: () => { if (--restantes === 0) this.loadAlertes(); },
+      });
+    }
+  }
+
   get alertesNonLues(): number {
     return this.alertes().filter(a => !a.recue).length;
   }

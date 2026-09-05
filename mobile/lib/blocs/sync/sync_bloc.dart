@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../services/api_service.dart';
@@ -52,6 +53,9 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
       emit(SyncIdle(count));
     });
 
+    // Le bouton « Synchroniser maintenant » : `_envoyerLot` reprend
+    // les photographies restees en arriere, l'agent qui force l'envoi
+    // attend que tout parte, pas seulement les saisies.
     on<StartSync>((event, emit) async {
       await _envoyerLot(emit, silencieux: false);
     });
@@ -62,8 +66,16 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
     // maintenant » reste disponible pour forcer l'envoi.
     on<AutoSyncTick>((event, emit) async {
       if (_envoiEnCours) return;
-      if (await _localDb.pendingCount() == 0) return;
+
+      // Une photographie peut rester seule a envoyer, son signalement
+      // etant deja parti : la veille interroge donc les deux files,
+      // sans quoi elle sortirait ici et ne la reprendrait jamais.
+      final signalements = await _localDb.pendingCount();
+      final photos = await _localDb.nombrePhotosEnAttente();
+      if (signalements == 0 && photos == 0) return;
       if (!await _api.reseauDisponible()) return;
+
+      // `_envoyerLot` reprend les photographies, file vide comprise.
       await _envoyerLot(emit, silencieux: true);
     });
 
@@ -79,6 +91,10 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
     final pending = await _localDb.getPendingSignalements();
     if (pending.isEmpty) {
       if (!silencieux) emit(SyncComplete(0));
+      // Aucune saisie a transmettre ne veut pas dire rien a faire : une
+      // photographie peut rester seule, son signalement etant deja
+      // parti.
+      await _reprendrePhotos();
       return;
     }
     _envoiEnCours = true;
@@ -99,8 +115,12 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
             longitude: row['longitude'],
             chantierId: row['chantier_id'],
           );
-          await _api.createSignalement(s);
-          await _localDb.markSynced(row['uuid_mobile']);
+          final cree = await _api.createSignalement(s);
+          // L'identifiant attribue par le serveur est conserve : c'est
+          // lui qui permettra de rattacher la photographie, y compris si
+          // son envoi doit etre repris plus tard.
+          await _localDb.markSynced(row['uuid_mobile'],
+              serveurId: cree.id);
           sent++;
           emit(SyncInProgress(pending.length, sent));
         } catch (_) {
@@ -110,6 +130,73 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
       emit(SyncComplete(sent));
     } finally {
       _envoiEnCours = false;
+    }
+
+    // Les photographies partent apres, et hors du drapeau : leur envoi
+    // a besoin de l'identifiant que le serveur vient d'attribuer, et
+    // c'est ce qui les rendait intransmissibles hors ligne.
+    //
+    // Elles sont volontairement transmises apres le bilan : un fichier
+    // est lourd, et Bloc interdit d'emettre un etat depuis un
+    // gestionnaire deja clos. L'agent voit donc ses saisies parties
+    // sans attendre les fichiers, qui suivent.
+    await _reprendrePhotos();
+  }
+
+  /// Reprend les photographies dont le signalement est deja parti.
+  ///
+  /// Le fichier d'une photographie est plus lourd que la saisie : sur un
+  /// reseau qui revient a peine, il peut echouer alors que le
+  /// signalement est bien passe. Cette reprise s'en occupe au tour
+  /// suivant, sans renvoyer le signalement une seconde fois.
+  ///
+  /// Le drapeau couvre toute la reprise : l'envoi d'un fichier peut
+  /// depasser la periode de veille, et sans lui le battement suivant
+  /// reprendrait les memes photographies, qui partiraient en double.
+  Future<void> _reprendrePhotos() async {
+    if (_envoiEnCours) return;
+    _envoiEnCours = true;
+    try {
+      for (final row in await _localDb.photosEnAttente()) {
+        await _envoyerPhoto(
+          row['uuid_mobile'] as String,
+          row['photo_path'] as String?,
+          row['serveur_id'] as int?,
+        );
+      }
+    } finally {
+      _envoiEnCours = false;
+    }
+  }
+
+  /// Envoie la photographie d'un signalement qui vient d'etre transmis.
+  ///
+  /// Rien a faire si le signalement n'en portait pas, ou si le serveur
+  /// n'a pas renvoye d'identifiant.
+  ///
+  /// Le fichier peut avoir disparu : Android vide le cache de l'appareil
+  /// photo, et un signalement peut attendre plusieurs jours dans la file
+  /// si l'agent reste hors couverture. Dans ce cas on oublie la
+  /// photographie plutot que de reessayer indefiniment un envoi qui ne
+  /// reussira jamais.
+  ///
+  /// Un echec reseau, lui, laisse le chemin en place : la photographie
+  /// est reprise a la prochaine veille.
+  Future<void> _envoyerPhoto(
+      String uuidMobile, String? chemin, int? signalementId) async {
+    if (chemin == null || chemin.isEmpty || signalementId == null) return;
+
+    if (!await File(chemin).exists()) {
+      await _localDb.oublierPhoto(uuidMobile);
+      return;
+    }
+
+    try {
+      await _api.uploadPhoto(signalementId, chemin);
+      await _localDb.oublierPhoto(uuidMobile);
+    } catch (_) {
+      // Reseau encore instable : on garde le chemin, la prochaine
+      // veille reprendra la photographie.
     }
   }
 

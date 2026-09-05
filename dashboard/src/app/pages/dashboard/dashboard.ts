@@ -12,6 +12,7 @@ import * as L from 'leaflet';
 import { NgApexchartsModule, ApexOptions } from 'ng-apexcharts';
 import { CustomSelect } from '../../shared/custom-select';
 import { Sparkline } from '../../shared/sparkline';
+import { ATTRIBUTION_CARTE, FOND_PLAN, ZOOM_MAX } from '../../core/fonds-carte';
 
 @Component({
   selector: 'app-dashboard',
@@ -131,14 +132,13 @@ export class Dashboard implements OnInit, AfterViewInit, OnDestroy {
       attributionControl: false
     });
 
-    // Fond de plan OpenStreetMap : libre d'acces et sans cle. Le fond
-    // sombre de CARTO exige desormais une cle d'API, et affichait en son
-    // absence un filigrane « API KEY REQUIRED » en travers de la carte.
-    // Le rendu clair fait par ailleurs mieux ressortir les traces du
-    // programme et les points de signalement.
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap'
+    // Fond de plan clair : il fait mieux ressortir les tracés du
+    // programme et les points de signalement qu'un fond sombre.
+    // L'adresse vit dans core/fonds-carte.ts, avec la raison du
+    // changement : OpenStreetMap ne sert plus les sites tiers.
+    L.tileLayer(FOND_PLAN, {
+      maxZoom: ZOOM_MAX,
+      attribution: ATTRIBUTION_CARTE
     }).addTo(this.map);
 
     // Fallback: if tiles fail to load, try OSM standard

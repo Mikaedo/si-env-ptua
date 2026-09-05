@@ -1,6 +1,6 @@
 import { Component, signal, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, timer } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
@@ -19,6 +19,7 @@ export class Signalements implements OnInit, OnDestroy {
   public auth = inject(AuthService);
   isAdmin = () => this.auth.user()?.role === 'ADMIN';
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   readonly Search = Search;
   readonly Filter = Filter;
@@ -42,6 +43,12 @@ export class Signalements implements OnInit, OnDestroy {
   private refreshSub?: Subscription;
 
   ngOnInit() {
+    // Une alerte de la cloche mène ici en désignant son chantier :
+    // sans cette lecture, le clic ouvrait la liste complète et le
+    // spécialiste devait retrouver lui-même le chantier concerné.
+    const chantier = this.route.snapshot.queryParamMap.get('chantier');
+    if (chantier) this.filterChantier.set(chantier);
+
     this.loadData();
     this.refreshSub = timer(10000, 10000).subscribe(() => this.loadData());
   }

@@ -30,131 +30,136 @@
   @if (resume()) {
     <div class="kpi-grid">
 
-      <!-- Qualité de l'Air (NO2) -->
-      <div class="kpi-card" [style.border-color]="resume()!.no2_moyen > 50 ? '#EF4444' : resume()!.no2_moyen > 30 ? '#F59E0B' : '#10B981'">
-        <div class="kpi-icon" [style.background]="resume()!.no2_moyen > 50 ? '#FEE2E2' : resume()!.no2_moyen > 30 ? '#FEF3C7' : '#D1FAE5'" [style.color]="resume()!.no2_moyen > 50 ? '#EF4444' : resume()!.no2_moyen > 30 ? '#F59E0B' : '#10B981'">
+      <!-- Qualité de l'Air (NO2)
+           Les seuils viennent de core/seuils-satellite.ts, qui reprend
+           le tableau 5.6 du mémoire. Ils étaient recopiés ici, et deux
+           d'entre eux avaient divergé du document. -->
+      <div class="kpi-card" [style.border-color]="couleur('no2')">
+        <div class="kpi-icon"
+             [style.background]="etat('no2') === 'CRITIQUE' ? '#FEE2E2' : etat('no2') === 'VIGILANCE' ? '#FEF3C7' : '#D1FAE5'"
+             [style.color]="couleur('no2')">
           <lucide-icon [img]="Wind" size="18"></lucide-icon>
         </div>
         <div class="kpi-body">
           <div class="kpi-label">Qualité de l'Air (NO₂)</div>
           <div class="flex items-end gap-2">
-            <div class="kpi-value" [style.color]="resume()!.no2_moyen > 50 ? '#EF4444' : resume()!.no2_moyen > 30 ? '#F59E0B' : '#10B981'">
-              {{ resume()!.no2_moyen > 50 ? 'POLLUÉ' : resume()!.no2_moyen > 30 ? 'MODÉRÉ' : 'BON' }}
+            <div class="kpi-value" [style.color]="couleur('no2')">
+              {{ etat('no2') === 'CRITIQUE' ? 'ÉLEVÉ' : etat('no2') === 'VIGILANCE' ? 'MODÉRÉ' : 'FAIBLE' }}
             </div>
             <div style="font-size:12px; color:#71717A; margin-bottom:4px;">{{ resume()!.no2_moyen | number:'1.1-1' }} µmol/m²</div>
           </div>
-          <div class="kpi-unit">Sentinel-5P · Seuil : 30-50 µmol/m²</div>
+          <div class="kpi-unit">Sentinel-5P · Vigilance dès 30, seuil 50 µmol/m²</div>
           <!-- Gauge bar -->
           <div class="kpi-gauge">
-            <div class="kpi-gauge-fill" [style.width]="no2GaugePct() + '%'" [style.background]="resume()!.no2_moyen > 50 ? '#EF4444' : resume()!.no2_moyen > 30 ? '#F59E0B' : '#10B981'"></div>
-            <div class="kpi-gauge-threshold" style="left:37.5%"></div>
-            <div class="kpi-gauge-threshold" style="left:62.5%"></div>
+            <div class="kpi-gauge-fill" [style.width]="no2GaugePct() + '%'" [style.background]="couleur('no2')"></div>
+            <div class="kpi-gauge-threshold" [style.left]="repere('no2', 'vigilance') + '%'"></div>
+            <div class="kpi-gauge-threshold" [style.left]="repere('no2', 'critique') + '%'"></div>
           </div>
           <div class="kpi-interpretation">{{ no2Interpretation() }}</div>
         </div>
-        <div class="kpi-alert" [class.alert-active]="resume()!.no2_moyen > 50">
-          @if (resume()!.no2_moyen > 50) {
+        <div class="kpi-alert" [class.alert-active]="etat('no2') === 'CRITIQUE'">
+          @if (etat('no2') === 'CRITIQUE') {
             <lucide-icon [img]="AlertTriangle" size="14"></lucide-icon>
-            Dépassement détecté
+            Seuil de vigilance dépassé
           } @else {
             <lucide-icon [img]="CheckCircle" size="14"></lucide-icon>
-            Normes respectées
+            Sous le seuil de vigilance
           }
         </div>
       </div>
 
-      <!-- Végétation (NDVI) -->
-      <div class="kpi-card" [style.border-color]="resume()!.ndvi_moyen < 0.30 ? '#EF4444' : resume()!.ndvi_moyen < 0.40 ? '#F59E0B' : '#10B981'">
+      <!-- Végétation (NDVI) · seuil 0,4, critique sous 0,2 -->
+      <div class="kpi-card" [style.border-color]="couleur('ndvi')">
         <div class="kpi-icon" style="background:#F0FDF4; color:#16A34A;">
           <lucide-icon [img]="Leaf" size="18"></lucide-icon>
         </div>
         <div class="kpi-body">
           <div class="kpi-label">Santé de la Végétation</div>
           <div class="flex items-end gap-2">
-            <div class="kpi-value" [style.color]="resume()!.ndvi_moyen < 0.30 ? '#EF4444' : resume()!.ndvi_moyen < 0.40 ? '#F59E0B' : '#10B981'">
-              {{ resume()!.ndvi_moyen < 0.30 ? 'DÉGRADÉE' : resume()!.ndvi_moyen < 0.40 ? 'MOYENNE' : 'BONNE' }}
+            <div class="kpi-value" [style.color]="couleur('ndvi')">
+              {{ etat('ndvi') === 'CRITIQUE' ? 'SOL NU' : etat('ndvi') === 'VIGILANCE' ? 'STRESSÉE' : 'ÉTABLIE' }}
             </div>
             <div style="font-size:12px; color:#71717A; margin-bottom:4px;">Indice: {{ resume()!.ndvi_moyen | number:'1.2-2' }}</div>
           </div>
-          <div class="kpi-unit">Sentinel-2 (NDVI)</div>
+          <div class="kpi-unit">Sentinel-2 (NDVI) · Vigilance sous 0,4, critique sous 0,2</div>
           <div class="kpi-gauge">
-            <div class="kpi-gauge-fill" [style.width]="ndviGaugePct() + '%'" [style.background]="resume()!.ndvi_moyen < 0.30 ? '#EF4444' : resume()!.ndvi_moyen < 0.40 ? '#F59E0B' : '#10B981'"></div>
-            <div class="kpi-gauge-threshold" style="left:50%"></div>
-            <div class="kpi-gauge-threshold" style="left:67%"></div>
+            <div class="kpi-gauge-fill" [style.width]="ndviGaugePct() + '%'" [style.background]="couleur('ndvi')"></div>
+            <div class="kpi-gauge-threshold" [style.left]="repere('ndvi', 'critique') + '%'"></div>
+            <div class="kpi-gauge-threshold" [style.left]="repere('ndvi', 'vigilance') + '%'"></div>
           </div>
           <div class="kpi-interpretation">{{ ndviInterpretation() }}</div>
         </div>
-        <div class="kpi-alert" [class.alert-active]="resume()!.ndvi_moyen < 0.30">
-          @if (resume()!.ndvi_moyen < 0.30) {
+        <div class="kpi-alert" [class.alert-active]="etat('ndvi') === 'CRITIQUE'">
+          @if (etat('ndvi') === 'CRITIQUE') {
             <lucide-icon [img]="AlertTriangle" size="14"></lucide-icon>
-            Forte déforestation/dégradation
+            Couvert quasi nul
           } @else {
             <lucide-icon [img]="CheckCircle" size="14"></lucide-icon>
-            Couvert végétal préservé
+            Couvert végétal présent
           }
         </div>
       </div>
 
-      <!-- Humidité Sols (NDWI) -->
-      <div class="kpi-card" [style.border-color]="resume()!.ndwi_moyen < 0.20 ? '#EF4444' : resume()!.ndwi_moyen < 0.30 ? '#F59E0B' : '#0EA5E9'">
+      <!-- Humidité (NDWI) · seuil 0,3, critique sous 0 -->
+      <div class="kpi-card" [style.border-color]="couleur('ndwi')">
         <div class="kpi-icon" style="background:#E0F2FE; color:#0284C7;">
           <lucide-icon [img]="Droplets" size="18"></lucide-icon>
         </div>
         <div class="kpi-body">
-          <div class="kpi-label">Humidité des Sols</div>
+          <div class="kpi-label">Teneur en Eau du Couvert</div>
           <div class="flex items-end gap-2">
-            <div class="kpi-value" [style.color]="resume()!.ndwi_moyen < 0.20 ? '#EF4444' : resume()!.ndwi_moyen < 0.30 ? '#F59E0B' : '#0EA5E9'">
-              {{ resume()!.ndwi_moyen < 0.20 ? 'SÈCHERESSE' : resume()!.ndwi_moyen < 0.30 ? 'MODÉRÉE' : 'HUMIDE' }}
+            <div class="kpi-value" [style.color]="couleur('ndwi')">
+              {{ etat('ndwi') === 'CRITIQUE' ? 'STRESS' : etat('ndwi') === 'VIGILANCE' ? 'MODÉRÉE' : 'SATISFAISANTE' }}
             </div>
             <div style="font-size:12px; color:#71717A; margin-bottom:4px;">Indice: {{ resume()!.ndwi_moyen | number:'1.2-2' }}</div>
           </div>
-          <div class="kpi-unit">Sentinel-2 (NDWI)</div>
+          <div class="kpi-unit">Sentinel-2 (NDWI) · Vigilance sous 0,3, critique sous 0</div>
           <div class="kpi-gauge">
-            <div class="kpi-gauge-fill" [style.width]="ndwiGaugePct() + '%'" [style.background]="resume()!.ndwi_moyen < 0.20 ? '#EF4444' : resume()!.ndwi_moyen < 0.30 ? '#F59E0B' : '#0EA5E9'"></div>
-            <div class="kpi-gauge-threshold" style="left:40%"></div>
-            <div class="kpi-gauge-threshold" style="left:60%"></div>
+            <div class="kpi-gauge-fill" [style.width]="ndwiGaugePct() + '%'" [style.background]="couleur('ndwi')"></div>
+            <div class="kpi-gauge-threshold" [style.left]="repere('ndwi', 'critique') + '%'"></div>
+            <div class="kpi-gauge-threshold" [style.left]="repere('ndwi', 'vigilance') + '%'"></div>
           </div>
           <div class="kpi-interpretation">{{ ndwiInterpretation() }}</div>
         </div>
-        <div class="kpi-alert" [class.alert-active]="resume()!.ndwi_moyen < 0.20">
-          @if (resume()!.ndwi_moyen < 0.20) {
+        <div class="kpi-alert" [class.alert-active]="etat('ndwi') === 'CRITIQUE'">
+          @if (etat('ndwi') === 'CRITIQUE') {
             <lucide-icon [img]="AlertTriangle" size="14"></lucide-icon>
-            Stress hydrique critique
+            Indice négatif : stress hydrique
           } @else {
             <lucide-icon [img]="CheckCircle" size="14"></lucide-icon>
-            Niveaux d'eau adéquats
+            Teneur en eau satisfaisante
           }
         </div>
       </div>
 
-      <!-- Risque Pluie/Érosion -->
-      <div class="kpi-card" [style.border-color]="resume()!.risque_pluie_max > 7 ? '#EF4444' : resume()!.risque_pluie_max > 5 ? '#F59E0B' : '#10B981'">
+      <!-- Risque Pluie/Relief · seuil 7 sur 10, vigilance dès 4 -->
+      <div class="kpi-card" [style.border-color]="couleur('pluie')">
         <div class="kpi-icon" style="background:#FEF3C7; color:#D97706;">
           <lucide-icon [img]="CloudRain" size="18"></lucide-icon>
         </div>
         <div class="kpi-body">
-          <div class="kpi-label">Risque Pluie / Érosion</div>
+          <div class="kpi-label">Risque Pluie / Relief</div>
           <div class="flex items-end gap-2">
-            <div class="kpi-value" [style.color]="resume()!.risque_pluie_max > 7 ? '#EF4444' : resume()!.risque_pluie_max > 5 ? '#F59E0B' : '#10B981'">
-              {{ resume()!.risque_pluie_max > 7 ? 'ÉLEVÉ' : resume()!.risque_pluie_max > 5 ? 'MODÉRÉ' : 'FAIBLE' }}
+            <div class="kpi-value" [style.color]="couleur('pluie')">
+              {{ etat('pluie') === 'CRITIQUE' ? 'ÉLEVÉ' : etat('pluie') === 'VIGILANCE' ? 'MODÉRÉ' : 'FAIBLE' }}
             </div>
             <div style="font-size:12px; color:#71717A; margin-bottom:4px;">{{ resume()!.risque_pluie_max | number:'1.1-1' }}/10</div>
           </div>
-          <div class="kpi-unit">CHIRPS + Topographie SRTM</div>
+          <div class="kpi-unit">CHIRPS + pente SRTM · Vigilance dès 4, seuil 7</div>
           <div class="kpi-gauge">
-            <div class="kpi-gauge-fill" [style.width]="pluieGaugePct() + '%'" [style.background]="resume()!.risque_pluie_max > 7 ? '#EF4444' : resume()!.risque_pluie_max > 5 ? '#F59E0B' : '#10B981'"></div>
-            <div class="kpi-gauge-threshold" style="left:50%"></div>
-            <div class="kpi-gauge-threshold" style="left:70%"></div>
+            <div class="kpi-gauge-fill" [style.width]="pluieGaugePct() + '%'" [style.background]="couleur('pluie')"></div>
+            <div class="kpi-gauge-threshold" [style.left]="repere('pluie', 'vigilance') + '%'"></div>
+            <div class="kpi-gauge-threshold" [style.left]="repere('pluie', 'critique') + '%'"></div>
           </div>
           <div class="kpi-interpretation">{{ pluieInterpretation() }}</div>
         </div>
-        <div class="kpi-alert" [class.alert-active]="resume()!.risque_pluie_max > 7">
-          @if (resume()!.risque_pluie_max > 7) {
+        <div class="kpi-alert" [class.alert-active]="etat('pluie') === 'CRITIQUE'">
+          @if (etat('pluie') === 'CRITIQUE') {
             <lucide-icon [img]="AlertTriangle" size="14"></lucide-icon>
-            Risque d'érosion élevé
+            Risque de flaques persistantes
           } @else {
             <lucide-icon [img]="CheckCircle" size="14"></lucide-icon>
-            Risque acceptable
+            Risque maîtrisé
           }
         </div>
       </div>

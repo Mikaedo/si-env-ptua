@@ -221,15 +221,22 @@ class _MapScreenState extends State<MapScreen> {
                   // re-instancier le layer et vider son cache de tiles,
                   // sans quoi le switch Plan/Satellite ne rechargeait rien.
                   key: ValueKey(_satelliteMode),
-                  // Fond de plan OpenStreetMap : libre d'acces et sans
-                  // cle. Le fond sombre de CARTO en reclame une desormais
-                  // et affichait, faute de cle, un filigrane « API KEY
-                  // REQUIRED » en travers de la carte.
+                  // Les deux fonds viennent d'ArcGIS Online, libre
+                  // d'acces et sans cle.
+                  //
+                  // Le mode Plan tirait ses tuiles d'OpenStreetMap, qui
+                  // exige desormais un User-Agent de navigateur et
+                  // renvoie une image vide de cent trois octets a une
+                  // application mobile : la carte restait blanche. Le
+                  // fond sombre de CARTO, essaye avant, reclame une cle
+                  // et affichait un filigrane « API KEY REQUIRED » en
+                  // travers de la carte.
                   urlTemplate: _satelliteMode
-                      ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-                      : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  subdomains: const ['a'],
-                  userAgentPackageName: 'ci.ageroute.sienv',
+                      ? 'https://server.arcgisonline.com/ArcGIS/rest/'
+                        'services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+                      : 'https://server.arcgisonline.com/ArcGIS/rest/'
+                        'services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+                  userAgentPackageName: 'ci.ageroute.si_env',
                 ),
                 PolygonLayer(polygons: _filteredZones),
                 MarkerLayer(markers: _filteredMarkers),

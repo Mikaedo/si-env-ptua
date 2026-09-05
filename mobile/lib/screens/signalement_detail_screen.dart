@@ -21,10 +21,44 @@ class _SignalementDetailScreenState extends State<SignalementDetailScreen> {
   bool _showRetour = false;
   bool _isExpert = false;
 
+  // La photographie du constat. L'ecran affichait « Aucune photo » en
+  // dur, sans jamais interroger le serveur : l'agent ne pouvait pas
+  // revoir ce qu'il avait photographie, alors que le tableau de bord
+  // l'affichait au bureau.
+  List<String> _photos = [];
+  bool _photosEnCours = true;
+
   @override
   void initState() {
     super.initState();
     _isExpert = ApiService().role == 'EXPERT_HSE';
+    _chargerPhotos();
+  }
+
+  Future<void> _chargerPhotos() async {
+    final id = widget.signalement.id;
+    if (id == null) {
+      // Un signalement encore en file d'attente n'a pas d'identifiant
+      // serveur : sa photographie n'est donc pas encore televersee.
+      if (mounted) setState(() => _photosEnCours = false);
+      return;
+    }
+    try {
+      final liste = await ApiService().getPhotos(id);
+      if (!mounted) return;
+      setState(() {
+        _photos = liste
+            .map((p) => (p['chemin'] ?? '').toString())
+            .where((c) => c.isNotEmpty)
+            .toList();
+        _photosEnCours = false;
+      });
+    } catch (_) {
+      // Hors ligne ou serveur injoignable : on retombe sur le cadre
+      // d'attente, sans message d'erreur. L'agent consulte souvent ses
+      // constats sans reseau.
+      if (mounted) setState(() => _photosEnCours = false);
+    }
   }
 
   @override
@@ -65,19 +99,7 @@ class _SignalementDetailScreenState extends State<SignalementDetailScreen> {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(children: [
-                // Photo placeholder
-                Container(
-                  height: 180,
-                  decoration: BoxDecoration(
-                    color: kGray100,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(_iconForType(s.typeNuisance), size: 48, color: critColor.withOpacity(0.5)),
-                    const SizedBox(height: 8),
-                    Text('Aucune photo', style: TextStyle(fontSize: 12, color: kGray400)),
-                  ])),
-                ),
+                _buildPhoto(s, critColor),
                 const SizedBox(height: 16),
                 // Type + criticité badge
                 Row(children: [
@@ -237,6 +259,91 @@ class _SignalementDetailScreenState extends State<SignalementDetailScreen> {
             ],
           ]),
         ),
+    );
+  }
+
+  /// La photographie du constat, ou le cadre qui dit son absence.
+  ///
+  /// Trois etats : le chargement, la photographie, et le cadre vide.
+  /// Ce dernier reste utile : toutes les nuisances ne se photographient
+  /// pas, et un signalement encore en file d'attente n'a pas encore
+  /// televerse la sienne.
+  Widget _buildPhoto(Signalement s, Color critColor) {
+    if (_photosEnCours) {
+      return Container(
+        height: 180,
+        decoration: BoxDecoration(
+          color: kGray100,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 22, height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2.5, color: kBlue),
+          ),
+        ),
+      );
+    }
+
+    if (_photos.isEmpty) {
+      return Container(
+        height: 180,
+        decoration: BoxDecoration(
+          color: kGray100,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Center(
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(_iconForType(s.typeNuisance), size: 48,
+                color: critColor.withValues(alpha: 0.5)),
+            const SizedBox(height: 8),
+            const Text('Aucune photo',
+                style: TextStyle(fontSize: 12, color: kGray400)),
+          ]),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox(
+        height: 180,
+        width: double.infinity,
+        child: Image.network(
+          _photos.first,
+          fit: BoxFit.cover,
+          loadingBuilder: (contexte, enfant, progression) {
+            if (progression == null) return enfant;
+            return Container(
+              color: kGray100,
+              child: const Center(
+                child: SizedBox(
+                  width: 22, height: 22,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2.5, color: kBlue),
+                ),
+              ),
+            );
+          },
+          // Une photographie qui ne se charge pas ne doit pas casser
+          // l'ecran : l'agent consulte souvent ses constats sans reseau.
+          errorBuilder: (contexte, erreur, trace) => Container(
+            color: kGray100,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.image_not_supported_outlined,
+                      size: 40, color: kGray400),
+                  const SizedBox(height: 8),
+                  const Text('Photo indisponible hors ligne',
+                      style: TextStyle(fontSize: 12, color: kGray400)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 

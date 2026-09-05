@@ -16,6 +16,12 @@ import {
 import * as L from 'leaflet';
 
 import { environment } from '../../../environments/environment';
+import {
+  SEUILS, couleurIndice, etatIndice, jaugeIndice,
+} from '../../core/seuils-satellite';
+import {
+  ATTRIBUTION_CARTE, FOND_PLAN, FOND_SATELLITE, ZOOM_MAX,
+} from '../../core/fonds-carte';
 const API = environment.apiUrl;
 
 // ─── Types ───────────────────────────────────────────────
@@ -213,14 +219,14 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
       center: [5.35, -4.02], zoom: 11,
       zoomControl: true, attributionControl: false
     });
-    // Meme fond que la carte des signalements : OpenStreetMap, libre et
-    // sans cle. Le fond sombre de CARTO en reclame une desormais, et la
-    // carte restait grise, sans repere geographique.
-    this.planLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19, attribution: '© OpenStreetMap'
+    // Les deux fonds viennent de core/fonds-carte.ts, comme la carte
+    // des signalements : le plan tirait ses tuiles d'OpenStreetMap, qui
+    // ne sert plus les sites tiers et renvoyait une image vide.
+    this.planLayer = L.tileLayer(FOND_PLAN, {
+      maxZoom: ZOOM_MAX, attribution: ATTRIBUTION_CARTE
     }).addTo(this.map);
-    this.satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19
+    this.satLayer = L.tileLayer(FOND_SATELLITE, {
+      maxZoom: ZOOM_MAX, attribution: ATTRIBUTION_CARTE
     });
     this.ajouterZonesPtua();
     this.addSatOverlays();
@@ -283,7 +289,7 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
   private addSatOverlays() {
     for (const c of this.CHANTIERS_GEO) {
       // Cercle NO2 : rouge si > seuil
-      const no2Color = c.no2 > 50 ? '#C62828' : c.no2 > 30 ? '#F37021' : '#16A34A';
+      const no2Color = couleurIndice(c.no2, SEUILS.no2);
       const radius = 800 + c.no2 * 20;
 
       L.circle([c.lat, c.lng], {
@@ -301,11 +307,11 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
           </div>
           <div style="display:flex;justify-content:space-between;margin-bottom:4px">
             <span style="font-size:11px;color:#A1A1AA">NDVI (Sentinel-2)</span>
-            <span style="font-size:12px;font-weight:700;color:#16A34A">${c.ndvi.toFixed(3)}</span>
+            <span style="font-size:12px;font-weight:700;color:${couleurIndice(c.ndvi, SEUILS.ndvi)}">${c.ndvi.toFixed(3)}</span>
           </div>
           <div style="display:flex;justify-content:space-between">
             <span style="font-size:11px;color:#A1A1AA">Risque pluie</span>
-            <span style="font-size:12px;font-weight:700;color:#F37021">${c.risque}/10</span>
+            <span style="font-size:12px;font-weight:700;color:${couleurIndice(c.risque, SEUILS.pluie)}">${c.risque}/10</span>
           </div>
         </div>
       `);
@@ -322,48 +328,105 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy() { if (this.map) this.map.remove(); }
 
-  // ── Gauge percentage for KPI cards ──
-  no2GaugePct(): number {
-    const v = this.resume()?.no2_moyen ?? 0;
-    return Math.min(100, (v / 80) * 100);
-  }
-  ndviGaugePct(): number {
-    const v = this.resume()?.ndvi_moyen ?? 0;
-    return Math.min(100, (v / 0.6) * 100);
-  }
-  ndwiGaugePct(): number {
-    const v = this.resume()?.ndwi_moyen ?? 0;
-    return Math.min(100, (v / 0.5) * 100);
-  }
-  pluieGaugePct(): number {
-    const v = this.resume()?.risque_pluie_max ?? 0;
-    return Math.min(100, (v / 10) * 100);
+  // ── Les seuils, tels que le tableau 5.6 du memoire les fixe ──
+  //
+  // Ils vivent dans core/seuils-satellite.ts, non ici : ils etaient
+  // recopies a treize endroits entre cette classe et son gabarit, et
+  // deux avaient deja diverge du memoire. Les exposer ainsi laisse le
+  // gabarit s'y referer sans les redire.
+  readonly seuilsIndices = SEUILS;
+  readonly couleurDe = couleurIndice;
+  readonly etatDe = etatIndice;
+
+  private valeur(indice: 'no2' | 'ndvi' | 'ndwi' | 'pluie'): number {
+    const r = this.resume();
+    if (!r) return 0;
+    if (indice === 'no2') return r.no2_moyen ?? 0;
+    if (indice === 'ndvi') return r.ndvi_moyen ?? 0;
+    if (indice === 'ndwi') return r.ndwi_moyen ?? 0;
+    return r.risque_pluie_max ?? 0;
   }
 
+  /** L'etat d'un indice : BON, VIGILANCE ou CRITIQUE. */
+  etat(indice: 'no2' | 'ndvi' | 'ndwi' | 'pluie') {
+    return etatIndice(this.valeur(indice), SEUILS[indice]);
+  }
+
+  /** La couleur d'un indice, pour sa jauge et son chiffre. */
+  couleur(indice: 'no2' | 'ndvi' | 'ndwi' | 'pluie'): string {
+    return couleurIndice(this.valeur(indice), SEUILS[indice]);
+  }
+
+  /** Le remplissage de la jauge d'un indice, en pourcentage. */
+  jauge(indice: 'no2' | 'ndvi' | 'ndwi' | 'pluie'): number {
+    return jaugeIndice(this.valeur(indice), SEUILS[indice]);
+  }
+
+  /**
+   * La position d'un repere de seuil sur la jauge, en pourcentage.
+   *
+   * Les traits etaient poses a des pourcentages en dur, qui ne
+   * correspondaient a aucun seuil : le NDVI marquait 50 % et 67 %
+   * quand ses seuils tombent a 33 % et 67 % de son echelle. Le repere
+   * se calcule donc, et suit le seuil si celui-ci change.
+   */
+  repere(indice: 'no2' | 'ndvi' | 'ndwi' | 'pluie',
+         lequel: 'vigilance' | 'critique'): number {
+    return jaugeIndice(SEUILS[indice][lequel], SEUILS[indice]);
+  }
+
+  // ── Gauge percentage for KPI cards ──
+  no2GaugePct(): number { return this.jauge('no2'); }
+  ndviGaugePct(): number { return this.jauge('ndvi'); }
+  ndwiGaugePct(): number { return this.jauge('ndwi'); }
+  pluieGaugePct(): number { return this.jauge('pluie'); }
+
   // ── Interpretation text ──
+  //
+  // Le NO2 ne dit pas « conforme aux normes » quand il est bas : le
+  // memoire est explicite, ce sont des seuils de vigilance pour
+  // hierarchiser les visites de terrain, non des seuils de conformite,
+  // Sentinel-5P mesurant une colonne tropospherique quand les valeurs
+  // sanitaires portent sur une concentration respiree.
   no2Interpretation(): string {
-    const v = this.resume()?.no2_moyen ?? 0;
-    if (v > 50) return `Pollution critique. Mesures d'atténuation requises immédiatement.`;
-    if (v > 30) return `Pollution modérée. Surveillance renforcée recommandée.`;
-    return `Qualité de l'air conforme aux normes.`;
+    const etat = this.etat('no2');
+    if (etat === 'CRITIQUE') {
+      return `Concentration élevée. Visite de terrain à programmer en priorité.`;
+    }
+    if (etat === 'VIGILANCE') {
+      return `Concentration modérée. Surveillance renforcée recommandée.`;
+    }
+    return `Concentration faible sur la période. Pas de priorité de visite.`;
   }
   ndviInterpretation(): string {
-    const v = this.resume()?.ndvi_moyen ?? 0;
-    if (v < 0.30) return 'Dégradation végétale sévère. Plan de reboisement nécessaire.';
-    if (v < 0.40) return 'Végétation stressée. Suivi phytosanitaire conseillé.';
-    return 'Couvert végétal sain et préservé.';
+    const etat = this.etat('ndvi');
+    if (etat === 'CRITIQUE') {
+      return 'Couvert quasi nul, proche du sol nu. Plan de reboisement à étudier.';
+    }
+    if (etat === 'VIGILANCE') {
+      return 'Végétation stressée. Suivi phytosanitaire conseillé.';
+    }
+    return 'Couvert végétal établi.';
   }
   ndwiInterpretation(): string {
-    const v = this.resume()?.ndwi_moyen ?? 0;
-    if (v < 0.20) return `Stress hydrique critique. Risque pour les écosystèmes.`;
-    if (v < 0.30) return `Humidité modérée. Surveillance des points d'eau.`;
-    return `Ressources en eau suffisantes.`;
+    const etat = this.etat('ndwi');
+    if (etat === 'CRITIQUE') {
+      return `Indice négatif : stress hydrique marqué du couvert végétal.`;
+    }
+    if (etat === 'VIGILANCE') {
+      return `Humidité modérée. Surveillance des points d'eau.`;
+    }
+    return `Teneur en eau du couvert satisfaisante.`;
   }
   pluieInterpretation(): string {
-    const v = this.resume()?.risque_pluie_max ?? 0;
-    if (v > 7) return `Risque d'érosion élevé. Ouvrages de protection nécessaires.`;
-    if (v > 5) return `Risque modéré. Surveillance pendant la saison des pluies.`;
-    return `Risque d'érosion faible et maîtrisé.`;
+    const etat = this.etat('pluie');
+    if (etat === 'CRITIQUE') {
+      return `Risque élevé de flaques persistantes. Contrôle du drainage à prévoir.`;
+    }
+    if (etat === 'VIGILANCE') {
+      return `Risque modéré. Surveillance pendant la saison des pluies.`;
+    }
+    return `Risque faible sur la période.`;
   }
 
   // ── Helpers UI ──

@@ -9,6 +9,7 @@ import '../blocs/sync/sync_bloc.dart';
 import '../core/constants.dart';
 import '../models/models.dart';
 import '../services/local_database.dart';
+import '../services/coordonnees_saisies.dart';
 import '../services/gps_service.dart';
 import '../services/api_service.dart';
 import '../services/ia_service.dart';
@@ -69,7 +70,7 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
       setState(() {
         _latitude = pos.latitude;
         _longitude = pos.longitude;
-        _gpsController.text = '${pos.latitude.toStringAsFixed(5)} N, ${pos.longitude.toStringAsFixed(5)} W';
+        _gpsController.text = formaterPosition(pos.latitude, pos.longitude);
       });
     } else {
       setState(() {
@@ -321,14 +322,71 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(_gpsAuto ? 'GPS automatique' : 'Saisie manuelle', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kGray800)),
             const SizedBox(height: 2),
-            Text(_gpsController.text.isEmpty ? 'Acquisition en cours...' : _gpsController.text,
-              style: const TextStyle(fontSize: 11, color: kGray600), maxLines: 1, overflow: TextOverflow.ellipsis),
+            // L'etat suit la frappe : sans ce ValueListenableBuilder, la
+            // ligne resterait figee pendant que l'agent saisit, et
+            // « Acquisition en cours » s'afficherait en mode manuel, ou
+            // rien n'est en cours d'acquisition.
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _gpsController,
+              builder: (context, valeur, _) {
+                final saisie = valeur.text.trim();
+                final String etat;
+                if (saisie.isNotEmpty) {
+                  final lues = _gpsAuto ? null : lireCoordonnees(saisie);
+                  etat = (!_gpsAuto && lues == null)
+                      ? 'Coordonnées non reconnues'
+                      : saisie;
+                } else {
+                  etat = _gpsAuto
+                      ? 'Acquisition en cours...'
+                      : 'En attente de saisie';
+                }
+                return Text(etat,
+                  style: const TextStyle(fontSize: 11, color: kGray600),
+                  maxLines: 1, overflow: TextOverflow.ellipsis);
+              },
+            ),
           ])),
-          Switch(value: _gpsAuto, activeThumbColor: kBlue, onChanged: (v) => setState(() { _gpsAuto = v; _gpsSource = v ? 'AUTO' : 'MANUEL'; })),
+          Switch(
+            value: _gpsAuto,
+            activeThumbColor: kBlue,
+            onChanged: (v) => setState(() {
+              _gpsAuto = v;
+              _gpsSource = v ? 'AUTO' : 'MANUEL';
+              if (v) {
+                // Retour a l'automatique : on redemande la position au
+                // capteur, plutot que de garder ce que l'agent avait tape.
+                _gpsController.clear();
+                _getGps();
+              } else {
+                // Passage en manuel : on vide le releve du capteur, sans
+                // quoi l'agent croirait avoir saisi une position alors
+                // qu'il conserverait celle qu'il vient d'ecarter.
+                _gpsController.clear();
+                _latitude = null;
+                _longitude = null;
+              }
+            }),
+          ),
         ]),
         if (!_gpsAuto) ...[
           const SizedBox(height: 10),
-          TextField(controller: _gpsController, decoration: const InputDecoration(hintText: 'Ex : 5.36000 N, -4.01000 W', isDense: true)),
+          TextField(
+            controller: _gpsController,
+            keyboardType: TextInputType.text,
+            decoration: const InputDecoration(
+              hintText: 'Ex : 5.36000 N, 4.01000 W',
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 6),
+          // Dire d'ou viennent ces chiffres : l'agent ne les invente pas,
+          // il les recopie. Sans cette ligne, le champ demande une
+          // information qu'on ne sait pas ou chercher.
+          const Text(
+            'Coordonnées de référence du chantier, remises avant la mission.',
+            style: TextStyle(fontSize: 11, color: kGray600),
+          ),
         ],
       ]),
     );
@@ -453,10 +511,46 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
       child: BlocConsumer<SignalementBloc, SignalementState>(
         listener: (context, state) {
           if (state is SignalementCreated) {
-            if (_photo != null && state.signalement.id != null) {
-              ApiService().uploadPhoto(state.signalement.id!, _photo!.path).catchError((_) => <String, dynamic>{});
+            // En ligne, la photographie part tout de suite : l'agent
+            // voit son constat complet sans attendre la veille.
+            //
+            // Elle reste inscrite dans la file locale jusqu'a ce que
+            // l'envoi reussisse, et c'est `oublierPhoto` qui l'en
+            // retire. Un echec ici n'est donc plus une perte : la
+            // synchronisation la reprendra. C'est ce qui manquait, et
+            // qui faisait disparaitre en silence la photographie d'un
+            // signalement saisi sans reseau.
+            final uuid = state.signalement.uuidMobile;
+            final identifiant = state.signalement.id;
+            if (_photo != null && identifiant != null) {
+              ApiService()
+                  .uploadPhoto(identifiant, _photo!.path)
+                  .then((_) => LocalDatabase().oublierPhoto(uuid))
+                  .catchError((_) => <String, dynamic>{});
             }
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ConfirmationScreen(signalement: state.signalement)));
+          }
+
+          // Hors ligne, la creation cote serveur echoue : c'est le cas
+          // normal sur un chantier sans couverture, pas une anomalie. Le
+          // signalement est deja dans la file locale, il partira au
+          // retour du reseau.
+          //
+          // Sans ce cas, l'agent restait sur le bouton, sans
+          // confirmation ni message : il ne pouvait pas savoir que sa
+          // saisie etait bien enregistree.
+          if (state is SignalementError) {
+            context.read<SyncBloc>().add(CheckPendingCount());
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Signalement enregistré sur le téléphone. Il sera '
+                  'transmis au retour du réseau.',
+                ),
+                duration: Duration(seconds: 4),
+              ),
+            );
+            Navigator.pop(context);
           }
         },
         builder: (context, state) {
@@ -467,6 +561,35 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
             height: 52,
             child: ElevatedButton(
               onPressed: () async {
+                // En saisie manuelle, la position vient du champ : c'est
+                // l'agent qui recopie les coordonnees de reference du
+                // chantier. Sans lecture possible, on refuse plutot que
+                // de poser un point faux sur la carte du specialiste, qui
+                // n'aurait aucun moyen de s'apercevoir de l'erreur.
+                double latitude;
+                double longitude;
+                if (_gpsAuto) {
+                  latitude = _latitude ?? 5.36;
+                  longitude = _longitude ?? -4.01;
+                } else {
+                  final lues = lireCoordonnees(_gpsController.text);
+                  if (lues == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Coordonnées illisibles. Recopiez-les depuis la '
+                          'fiche du chantier, par exemple : '
+                          '5.36000 N, 4.01000 W',
+                        ),
+                        duration: Duration(seconds: 5),
+                      ),
+                    );
+                    return;
+                  }
+                  latitude = lues.latitude;
+                  longitude = lues.longitude;
+                }
+
                 final uuid = const Uuid().v4();
                 final chantierId = kChantiers.indexOf(_selectedChantier) + 1;
                 final s = Signalement(
@@ -478,10 +601,15 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
                   criticiteIa: _hasIa && _iaResult != null ? _iaResult!.criticite : null,
                   confianceIa: _hasIa && _iaResult != null ? _iaResult!.confiance : null,
                   gpsSource: _gpsSource,
-                  latitude: _latitude ?? 5.36,
-                  longitude: _longitude ?? -4.01,
+                  latitude: latitude,
+                  longitude: longitude,
                 );
-                await LocalDatabase().insertSignalement(s);
+                // Le chemin de la photographie est conserve avec le
+                // signalement : hors ligne, l'envoi du fichier exige
+                // l'identifiant que le serveur n'a pas encore attribue,
+                // et c'est la synchronisation qui s'en chargera.
+                await LocalDatabase()
+                    .insertSignalement(s, cheminPhoto: _photo?.path);
                 if (!context.mounted) return;
                 context.read<SignalementBloc>().add(CreateSignalement(s));
                 context.read<SyncBloc>().add(CheckPendingCount());

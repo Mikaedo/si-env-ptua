@@ -4,7 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { ToastService } from '../../core/toast.service';
-import { Signalement } from '../../core/models';
+import { NonConformite, Signalement } from '../../core/models';
 import { environment } from '../../../environments/environment';
 import { LucideAngularModule, ArrowLeft, MapPin, User, Calendar, Clock, CheckCircle, X, AlertTriangle, Building2, AlignLeft, Cpu, Image, Wrench, Info, Navigation, Smartphone } from 'lucide-angular';
 
@@ -52,6 +52,21 @@ export class SignalementDetail implements OnInit {
   actionEcheance = signal('');
   showRejetForm = signal(false);
   rejetMotif = signal('');
+
+  // Non-conformites (BF-09). L'ecart constate lors du controle
+  // contradictoire ne se confond pas avec l'action corrective : l'action
+  // dit ce qu'il faut faire, l'ecart dit ce qui n'est pas conforme. Le
+  // serveur les enregistrait sans qu'aucun ecran ne les demande, et la
+  // table restait vide.
+  nonConformites = signal<NonConformite[]>([]);
+  showEcartForm = signal(false);
+  ecartDescription = signal('');
+  ecartSeverite = signal('MOYENNE');
+
+  /** Les ecarts encore ouverts, ceux qui interdisent la cloture. */
+  get ecartsOuverts(): number {
+    return this.nonConformites().filter(e => !e.resolue).length;
+  }
 
   get canUpdate(): boolean {
     // Le traitement d'un signalement revient au specialiste du suivi et a
@@ -112,6 +127,69 @@ export class SignalementDetail implements OnInit {
       next: (data) => { this.signalement.set(data); this.loading.set(false); },
       error: () => this.loading.set(false)
     });
+    this.chargerEcarts(id);
+  }
+
+  private chargerEcarts(id: number) {
+    this.api.getNonConformitesDuSignalement(id).subscribe({
+      next: (liste) => this.nonConformites.set(liste),
+      error: () => this.nonConformites.set([]),
+    });
+  }
+
+  /** Consigne un ecart releve lors du controle contradictoire. */
+  validerEcart() {
+    const s = this.signalement();
+    if (!s || !this.ecartDescription().trim()) {
+      this.toast.error('Décrivez l\'écart constaté avant de valider.');
+      return;
+    }
+    this.updating.set(true);
+    this.api.ajouterNonConformite(
+      s.id, this.ecartDescription().trim(), this.ecartSeverite()).subscribe({
+      next: () => {
+        this.chargerEcarts(s.id);
+        // Un écart ouvre le traitement côté serveur : l'écran doit
+        // refléter le nouveau statut sans attendre un rechargement.
+        this.api.getSignalement(s.id).subscribe({
+          next: (maj) => this.signalement.set(maj),
+        });
+        this.updating.set(false);
+        this.showEcartForm.set(false);
+        this.ecartDescription.set('');
+        this.ecartSeverite.set('MOYENNE');
+        this.toast.success('Non-conformité consignée.');
+      },
+      error: (err) => {
+        this.updating.set(false);
+        this.toast.error(err?.error?.detail
+          || 'Échec de l\'enregistrement de la non-conformité');
+      }
+    });
+  }
+
+  /** Leve un ecart, la mise en conformite ayant ete constatee. */
+  leverEcart(ecart: NonConformite) {
+    const s = this.signalement();
+    if (!s) return;
+    this.updating.set(true);
+    this.api.resoudreNonConformite(ecart.id).subscribe({
+      next: () => {
+        this.chargerEcarts(s.id);
+        this.updating.set(false);
+        this.toast.success('Écart levé.');
+      },
+      error: (err) => {
+        this.updating.set(false);
+        this.toast.error(err?.error?.detail || 'Échec de la levée de l\'écart');
+      }
+    });
+  }
+
+  couleurSeverite(severite: string): string {
+    if (severite === 'ELEVEE') return '#DC2626';
+    if (severite === 'FAIBLE') return '#71717A';
+    return '#F37021';
   }
 
   updateStatut(statut: string) {

@@ -80,15 +80,17 @@ export class Shell implements OnInit, OnDestroy {
   navItems: NavItem[] = [
     { label: 'Tableau de bord', icon: LayoutDashboard, route: '/dashboard', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE', 'ANDE', 'BAD'] },
     { label: 'Signalements', icon: MapPin, route: '/signalements', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE', 'ANDE', 'BAD'] },
-    // Les alertes s'ouvrent aussi aux deux profils de terrain : une
-    // alerte de seuil designe un chantier ou ils vont se rendre, et le
-    // serveur les leur servait deja (l'endpoint est marque « Tous » au
-    // tableau B.3 du memoire). Seule la barre laterale les en privait,
-    // si bien que le mobile les affichait quand le web les cachait.
+    // Les alertes vont a qui pilote et a qui controle, non a qui
+    // constate : le besoin BF-06 les reserve au Specialiste et a
+    // l'Administrateur, et le tableau 3.2 ne les mentionne que pour le
+    // Specialiste. L'ANDE et la BAD y accedent parce qu'elles verifient
+    // la conformite, mais sans pouvoir accuser reception.
     //
-    // Gerer les alertes reste au Specialiste, comme le prevoit le
-    // besoin BF-06 : les agents les lisent, ils ne les traitent pas.
-    { label: 'Alertes', icon: Bell, route: '/alertes', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE', 'ANDE', 'BAD'] },
+    // Les deux profils de terrain en sont ecartes : une alerte porte
+    // sur du NO2, un NDVI ou un risque calcule sur trente jours, dont
+    // un agent de chantier ne peut rien faire. Il constate ce qu'il
+    // voit, il ne pilote pas des indices.
+    { label: 'Alertes', icon: Bell, route: '/alertes', roles: ['SPEC_ENV', 'SPEC_PAR', 'ADMIN', 'ANDE', 'BAD'] },
     { label: 'Analyse satellitaire', icon: Satellite, route: '/satellite', roles: ['SPEC_ENV', 'ANDE', 'BAD'] },
     { label: 'Rapports de suivi', icon: FileText, route: '/rapports', roles: ['SPEC_ENV', 'ANDE', 'BAD'] },
     { label: 'Plaintes (MGP)', icon: ShieldAlert, route: '/plaintes', roles: ['SPEC_PAR', 'BAD'] },

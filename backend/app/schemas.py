@@ -179,6 +179,28 @@ class ActionCorrectiveOut(BaseModel):
         from_attributes = True
 
 
+# ─── Non-conformites (BF-09) ─────────────────────────────────────────
+# L'ecart constate lors du controle contradictoire. Il se distingue de
+# l'action corrective : celle-ci dit ce qu'il faut faire, la
+# non-conformite dit ce qui n'est pas conforme. Un meme signalement peut
+# porter plusieurs ecarts, chacun avec sa severite propre.
+class NonConformiteCreate(BaseModel):
+    description: str = Field(min_length=5)
+    severite: str = "MOYENNE"
+
+
+class NonConformiteOut(BaseModel):
+    id: int
+    description: str
+    severite: str
+    resolue: bool
+    cree_le: datetime
+    signalement_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
 class SignalementOut(BaseModel):
     id: int
     uuid_mobile: str

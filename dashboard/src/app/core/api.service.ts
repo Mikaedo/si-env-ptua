@@ -79,6 +79,36 @@ export class ApiService {
   }
 
   // Non-conformités
+  // ── Non-conformites (BF-09) ──────────────────────────────────────
+  //
+  // L'ecart constate lors du controle contradictoire. Il se distingue
+  // de l'action corrective : celle-ci dit ce qu'il faut faire, l'ecart
+  // dit ce qui n'est pas conforme, et se leve quand la mise en
+  // conformite est constatee.
+
+  /** Les ecarts consignes sur un signalement. */
+  getNonConformitesDuSignalement(
+      signalementId: number): Observable<NonConformite[]> {
+    return this.http.get<NonConformite[]>(
+      `${API_URL}/signalements/${signalementId}/non-conformites`,
+      { headers: this.headers });
+  }
+
+  /** Consigne un ecart. Reserve a l'Expert HSE et au Specialiste. */
+  ajouterNonConformite(signalementId: number, description: string,
+                       severite: string): Observable<NonConformite> {
+    return this.http.post<NonConformite>(
+      `${API_URL}/signalements/${signalementId}/non-conformites`,
+      { description, severite }, { headers: this.headers });
+  }
+
+  /** Leve un ecart, la mise en conformite ayant ete constatee. */
+  resoudreNonConformite(id: number): Observable<NonConformite> {
+    return this.http.patch<NonConformite>(
+      `${API_URL}/signalements/non-conformites/${id}/resoudre`,
+      {}, { headers: this.headers });
+  }
+
   getNonConformites(): Observable<NonConformite[]> {
     return this.http.get<NonConformite[]>(`${API_URL}/non-conformites`, { headers: this.headers });
   }

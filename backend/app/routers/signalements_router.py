@@ -200,6 +200,20 @@ def changer_statut(signalement_id: int,
                 detail="Enregistrez d'abord l'action corrective menée : "
                        "un signalement ne peut être clôturé sans elle.")
 
+        # Un ecart encore ouvert interdit la cloture, au meme titre que
+        # l'absence d'action corrective. Cloturer un dossier dont une
+        # non-conformite subsiste ferait mentir le rapport transmis au
+        # bailleur : il declarerait resolu ce qui ne l'est pas.
+        ouverts = (db.query(models.NonConformite)
+                   .filter(models.NonConformite.signalement_id == signalement_id)
+                   .filter(models.NonConformite.resolue.is_(False))
+                   .count())
+        if ouverts:
+            raise HTTPException(
+                status_code=409,
+                detail=f"{ouverts} non-conformité(s) encore ouverte(s) : "
+                       f"levez-les avant de clôturer ce signalement.")
+
     s.statut = statut
     db.commit()
     db.refresh(s)
@@ -226,6 +240,113 @@ def ajouter_action(signalement_id: int,
     db.commit()
     db.refresh(action)
     return action
+
+
+# ─── Non-conformites (BF-09) ─────────────────────────────────────────
+#
+# « Suivre les non-conformites » relevait du Specialiste Suivi
+# Environnemental et de l'Expert HSE, mais la table restait vide : aucune
+# route ne permettait d'en inscrire une, alors que le tableau 3.2 du
+# memoire confie precisement a l'Expert HSE le soin de « consigner les
+# non-conformites relevees lors du controle contradictoire ».
+#
+# L'ecart se distingue de l'action corrective. L'action dit ce qu'il faut
+# faire et sous quel delai ; la non-conformite dit ce qui n'est pas
+# conforme, et se resout quand l'ecart est leve. Un meme signalement peut
+# en porter plusieurs, chacune avec sa severite.
+SEVERITES_ADMISES = ("FAIBLE", "MOYENNE", "ELEVEE")
+
+#: Profils habilites a consigner et lever un ecart, par le BF-09.
+ROLES_NON_CONFORMITE = (models.RoleEnum.SPEC_ENV, models.RoleEnum.EXPERT_HSE)
+
+
+@router.get("/{signalement_id}/non-conformites",
+            response_model=list[schemas.NonConformiteOut])
+def lister_non_conformites(
+        signalement_id: int,
+        db: Session = Depends(get_db),
+        courant: models.Utilisateur = Depends(auth.utilisateur_courant)):
+    """Les ecarts constates sur un signalement, du plus recent au plus ancien.
+
+    La lecture est ouverte a tous les profils qui accedent au dossier :
+    l'ANDE et la BAD verifient la conformite, et un ecart consigne est
+    precisement ce qu'elles ont a controler.
+    """
+    if courant.role == models.RoleEnum.PLAIGNANT:
+        raise HTTPException(
+            status_code=403,
+            detail="Consultez vos doléances sur /citoyen/doleances.")
+    if not db.query(models.Signalement).filter(
+            models.Signalement.id == signalement_id).first():
+        raise HTTPException(status_code=404, detail="Signalement introuvable")
+    return (db.query(models.NonConformite)
+            .filter(models.NonConformite.signalement_id == signalement_id)
+            .order_by(models.NonConformite.cree_le.desc())
+            .all())
+
+
+@router.post("/{signalement_id}/non-conformites",
+             response_model=schemas.NonConformiteOut)
+def ajouter_non_conformite(
+        signalement_id: int,
+        data: schemas.NonConformiteCreate,
+        db: Session = Depends(get_db),
+        courant: models.Utilisateur = Depends(auth.utilisateur_courant)):
+    """Consigne un ecart releve lors du controle contradictoire."""
+    if courant.role not in ROLES_NON_CONFORMITE:
+        raise HTTPException(
+            status_code=403,
+            detail="Le constat d'un écart relève de l'Expert HSE ou du "
+                   "Spécialiste Suivi Environnemental.")
+    s = db.query(models.Signalement).filter(
+        models.Signalement.id == signalement_id).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="Signalement introuvable")
+
+    severite = data.severite.upper()
+    if severite not in SEVERITES_ADMISES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Sévérité invalide : « {data.severite} ». "
+                   f"Valeurs admises : {', '.join(SEVERITES_ADMISES)}.")
+
+    ecart = models.NonConformite(
+        description=data.description,
+        severite=severite,
+        signalement_id=signalement_id,
+    )
+    db.add(ecart)
+    # Un ecart constate ouvre le traitement : laisser le signalement au
+    # statut « nouveau » alors qu'un controle a eu lieu ferait mentir le
+    # tableau de bord.
+    if s.statut == models.StatutSignalement.NOUVEAU:
+        s.statut = models.StatutSignalement.EN_TRAITEMENT
+    db.commit()
+    db.refresh(ecart)
+    return ecart
+
+
+@router.patch("/non-conformites/{non_conformite_id}/resoudre",
+              response_model=schemas.NonConformiteOut)
+def resoudre_non_conformite(
+        non_conformite_id: int,
+        db: Session = Depends(get_db),
+        courant: models.Utilisateur = Depends(auth.utilisateur_courant)):
+    """Leve un ecart, une fois la mise en conformite constatee."""
+    if courant.role not in ROLES_NON_CONFORMITE:
+        raise HTTPException(
+            status_code=403,
+            detail="La levée d'un écart relève de l'Expert HSE ou du "
+                   "Spécialiste Suivi Environnemental.")
+    ecart = db.query(models.NonConformite).filter(
+        models.NonConformite.id == non_conformite_id).first()
+    if not ecart:
+        raise HTTPException(status_code=404,
+                            detail="Non-conformité introuvable")
+    ecart.resolue = True
+    db.commit()
+    db.refresh(ecart)
+    return ecart
 
 
 @router.post("/{signalement_id}/retour", response_model=schemas.SignalementOut)

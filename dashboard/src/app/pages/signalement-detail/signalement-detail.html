@@ -175,6 +175,52 @@
     }
 
     <!-- Actions -->
+    <!-- Les non-conformités constatées (BF-09).
+         Visible de tous, y compris de l'ANDE et de la Banque : un écart
+         consigné est précisément ce qu'elles ont à contrôler. -->
+    @if (nonConformites().length > 0) {
+    <div class="card" style="padding:22px 28px;">
+      <div class="section-label">
+        <lucide-icon [img]="AlertTriangle" size="13"></lucide-icon>
+        Non-conformités constatées
+        @if (ecartsOuverts > 0) {
+          <span style="margin-left:8px; font-size:11px; font-weight:700; color:#C62828; background:#FEF2F2; padding:2px 8px; border-radius:99px;">
+            {{ ecartsOuverts }} ouverte{{ ecartsOuverts > 1 ? 's' : '' }}
+          </span>
+        }
+      </div>
+
+      @for (e of nonConformites(); track e.id) {
+        <div style="margin-top:14px; padding:12px 14px; border:1px solid #E4E4E7; border-radius:10px; display:flex; gap:12px; align-items:flex-start;"
+          [style.background]="e.resolue ? '#FAFAFA' : '#FFFBF5'">
+          <div style="width:8px; height:8px; border-radius:50%; margin-top:6px; flex-shrink:0;"
+            [style.background]="e.resolue ? '#A1A1AA' : couleurSeverite(e.severite)"></div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:13px; line-height:1.45;"
+              [style.color]="e.resolue ? '#71717A' : '#18181B'"
+              [style.text-decoration]="e.resolue ? 'line-through' : 'none'">{{ e.description }}</div>
+            <div style="font-size:11px; color:#A1A1AA; margin-top:5px; display:flex; align-items:center; gap:7px;">
+              <span [style.color]="couleurSeverite(e.severite)" style="font-weight:700;">{{ e.severite }}</span>
+              <span>·</span>
+              <span>{{ e.cree_le | date:'dd/MM/yyyy' }}</span>
+              @if (e.resolue) {
+                <span>·</span>
+                <span style="color:#16A34A; font-weight:600;">levée</span>
+              }
+            </div>
+          </div>
+          @if (canUpdate && !e.resolue) {
+            <button (click)="leverEcart(e)" [disabled]="updating()"
+              title="La mise en conformité a été constatée sur le site"
+              class="btn" style="background:#E8F5E9; color:#16A34A; flex-shrink:0; font-size:12px; padding:5px 11px;">
+              Lever l'écart
+            </button>
+          }
+        </div>
+      }
+    </div>
+    }
+
     @if (canUpdate) {
     <div class="card" style="padding:22px 28px;">
       <div class="section-label">
@@ -194,6 +240,29 @@
           <div style="display:flex; gap:8px; margin-top:12px;">
             <button (click)="validerPriseEnCharge()" [disabled]="updating()" class="btn" style="background:#1565C0; color:white;">Valider la prise en charge</button>
             <button (click)="showActionForm.set(false)" class="btn" style="background:#F4F4F5; color:#52525B;">Annuler</button>
+          </div>
+        </div>
+      } @else if (showEcartForm()) {
+        <!-- Non-conformité (BF-09) : l'écart constaté lors du contrôle
+             contradictoire. Il ne se confond pas avec l'action
+             corrective, qui dit ce qu'il faut faire ; celui-ci dit ce
+             qui n'est pas conforme, et se lève une fois la mise en
+             conformité constatée. -->
+        <div style="margin-top:16px; padding:14px; background:#FFFBF5; border:1px solid #F0D8B8; border-radius:10px;">
+          <label style="font-size:12px; font-weight:600; color:#3F3F46;">Écart constaté lors du contrôle contradictoire</label>
+          <textarea [value]="ecartDescription()" (input)="ecartDescription.set($any($event.target).value)"
+            placeholder="Ex. : absence de benne de chantier, stockage de sacs de ciment à l'air libre"
+            style="width:100%; margin-top:6px; padding:8px 10px; border:1px solid #D4D4D8; border-radius:8px; font-size:13px; font-family:inherit; min-height:60px; resize:vertical;"></textarea>
+          <label style="font-size:12px; font-weight:600; color:#3F3F46; margin-top:10px; display:block;">Sévérité</label>
+          <select [value]="ecartSeverite()" (change)="ecartSeverite.set($any($event.target).value)"
+            style="margin-top:6px; padding:8px 10px; border:1px solid #D4D4D8; border-radius:8px; font-size:13px; font-family:inherit;">
+            <option value="FAIBLE">Faible</option>
+            <option value="MOYENNE">Moyenne</option>
+            <option value="ELEVEE">Élevée</option>
+          </select>
+          <div style="display:flex; gap:8px; margin-top:12px;">
+            <button (click)="validerEcart()" [disabled]="updating()" class="btn" style="background:#F37021; color:white;">Consigner l'écart</button>
+            <button (click)="showEcartForm.set(false)" class="btn" style="background:#F4F4F5; color:#52525B;">Annuler</button>
           </div>
         </div>
       } @else if (showRejetForm()) {
@@ -218,16 +287,28 @@
           {{ s.statut === 'EN_TRAITEMENT' ? 'Ajouter une action corrective' : 'Prendre en charge' }}
         </button>
 
-        <!-- La cloture suppose qu'une action corrective ait ete menee :
-             le bouton reste inactif tant qu'aucune n'est enregistree, et
-             dit pourquoi plutot que de laisser l'utilisateur buter sur un
-             refus du serveur. -->
+        <button (click)="showEcartForm.set(true)"
+          [disabled]="updating() || s.statut === 'CLOTURE'"
+          title="Consigner un écart relevé lors du contrôle contradictoire"
+          class="btn" style="background:#FEF3E8; color:#C4660A;"
+          [style.opacity]="updating() || s.statut === 'CLOTURE' ? '0.5' : '1'"
+          onmouseenter="if(!this.disabled) this.style.background='#FDE4CC'" onmouseleave="if(!this.disabled) this.style.background='#FEF3E8'">
+          <lucide-icon [img]="AlertTriangle" size="15"></lucide-icon>
+          Consigner une non-conformité
+        </button>
+
+        <!-- La cloture suppose qu'une action corrective ait ete menee et
+             qu'aucun ecart ne subsiste : le bouton reste inactif tant que
+             l'une des deux conditions manque, et dit laquelle plutot que
+             de laisser l'utilisateur buter sur un refus du serveur.
+             Cloturer avec une non-conformite ouverte ferait mentir le
+             rapport transmis au bailleur. -->
         <button (click)="updateStatut('CLOTURE')"
-          [disabled]="updating() || s.statut === 'CLOTURE' || !aUneActionCorrective"
-          [title]="!aUneActionCorrective ? 'Enregistrez d\'abord l\'action corrective menée' : ''"
+          [disabled]="updating() || s.statut === 'CLOTURE' || !aUneActionCorrective || ecartsOuverts > 0"
+          [title]="ecartsOuverts > 0 ? ecartsOuverts + ' non-conformité(s) encore ouverte(s) : levez-les avant de clôturer' : (!aUneActionCorrective ? 'Enregistrez d\'abord l\'action corrective menée' : '')"
           class="btn" style="background:#E8F5E9; color:#16A34A;"
-          [style.opacity]="updating() || s.statut === 'CLOTURE' || !aUneActionCorrective ? '0.5' : '1'"
-          [style.cursor]="!aUneActionCorrective ? 'not-allowed' : 'pointer'"
+          [style.opacity]="updating() || s.statut === 'CLOTURE' || !aUneActionCorrective || ecartsOuverts > 0 ? '0.5' : '1'"
+          [style.cursor]="!aUneActionCorrective || ecartsOuverts > 0 ? 'not-allowed' : 'pointer'"
           onmouseenter="if(!this.disabled) this.style.background='#C8E6C9'" onmouseleave="if(!this.disabled) this.style.background='#E8F5E9'">
           <lucide-icon [img]="CheckCircle" size="15"></lucide-icon>
           Marquer comme résolu

@@ -86,12 +86,22 @@ export interface Plainte {
   actions?: ActionCorrective[];
 }
 
+/**
+ * L'ecart constate lors du controle contradictoire (BF-09).
+ *
+ * Les noms suivent ceux de la table : l'interface annoncait
+ * `gravite`, `statut` et `created_at` quand le serveur renvoie
+ * `severite`, `resolue` et `cree_le`. Aucun ecran ne s'en servait, si
+ * bien que l'ecart n'avait jamais paru.
+ */
 export interface NonConformite {
   id: number;
   description: string;
-  gravite: string;
-  statut: string;
-  created_at: string;
+  /** FAIBLE, MOYENNE ou ELEVEE. */
+  severite: string;
+  /** true quand la mise en conformite a ete constatee. */
+  resolue: boolean;
+  cree_le: string;
   signalement_id?: number;
 }
 

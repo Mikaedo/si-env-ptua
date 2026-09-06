@@ -80,7 +80,15 @@ export class Shell implements OnInit, OnDestroy {
   navItems: NavItem[] = [
     { label: 'Tableau de bord', icon: LayoutDashboard, route: '/dashboard', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE', 'ANDE', 'BAD'] },
     { label: 'Signalements', icon: MapPin, route: '/signalements', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE', 'ANDE', 'BAD'] },
-    { label: 'Alertes', icon: Bell, route: '/alertes', roles: ['SPEC_ENV', 'SPEC_PAR', 'ANDE', 'BAD'] },
+    // Les alertes s'ouvrent aussi aux deux profils de terrain : une
+    // alerte de seuil designe un chantier ou ils vont se rendre, et le
+    // serveur les leur servait deja (l'endpoint est marque « Tous » au
+    // tableau B.3 du memoire). Seule la barre laterale les en privait,
+    // si bien que le mobile les affichait quand le web les cachait.
+    //
+    // Gerer les alertes reste au Specialiste, comme le prevoit le
+    // besoin BF-06 : les agents les lisent, ils ne les traitent pas.
+    { label: 'Alertes', icon: Bell, route: '/alertes', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE', 'ANDE', 'BAD'] },
     { label: 'Analyse satellitaire', icon: Satellite, route: '/satellite', roles: ['SPEC_ENV', 'ANDE', 'BAD'] },
     { label: 'Rapports de suivi', icon: FileText, route: '/rapports', roles: ['SPEC_ENV', 'ANDE', 'BAD'] },
     { label: 'Plaintes (MGP)', icon: ShieldAlert, route: '/plaintes', roles: ['SPEC_PAR', 'BAD'] },

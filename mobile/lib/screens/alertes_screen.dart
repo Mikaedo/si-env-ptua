@@ -23,6 +23,28 @@ class _AlertesScreenState extends State<AlertesScreen> {
     _loadAlertes();
   }
 
+  /// Le moment d'une alerte, dit comme on le dirait a l'oral.
+  ///
+  /// Une durée relative parle mieux qu'un horodatage pour ce qui vient
+  /// d'arriver, et une date absolue au-delà : « il y a 340 heures » ne
+  /// se lit pas.
+  String _quand(DateTime date) {
+    final ecart = DateTime.now().difference(date);
+    if (ecart.inMinutes < 1) return "À l'instant";
+    if (ecart.inMinutes < 60) return 'Il y a ${ecart.inMinutes} min';
+    if (ecart.inHours < 24) {
+      return 'Il y a ${ecart.inHours} h';
+    }
+    if (ecart.inDays < 7) {
+      return 'Il y a ${ecart.inDays} jour${ecart.inDays > 1 ? "s" : ""}';
+    }
+    const mois = [
+      'janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
+      'août', 'septembre', 'octobre', 'novembre', 'décembre',
+    ];
+    return '${date.day} ${mois[date.month - 1]}';
+  }
+
   Future<void> _loadAlertes() async {
     setState(() { _loading = true; _hasError = false; });
     try {
@@ -99,8 +121,14 @@ class _AlertesScreenState extends State<AlertesScreen> {
                       const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(a.message, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: kGray800)),
-                        const SizedBox(height: 2),
-                        Text('Niveau: ${a.niveau}${a.valeur != null ? " • Valeur: ${a.valeur}" : ""}',
+                        const SizedBox(height: 3),
+                        // La date manquait : une alerte sans moment ne
+                        // se hierarchise pas, et l'agent ne savait pas
+                        // s'il lisait le releve du jour ou du mois
+                        // dernier. Le niveau, lui, se lit deja dans
+                        // l'icone et la couleur : le repeter en texte
+                        // n'ajoutait rien.
+                        Text(_quand(a.creeLe),
                           style: const TextStyle(fontSize: 11, color: kGray600)),
                       ])),
                       if (!a.recue)

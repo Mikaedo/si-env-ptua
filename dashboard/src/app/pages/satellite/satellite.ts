@@ -22,6 +22,7 @@ import {
 import {
   ATTRIBUTION_CARTE, FOND_PLAN, FOND_SATELLITE, ZOOM_MAX,
 } from '../../core/fonds-carte';
+import { MesurePrestataire, ParametreMesure } from '../../core/models';
 const API = environment.apiUrl;
 
 // ─── Types ───────────────────────────────────────────────
@@ -111,7 +112,23 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
   serie = signal<SerieTemporelle | null>(null);
   selectedType = signal<'NO2' | 'NDVI' | 'NDWI' | 'RISQUE_PLUIE'>('NO2');
   selectedChantier = signal<number>(1);
-  activeTab = signal<'carte' | 'serie' | 'indices' | 'parametrage'>('indices');
+  activeTab = signal<'carte' | 'serie' | 'indices' | 'mesures' | 'parametrage'>('indices');
+
+  // Mesures du prestataire agréé (BF-08). Elles vivent ici, aux côtés
+  // des indices qu'elles confirment ou contredisent : le satellite
+  // oriente les priorités de terrain, il ne remplace pas la mesure
+  // instrumentée exigée par la BAD et l'ANDE.
+  mesures = signal<MesurePrestataire[]>([]);
+  parametresMesure = signal<ParametreMesure[]>([]);
+  enregistrementMesure = signal(false);
+  mesureParametre = signal('BRUIT');
+  mesureValeur = signal('');
+  mesureDate = signal('');
+  mesureLabo = signal('');
+  mesureObservations = signal('');
+  mesureChantier = signal('');
+  erreurMesure = signal('');
+  messageMesure = signal('');
 
   // ── Paramétrage, réuni ici plutôt que dans l'espace d'administration ──
   // Le référentiel des chantiers et les seuils de déclenchement conditionnent
@@ -466,7 +483,7 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
     return { NO2:'µmol/m²', NDVI:'indice', NDWI:'indice', RISQUE_PLUIE:'/10' }[t] ?? '';
   }
 
-  setTab(tab: 'carte' | 'serie' | 'indices' | 'parametrage') {
+  setTab(tab: 'carte' | 'serie' | 'indices' | 'mesures' | 'parametrage') {
     this.activeTab.set(tab);
     if (tab === 'carte') {
       setTimeout(() => {
@@ -475,6 +492,131 @@ export class Satellite implements OnInit, AfterViewInit, OnDestroy {
       }, 100);
     }
     if (tab === 'parametrage') this.chargerParametrage();
+    if (tab === 'mesures') this.chargerMesures();
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  Mesures du prestataire agréé (BF-08)
+  //
+  //  L'observation de terrain et le relevé satellitaire ne valent pas
+  //  mesure : le mémoire le dit du second, qui « oriente les priorités
+  //  de terrain, il ne remplace pas la mesure instrumentée exigée par la
+  //  BAD et l'ANDE ». Ces résultats de laboratoire sont ce que le
+  //  bailleur reconnaît, et ils restaient hors du dispositif.
+  // ══════════════════════════════════════════════════════════════════
+
+  /** Le BF-08 réserve la saisie au Spécialiste et à l'Administrateur. */
+  peutSaisirMesure(): boolean {
+    const role = this.auth.user()?.role;
+    return role === 'SPEC_ENV' || role === 'ADMIN';
+  }
+
+  private chargerMesures() {
+    this.http.get<MesurePrestataire[]>(`${API}/mesures`,
+        { headers: this.entetes }).subscribe({
+      next: (liste) => this.mesures.set(liste),
+      error: () => this.mesures.set([]),
+    });
+    if (this.parametresMesure().length === 0) {
+      this.http.get<ParametreMesure[]>(`${API}/mesures/parametres`,
+          { headers: this.entetes }).subscribe({
+        next: (liste) => this.parametresMesure.set(liste),
+        error: () => this.parametresMesure.set([]),
+      });
+    }
+    // Le formulaire s'ouvre sur aujourd'hui et le premier chantier :
+    // deux champs de moins à remplir pour la saisie la plus courante.
+    if (!this.mesureDate()) {
+      this.mesureDate.set(new Date().toISOString().slice(0, 10));
+    }
+    if (!this.mesureChantier() && this.chantiers().length > 0) {
+      this.mesureChantier.set(String(this.chantiers()[0].id));
+    }
+  }
+
+  /** La référence du paramètre en cours de saisie. */
+  limiteCourante(): ParametreMesure | null {
+    return this.parametresMesure()
+      .find(p => p.code === this.mesureParametre()) ?? null;
+  }
+
+  uniteCourante(): string {
+    return this.limiteCourante()?.unite ?? '';
+  }
+
+  libelleParametre(code: string): string {
+    return this.parametresMesure().find(p => p.code === code)?.libelle
+      ?? code;
+  }
+
+  couleurEtatMesure(etat?: string): string {
+    if (etat === 'DEPASSEMENT') return '#C62828';
+    if (etat === 'VIGILANCE') return '#F37021';
+    return '#16A34A';
+  }
+
+  fondEtatMesure(etat?: string): string {
+    if (etat === 'DEPASSEMENT') return '#FEF2F2';
+    if (etat === 'VIGILANCE') return '#FFF7ED';
+    return '#F0FDF4';
+  }
+
+  enregistrerMesure() {
+    const valeur = parseFloat(this.mesureValeur());
+    if (isNaN(valeur)) {
+      this.erreurMesure.set('Saisissez la valeur mesurée.');
+      return;
+    }
+    if (!this.mesureLabo().trim()) {
+      this.erreurMesure.set('Indiquez le laboratoire agréé : une mesure '
+        + 'sans auteur ne vaut rien devant un bailleur.');
+      return;
+    }
+    if (!this.mesureDate() || !this.mesureChantier()) {
+      this.erreurMesure.set('La date de prélèvement et le chantier sont '
+        + 'requis.');
+      return;
+    }
+
+    this.enregistrementMesure.set(true);
+    this.http.post<MesurePrestataire>(`${API}/mesures`, {
+      parametre: this.mesureParametre(),
+      valeur,
+      // Le serveur attend un horodatage ; midi évite qu'un décalage de
+      // fuseau ne fasse basculer la date au jour précédent.
+      date_prelevement: `${this.mesureDate()}T12:00:00`,
+      laboratoire: this.mesureLabo().trim(),
+      observations: this.mesureObservations().trim() || undefined,
+      chantier_id: +this.mesureChantier(),
+    }, { headers: this.entetes }).subscribe({
+      next: (mesure) => {
+        this.chargerMesures();
+        this.enregistrementMesure.set(false);
+        this.mesureValeur.set('');
+        this.mesureObservations.set('');
+        this.erreurMesure.set('');
+        this.messageMesure.set(mesure.etat === 'DEPASSEMENT'
+          ? 'Mesure enregistrée. Dépassement de la valeur limite.'
+          : 'Mesure enregistrée.');
+      },
+      error: (err) => {
+        this.enregistrementMesure.set(false);
+        this.erreurMesure.set(err?.error?.detail
+          || "Échec de l'enregistrement de la mesure");
+      },
+    });
+  }
+
+  retirerMesure(mesure: MesurePrestataire) {
+    this.http.delete(`${API}/mesures/${mesure.id}`,
+        { headers: this.entetes }).subscribe({
+      next: () => {
+        this.chargerMesures();
+        this.messageMesure.set('Mesure retirée du dossier.');
+      },
+      error: (err) => this.erreurMesure.set(
+        err?.error?.detail || 'Échec du retrait de la mesure'),
+    });
   }
 
   // ══════════════════════════════════════════════════════════════════

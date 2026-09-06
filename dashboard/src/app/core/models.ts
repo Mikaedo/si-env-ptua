@@ -87,6 +87,44 @@ export interface Plainte {
 }
 
 /**
+ * Une grandeur mesurable par un laboratoire agree (BF-08).
+ *
+ * La valeur limite vient d'un texte : arrete MINEEF pour le bruit,
+ * lignes directrices de l'OMS pour les particules. C'est ce qui la
+ * distingue des seuils des indices satellitaires, que le memoire
+ * qualifie de seuils de vigilance et non de conformite.
+ */
+export interface ParametreMesure {
+  code: string;
+  libelle: string;
+  unite: string;
+  /** Au-dela, la mesure est non conforme. */
+  limite: number;
+  /** L'approche du seuil, qui appelle un controle rapproche. */
+  vigilance: number;
+  /** Le texte d'ou vient la limite. */
+  source: string;
+}
+
+/** Une mesure instrumentee versee au dossier (BF-08). */
+export interface MesurePrestataire {
+  id: number;
+  parametre: string;
+  valeur: number;
+  unite: string;
+  date_prelevement: string;
+  laboratoire: string;
+  observations?: string;
+  cree_le: string;
+  chantier_id: number;
+  chantier_nom?: string;
+  /** CONFORME, VIGILANCE ou DEPASSEMENT. */
+  etat?: string;
+  limite?: number;
+  source_limite?: string;
+}
+
+/**
  * L'ecart constate lors du controle contradictoire (BF-09).
  *
  * Les noms suivent ceux de la table : l'interface annoncait

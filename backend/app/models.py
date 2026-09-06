@@ -243,6 +243,52 @@ class AlerteSeuil(Base):
     chantier = relationship("Chantier")
 
 
+class MesurePrestataire(Base):
+    """Mesure instrumentee realisee par un laboratoire agree (BF-08).
+
+    Le systeme reposait jusqu'ici sur l'observation, celle de l'agent sur
+    le terrain et celle du satellite. Aucune des deux ne vaut mesure : le
+    memoire le dit du volet satellitaire, qui « oriente les priorites de
+    terrain, il ne remplace pas la mesure instrumentee exigee par la BAD
+    et l'ANDE ». Le bruit s'evalue a l'oreille faute de sonometre, et les
+    poussieres ne se mesurent pas du tout.
+
+    Ces mesures existent pourtant : un laboratoire accredite intervient
+    sur les chantiers, et ses resultats sont ce que le bailleur reconnait
+    officiellement. Ils vivaient sur papier, hors du dispositif, et le
+    rapport de suivi ne pouvait donc pas les porter.
+
+    La table les accueille avec ce qui les rend opposables : la grandeur
+    mesuree, sa valeur, la date du prelevement et le laboratoire qui l'a
+    signee. Sans ces deux derniers, une mesure n'est qu'un nombre.
+    """
+    __tablename__ = "mesures_prestataire"
+
+    id = Column(Integer, primary_key=True, index=True)
+    #: BRUIT, PM25, PM10 ou TURBIDITE.
+    parametre = Column(String(20), nullable=False)
+    valeur = Column(Float, nullable=False)
+    #: dB(A), µg/m³ ou NTU, selon le parametre.
+    unite = Column(String(16), nullable=False)
+    #: Quand le prelevement a ete fait, non quand il a ete saisi : c'est
+    #: la date du terrain qui compte pour le rapport.
+    date_prelevement = Column(DateTime, nullable=False)
+    #: Le laboratoire agree qui signe la mesure. Une mesure sans auteur
+    #: ne vaut rien devant un bailleur.
+    laboratoire = Column(String(160), nullable=False)
+    #: Point de mesure, methode, conditions : ce qu'un rapport de
+    #: laboratoire precise et qu'un nombre seul ne dit pas.
+    observations = Column(Text, nullable=True)
+    cree_le = Column(DateTime, default=datetime.utcnow)
+    chantier_id = Column(Integer, ForeignKey("chantiers.id"), nullable=False)
+    #: Qui l'a versee au dossier, le specialiste du suivi.
+    saisie_par_id = Column(Integer, ForeignKey("utilisateurs.id"),
+                           nullable=True)
+
+    chantier = relationship("Chantier")
+    saisie_par = relationship("Utilisateur")
+
+
 class Journal(Base):
     __tablename__ = "journaux"
 

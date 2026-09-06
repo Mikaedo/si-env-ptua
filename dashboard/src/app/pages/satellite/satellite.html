@@ -183,6 +183,14 @@
       <lucide-icon [img]="Map" size="14"></lucide-icon>
       Carte satellitaire
     </button>
+    <!-- La mesure instrumentée est ici, aux côtés des indices qu'elle
+         confirme ou contredit : le satellite oriente les priorités de
+         terrain, il ne remplace pas la mesure exigée par la BAD et
+         l'ANDE. -->
+    <button class="tab-btn" [class.active]="activeTab() === 'mesures'" (click)="setTab('mesures')">
+      <lucide-icon [img]="Ruler" size="14"></lucide-icon>
+      Mesures du prestataire
+    </button>
     <button class="tab-btn" [class.active]="activeTab() === 'parametrage'" (click)="setTab('parametrage')">
       <lucide-icon [img]="SlidersHorizontal" size="14"></lucide-icon>
       Paramétrage
@@ -484,7 +492,165 @@
   }
 
   <!-- ══════════════════════════════════════════
-       ONGLET 4 : PARAMÉTRAGE DU DISPOSITIF
+       ONGLET 4 : MESURES DU PRESTATAIRE AGRÉÉ
+  ══════════════════════════════════════════ -->
+  @if (activeTab() === 'mesures') {
+    <div class="param-zone">
+
+      <div class="param-intro">
+        <lucide-icon [img]="Ruler" size="15"></lucide-icon>
+        <div>
+          <strong>La mesure instrumentée</strong>
+          <p>
+            L'observation de terrain et le relevé satellitaire orientent les
+            priorités ; ils ne valent pas mesure. Les résultats d'un
+            laboratoire agréé sont ce que la Banque africaine de développement
+            et l'ANDE reconnaissent, et ils sont confrontés ici aux valeurs
+            limites de l'arrêté MINEEF et des lignes directrices de l'OMS.
+          </p>
+        </div>
+      </div>
+
+      @if (peutSaisirMesure()) {
+      <div class="card" style="padding:20px 24px; margin-top:16px;">
+        <div class="section-label">
+          <lucide-icon [img]="Plus" size="13"></lucide-icon>
+          Verser une mesure au dossier
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:14px;">
+          <div style="flex:1; min-width:180px;">
+            <label class="param-label">Paramètre mesuré</label>
+            <select [value]="mesureParametre()" (change)="mesureParametre.set($any($event.target).value)" class="param-input">
+              @for (p of parametresMesure(); track p.code) {
+                <option [value]="p.code">{{ p.libelle }} ({{ p.unite }})</option>
+              }
+            </select>
+          </div>
+          <div style="flex:1; min-width:140px;">
+            <label class="param-label">Valeur</label>
+            <input type="number" step="0.1" [value]="mesureValeur()" (input)="mesureValeur.set($any($event.target).value)"
+              [placeholder]="uniteCourante()" class="param-input">
+          </div>
+          <div style="flex:1; min-width:160px;">
+            <label class="param-label">Date du prélèvement</label>
+            <input type="date" [value]="mesureDate()" (input)="mesureDate.set($any($event.target).value)" class="param-input">
+          </div>
+          <div style="flex:1; min-width:180px;">
+            <label class="param-label">Chantier</label>
+            <select [value]="mesureChantier()" (change)="mesureChantier.set($any($event.target).value)" class="param-input">
+              @for (c of chantiers(); track c.id) {
+                <option [value]="c.id">{{ c.nom }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:12px;">
+          <div style="flex:1; min-width:240px;">
+            <label class="param-label">Laboratoire agréé</label>
+            <input type="text" [value]="mesureLabo()" (input)="mesureLabo.set($any($event.target).value)"
+              placeholder="Ex. : CIAPOL, laboratoire central" class="param-input">
+          </div>
+          <div style="flex:2; min-width:260px;">
+            <label class="param-label">Observations (point de mesure, conditions)</label>
+            <input type="text" [value]="mesureObservations()" (input)="mesureObservations.set($any($event.target).value)"
+              placeholder="Ex. : à 15 m de la base vie, engins en fonctionnement" class="param-input">
+          </div>
+        </div>
+
+        <!-- La valeur limite est rappelée à la saisie, avec sa source :
+             c'est ce qui distingue ces seuils réglementaires de ceux des
+             indices satellitaires, calibrés empiriquement. -->
+        @if (limiteCourante(); as ref) {
+          <div style="margin-top:12px; font-size:12px; color:#71717A;">
+            Valeur limite : <strong style="color:#18181B;">{{ ref.limite }} {{ ref.unite }}</strong>
+            · {{ ref.source }}
+          </div>
+        }
+
+        <button (click)="enregistrerMesure()" [disabled]="enregistrementMesure()"
+          class="btn" style="margin-top:14px; background:#004F9F; color:white;">
+          <lucide-icon [img]="Plus" size="15"></lucide-icon>
+          Enregistrer la mesure
+        </button>
+
+        @if (erreurMesure()) {
+          <div style="margin-top:12px; padding:10px 12px; background:#FEF2F2; border:1px solid #F4C7C7; border-radius:8px; font-size:12.5px; color:#C62828;">
+            {{ erreurMesure() }}
+          </div>
+        }
+        @if (messageMesure()) {
+          <div style="margin-top:12px; padding:10px 12px; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:8px; font-size:12.5px; color:#16A34A;">
+            {{ messageMesure() }}
+          </div>
+        }
+      </div>
+      }
+
+      <div class="card" style="padding:20px 24px; margin-top:16px;">
+        <div class="section-label">
+          <lucide-icon [img]="Activity" size="13"></lucide-icon>
+          Mesures versées au dossier
+          <span class="param-compteur">{{ mesures().length }}</span>
+        </div>
+
+        @if (mesures().length === 0) {
+          <div style="padding:32px 20px; text-align:center; color:#A1A1AA; font-size:13px;">
+            Aucune mesure enregistrée à ce jour.
+          </div>
+        } @else {
+          <div style="overflow-x:auto; margin-top:12px;">
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+              <thead>
+                <tr style="text-align:left; color:#71717A; font-size:11px; text-transform:uppercase; letter-spacing:0.04em;">
+                  <th style="padding:8px 10px; border-bottom:1px solid #E4E4E7;">Paramètre</th>
+                  <th style="padding:8px 10px; border-bottom:1px solid #E4E4E7;">Valeur</th>
+                  <th style="padding:8px 10px; border-bottom:1px solid #E4E4E7;">Limite</th>
+                  <th style="padding:8px 10px; border-bottom:1px solid #E4E4E7;">Chantier</th>
+                  <th style="padding:8px 10px; border-bottom:1px solid #E4E4E7;">Prélèvement</th>
+                  <th style="padding:8px 10px; border-bottom:1px solid #E4E4E7;">Laboratoire</th>
+                  @if (peutSaisirMesure()) {
+                    <th style="padding:8px 10px; border-bottom:1px solid #E4E4E7;"></th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (m of mesures(); track m.id) {
+                  <tr>
+                    <td style="padding:10px; border-bottom:1px solid #F4F4F5;">{{ libelleParametre(m.parametre) }}</td>
+                    <td style="padding:10px; border-bottom:1px solid #F4F4F5; font-weight:700;"
+                      [style.color]="couleurEtatMesure(m.etat)">
+                      {{ m.valeur }} {{ m.unite }}
+                      <span style="font-size:10px; font-weight:700; margin-left:6px; padding:2px 7px; border-radius:99px;"
+                        [style.background]="fondEtatMesure(m.etat)"
+                        [style.color]="couleurEtatMesure(m.etat)">{{ m.etat }}</span>
+                    </td>
+                    <td style="padding:10px; border-bottom:1px solid #F4F4F5; color:#71717A;">{{ m.limite }} {{ m.unite }}</td>
+                    <td style="padding:10px; border-bottom:1px solid #F4F4F5;">{{ m.chantier_nom }}</td>
+                    <td style="padding:10px; border-bottom:1px solid #F4F4F5;">{{ m.date_prelevement | date:'dd/MM/yyyy' }}</td>
+                    <td style="padding:10px; border-bottom:1px solid #F4F4F5; color:#71717A;">{{ m.laboratoire }}</td>
+                    @if (peutSaisirMesure()) {
+                      <td style="padding:10px; border-bottom:1px solid #F4F4F5; text-align:right;">
+                        <button (click)="retirerMesure(m)" title="Retirer cette mesure du dossier"
+                          style="background:none; border:none; color:#C62828; cursor:pointer; padding:4px;">
+                          <lucide-icon [img]="Trash2" size="15"></lucide-icon>
+                        </button>
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+
+    </div>
+  }
+
+  <!-- ══════════════════════════════════════════
+       ONGLET 5 : PARAMÉTRAGE DU DISPOSITIF
   ══════════════════════════════════════════ -->
   @if (activeTab() === 'parametrage') {
     <div class="param-zone">

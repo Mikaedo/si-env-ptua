@@ -179,6 +179,41 @@ class ActionCorrectiveOut(BaseModel):
         from_attributes = True
 
 
+# ─── Mesures du prestataire agree (BF-08) ────────────────────────────
+# L'unite n'est pas demandee a la saisie : elle decoule du parametre, et
+# la laisser libre permettrait de verser des decibels bruts a cote de
+# dB(A), que le rapport additionnerait sans le savoir.
+class MesurePrestataireCreate(BaseModel):
+    parametre: str
+    valeur: float
+    date_prelevement: datetime
+    laboratoire: str = Field(min_length=2)
+    observations: Optional[str] = None
+    chantier_id: int
+
+
+class MesurePrestataireOut(BaseModel):
+    id: int
+    parametre: str
+    valeur: float
+    unite: str
+    date_prelevement: datetime
+    laboratoire: str
+    observations: Optional[str] = None
+    cree_le: datetime
+    chantier_id: int
+    #: Nom du chantier, pour ne pas obliger l'appelant a le resoudre.
+    chantier_nom: Optional[str] = None
+    #: CONFORME, VIGILANCE ou DEPASSEMENT, calcule a la lecture.
+    etat: Optional[str] = None
+    #: La valeur limite opposable, et d'ou elle vient.
+    limite: Optional[float] = None
+    source_limite: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 # ─── Non-conformites (BF-09) ─────────────────────────────────────────
 # L'ecart constate lors du controle contradictoire. Il se distingue de
 # l'action corrective : celle-ci dit ce qu'il faut faire, la

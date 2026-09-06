@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Signalement, Chantier, Alerte, Plainte, NonConformite, IndiceSatellite, User, AlerteSeuil, Journal, TransmissionRapport, ActionCorrective } from './models';
+import { Signalement, Chantier, Alerte, Plainte, NonConformite, IndiceSatellite, User, AlerteSeuil, Journal, TransmissionRapport, ActionCorrective, MesurePrestataire, ParametreMesure } from './models';
 import { AuthService } from './auth.service';
 
 import { environment } from '../../environments/environment';
@@ -79,6 +79,40 @@ export class ApiService {
   }
 
   // Non-conformités
+  // ── Mesures du prestataire agree (BF-08) ─────────────────────────
+  //
+  // La mesure instrumentee, realisee par un laboratoire accredite. Elle
+  // se distingue de l'observation de terrain et du releve satellitaire :
+  // seule elle est opposable devant le bailleur.
+
+  /** Les grandeurs mesurables, avec leur unite et leur valeur limite. */
+  getParametresMesure(): Observable<ParametreMesure[]> {
+    return this.http.get<ParametreMesure[]>(
+      `${API_URL}/mesures/parametres`, { headers: this.headers });
+  }
+
+  /** Les mesures versees au dossier, de la plus recente a la plus ancienne. */
+  getMesures(chantierId?: number): Observable<MesurePrestataire[]> {
+    const filtre = chantierId ? `?chantier_id=${chantierId}` : '';
+    return this.http.get<MesurePrestataire[]>(
+      `${API_URL}/mesures${filtre}`, { headers: this.headers });
+  }
+
+  /** Verse une mesure au dossier. Reserve au Specialiste et a l'Admin. */
+  ajouterMesure(mesure: {
+    parametre: string; valeur: number; date_prelevement: string;
+    laboratoire: string; observations?: string; chantier_id: number;
+  }): Observable<MesurePrestataire> {
+    return this.http.post<MesurePrestataire>(
+      `${API_URL}/mesures`, mesure, { headers: this.headers });
+  }
+
+  /** Retire une mesure versee par erreur. */
+  supprimerMesure(id: number): Observable<{ detail: string }> {
+    return this.http.delete<{ detail: string }>(
+      `${API_URL}/mesures/${id}`, { headers: this.headers });
+  }
+
   // ── Non-conformites (BF-09) ──────────────────────────────────────
   //
   // L'ecart constate lors du controle contradictoire. Il se distingue

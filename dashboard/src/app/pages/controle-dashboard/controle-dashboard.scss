@@ -1,0 +1,189 @@
+:host { display: block; }
+
+.controle { display: flex; flex-direction: column; gap: 26px; }
+
+/* ── Le bandeau de mandat ──────────────────────────────────────────
+   Fond sombre, a la difference des ecrans de pilotage : le controleur
+   doit voir d'un coup d'oeil qu'il n'est pas sur l'ecran de celui qui
+   agit. */
+.mandat {
+  display: flex; align-items: center; gap: 16px;
+  padding: 20px 24px; border-radius: 14px;
+  background: linear-gradient(135deg, #002B55, #004F9F);
+  box-shadow: 0 6px 20px rgba(0, 43, 85, 0.22);
+}
+.mandat__sigle {
+  width: 52px; height: 52px; border-radius: 13px; flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.14);
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+}
+.mandat__texte { flex: 1; min-width: 0; }
+.mandat__nom {
+  font-size: 17px; font-weight: 800; color: white;
+  letter-spacing: -0.3px; line-height: 1.3;
+}
+.mandat__mission {
+  font-size: 12.5px; color: rgba(255, 255, 255, 0.78);
+  margin-top: 4px; font-weight: 500; line-height: 1.5;
+}
+.mandat__acces {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  padding: 7px 13px; border-radius: 20px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 11.5px; font-weight: 700; color: white;
+  letter-spacing: 0.3px; text-transform: uppercase;
+}
+
+/* ── Titres de section ─────────────────────────────────────────── */
+.titre-section {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 15px; font-weight: 800; color: #18181B;
+  letter-spacing: -0.2px; margin: 0 0 4px;
+}
+.titre-section lucide-icon { color: #004F9F; }
+.titre-note {
+  font-size: 12px; color: #A1A1AA; font-weight: 500;
+  margin: 0 0 14px; line-height: 1.55;
+}
+
+/* ── Les jauges de conformite ──────────────────────────────────── */
+.jauges {
+  display: grid; gap: 14px; margin-top: 12px;
+  grid-template-columns: 1.6fr 1fr 1fr 1fr;
+}
+@media (max-width: 1100px) {
+  .jauges { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 620px) {
+  .jauges { grid-template-columns: 1fr; }
+}
+
+.jauge {
+  padding: 18px 20px; border-radius: 13px;
+  background: white; border: 1.5px solid #E4E4E7;
+}
+.jauge lucide-icon { color: #71717A; }
+.jauge--majeure {
+  background: linear-gradient(160deg, #F8FAFF, #FFFFFF);
+  border-color: #CBD5E1;
+}
+.jauge--rouge { border-color: #FECACA; background: #FEF2F2; }
+.jauge--rouge lucide-icon { color: #D32F2F; }
+.jauge--orange { border-color: #FED7AA; background: #FFF7ED; }
+.jauge--orange lucide-icon { color: #F37021; }
+
+.jauge__valeur {
+  font-size: 44px; font-weight: 800; line-height: 1;
+  letter-spacing: -2px;
+}
+.jauge__unite { font-size: 22px; font-weight: 700; margin-left: 2px; }
+.jauge__chiffre {
+  font-size: 30px; font-weight: 800; color: #18181B;
+  line-height: 1.1; letter-spacing: -1px; margin-top: 10px;
+}
+.jauge__libelle {
+  font-size: 12.5px; font-weight: 700; color: #3F3F46;
+  margin-top: 8px; line-height: 1.4;
+}
+.jauge__detail, .jauge__note {
+  font-size: 11.5px; color: #A1A1AA; font-weight: 500;
+  margin-top: 4px; line-height: 1.5;
+}
+.jauge__barre {
+  height: 7px; border-radius: 4px; background: #E4E4E7;
+  margin-top: 14px; overflow: hidden;
+}
+.jauge__remplissage {
+  height: 100%; border-radius: 4px; transition: width 0.4s ease;
+}
+
+/* ── L'etat par chantier ───────────────────────────────────────── */
+.chantiers {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+.chantier {
+  padding: 16px 18px; border-radius: 12px;
+  background: white; border: 1.5px solid #E4E4E7;
+}
+.chantier--alerte { border-left: 4px solid #D32F2F; }
+.chantier__entete {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 12px;
+}
+.chantier__nom {
+  font-size: 14px; font-weight: 700; color: #18181B;
+  line-height: 1.35;
+}
+.chantier__commune {
+  font-size: 11.5px; color: #A1A1AA; font-weight: 500; margin-top: 2px;
+}
+.chantier__taux {
+  font-size: 20px; font-weight: 800; letter-spacing: -0.6px;
+  flex-shrink: 0;
+}
+.chantier__barre {
+  height: 5px; border-radius: 3px; background: #F4F4F5;
+  margin-top: 12px; overflow: hidden;
+}
+.chantier__remplissage { height: 100%; border-radius: 3px; }
+.chantier__pied {
+  display: flex; justify-content: space-between; gap: 10px;
+  flex-wrap: wrap; margin-top: 9px;
+  font-size: 11.5px; color: #71717A; font-weight: 500;
+}
+.chantier__graves { color: #D32F2F; font-weight: 700; }
+.chantier__vide {
+  font-size: 12px; color: #A1A1AA; font-weight: 500; margin-top: 10px;
+}
+
+/* ── Les remises recues ────────────────────────────────────────── */
+.remises { display: flex; flex-direction: column; gap: 10px; }
+.remise {
+  display: flex; align-items: flex-start; gap: 13px;
+  padding: 15px 18px; border-radius: 12px;
+  background: white; border: 1.5px solid #E4E4E7;
+  border-left: 4px solid #16A34A;
+}
+.remise--echec { border-left-color: #D32F2F; background: #FEF2F2; }
+.remise__icone { color: #16A34A; flex-shrink: 0; margin-top: 2px; }
+.remise--echec .remise__icone { color: #D32F2F; }
+.remise__corps { flex: 1; min-width: 0; }
+.remise__titre {
+  font-size: 13.5px; font-weight: 700; color: #18181B;
+  line-height: 1.4; word-break: break-word;
+}
+.remise__meta {
+  font-size: 12px; color: #52525B; font-weight: 500;
+  margin-top: 3px; line-height: 1.5;
+}
+.remise__emetteur {
+  font-size: 11.5px; color: #A1A1AA; font-weight: 500; margin-top: 2px;
+}
+.remise__etat {
+  font-size: 11px; font-weight: 700; color: #D32F2F;
+  padding: 4px 10px; border-radius: 14px; background: #FEE2E2;
+  flex-shrink: 0;
+}
+
+/* ── Etats vides et attente ────────────────────────────────────── */
+.vide {
+  padding: 22px; border-radius: 12px; text-align: center;
+  background: #FAFAFA; border: 1.5px dashed #E4E4E7;
+  font-size: 12.5px; color: #A1A1AA; font-weight: 500;
+  line-height: 1.6;
+}
+.attente {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 60px 20px; font-size: 13px; color: #71717A; font-weight: 500;
+}
+
+/* ── Le rappel de perimetre ────────────────────────────────────── */
+.rappel {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 15px 18px; border-radius: 12px;
+  background: #EEF1F8; border: 1px solid #CBD5E1;
+  font-size: 12px; color: #3F3F46; font-weight: 500; line-height: 1.65;
+}
+.rappel lucide-icon { color: #004F9F; flex-shrink: 0; margin-top: 1px; }

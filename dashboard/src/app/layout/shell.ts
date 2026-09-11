@@ -78,7 +78,11 @@ export class Shell implements OnInit, OnDestroy {
   // conformite environnementale, celui du bailleur englobe en plus le volet
   // social, dont releve le traitement des doleances de riverains.
   navItems: NavItem[] = [
-    { label: 'Tableau de bord', icon: LayoutDashboard, route: '/dashboard', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE', 'ANDE', 'BAD'] },
+    { label: 'Tableau de bord', icon: LayoutDashboard, route: '/dashboard', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE'] },
+    // Les organismes de controle ont leur propre ecran d'accueil, et non
+    // celui du specialiste prive de ses commandes. Le libelle le dit :
+    // ils n'y pilotent rien, ils y attestent que le suivi est tenu.
+    { label: 'Suivi de conformité', icon: Eye, route: '/controle', roles: ['ANDE', 'BAD'] },
     { label: 'Signalements', icon: MapPin, route: '/signalements', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE', 'ANDE', 'BAD'] },
     // Les alertes vont a qui pilote et a qui controle, non a qui
     // constate : le besoin BF-06 les reserve au Specialiste et a

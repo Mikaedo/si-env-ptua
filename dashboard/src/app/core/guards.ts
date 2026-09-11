@@ -25,6 +25,29 @@ export const authGuard: CanActivateFn = () => {
   return false;
 };
 
+/** L'ecran d'accueil des organismes de controle.
+ *
+ * Reserve a l'ANDE et a la BAD : le specialiste et l'administrateur ont
+ * le leur, qui repond a une autre question. Un pilote cherche ce qui
+ * reste a traiter, un controleur cherche si le suivi est tenu.
+ */
+export const controleGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  if (auth.isAuthenticated && auth.hasRole(...ROLES_CONSULTATION)) {
+    return true;
+  }
+
+  if (auth.isAuthenticated && auth.hasRole('ADMIN')) {
+    router.navigate(['/admin-dashboard']);
+    return false;
+  }
+
+  router.navigate(['/dashboard']);
+  return false;
+};
+
 export const adminGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);

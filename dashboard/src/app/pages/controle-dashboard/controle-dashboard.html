@@ -1,0 +1,206 @@
+<!-- L'ecran d'accueil des organismes de controle.
+     Trois temps, dans l'ordre de la question qu'ils se posent :
+     le suivi est-il tenu, que reste-t-il ouvert, qu'ai-je recu. -->
+
+<div class="controle">
+
+  <!-- Le bandeau de mandat. Il nomme l'institution et sa mission,
+       plutot que de saluer l'utilisateur : un controleur consulte au
+       titre de son organisme, non a titre personnel. -->
+  <header class="mandat">
+    <div class="mandat__sigle">
+      <lucide-icon [img]="organisme().icone" size="26"></lucide-icon>
+    </div>
+    <div class="mandat__texte">
+      <div class="mandat__nom">{{ organisme().nom }}</div>
+      <div class="mandat__mission">{{ organisme().mandat }}</div>
+    </div>
+    <div class="mandat__acces">
+      <lucide-icon [img]="Eye" size="14"></lucide-icon>
+      Consultation seule
+    </div>
+  </header>
+
+  @if (loading()) {
+    <div class="attente">
+      <div class="spinner"></div>
+      Chargement des données de conformité...
+    </div>
+  } @else {
+
+    <!-- ── 1. Le suivi est-il tenu ? ─────────────────────────────── -->
+    <section>
+      <h2 class="titre-section">
+        <lucide-icon [img]="ShieldCheck" size="16"></lucide-icon>
+        Tenue du suivi environnemental
+      </h2>
+
+      <div class="jauges">
+        <!-- Le taux de traitement, en premier et en grand : c'est
+             l'indicateur qui atteste que le dispositif fonctionne. -->
+        <div class="jauge jauge--majeure">
+          <div class="jauge__valeur"
+               [style.color]="couleurTaux(tauxTraitement())">
+            {{ tauxTraitement() }}<span class="jauge__unite">%</span>
+          </div>
+          <div class="jauge__libelle">Constats clôturés</div>
+          <div class="jauge__detail">
+            {{ traites() }} sur {{ total() }} enregistrés
+          </div>
+          <div class="jauge__barre">
+            <div class="jauge__remplissage"
+                 [style.width.%]="tauxTraitement()"
+                 [style.background]="couleurTaux(tauxTraitement())"></div>
+          </div>
+        </div>
+
+        <div class="jauge" [class.jauge--rouge]="gravesOuverts() > 0">
+          <lucide-icon [img]="AlertTriangle" size="18"></lucide-icon>
+          <div class="jauge__chiffre">{{ gravesOuverts() }}</div>
+          <div class="jauge__libelle">Criticité élevée non clôturée</div>
+          <div class="jauge__note">
+            @if (gravesOuverts() > 0) {
+              Engage la conformité du projet
+            } @else {
+              Aucun constat grave en attente
+            }
+          </div>
+        </div>
+
+        <div class="jauge" [class.jauge--orange]="ancienneteMax() > 30">
+          <lucide-icon [img]="Clock" size="18"></lucide-icon>
+          <div class="jauge__chiffre">{{ ancienneteMax() }}</div>
+          <div class="jauge__libelle">Jours, constat le plus ancien</div>
+          <div class="jauge__note">
+            @if (ancienneteMax() > 30) {
+              Au-delà du rythme de suivi attendu
+            } @else {
+              Dans le rythme de suivi attendu
+            }
+          </div>
+        </div>
+
+        <div class="jauge">
+          <lucide-icon [img]="Satellite" size="18"></lucide-icon>
+          <div class="jauge__chiffre">{{ indicesDepasses() }}</div>
+          <div class="jauge__libelle">Indices au-delà du seuil</div>
+          <div class="jauge__note">Seuils de vigilance, non de conformité</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 2. Que reste-t-il ouvert, et ou ? ─────────────────────── -->
+    <section>
+      <h2 class="titre-section">
+        <lucide-icon [img]="MapPin" size="16"></lucide-icon>
+        État par chantier
+      </h2>
+      <p class="titre-note">
+        Ordonné par nombre de constats graves en attente.
+      </p>
+
+      <div class="chantiers">
+        @for (c of etatChantiers(); track c.nom) {
+          <div class="chantier" [class.chantier--alerte]="c.graves > 0">
+            <div class="chantier__entete">
+              <div>
+                <div class="chantier__nom">{{ c.nom }}</div>
+                @if (c.commune) {
+                  <div class="chantier__commune">{{ c.commune }}</div>
+                }
+              </div>
+              @if (c.taux !== null) {
+                <div class="chantier__taux" [style.color]="couleurTaux(c.taux)">
+                  {{ c.taux }}%
+                </div>
+              }
+            </div>
+
+            @if (c.total) {
+              <div class="chantier__barre">
+                <div class="chantier__remplissage"
+                     [style.width.%]="c.taux"
+                     [style.background]="couleurTaux(c.taux)"></div>
+              </div>
+              <div class="chantier__pied">
+                <span>{{ c.clos }} clôturé{{ c.clos > 1 ? 's' : '' }}
+                  sur {{ c.total }}</span>
+                @if (c.graves > 0) {
+                  <span class="chantier__graves">
+                    {{ c.graves }} grave{{ c.graves > 1 ? 's' : '' }}
+                    en attente
+                  </span>
+                }
+              </div>
+            } @else {
+              <div class="chantier__vide">
+                Aucun constat enregistré sur la période
+              </div>
+            }
+          </div>
+        } @empty {
+          <div class="vide">Aucun chantier au référentiel.</div>
+        }
+      </div>
+    </section>
+
+    <!-- ── 3. Qu'ai-je recu officiellement ? ─────────────────────── -->
+    <section>
+      <h2 class="titre-section">
+        <lucide-icon [img]="Inbox" size="16"></lucide-icon>
+        Rapports qui vous ont été transmis
+      </h2>
+      <p class="titre-note">
+        La remise est tracée au nom de son émetteur, avec sa date. Ce
+        registre atteste de ce qui vous a été adressé.
+      </p>
+
+      @if (derniereRemise()) {
+        <div class="remises">
+          @for (t of remisesRecues(); track t.id) {
+            <div class="remise" [class.remise--echec]="!t.succes">
+              <lucide-icon [img]="FileCheck2" size="18"
+                           class="remise__icone"></lucide-icon>
+              <div class="remise__corps">
+                <div class="remise__titre">
+                  {{ t.nom_fichier || 'Rapport de suivi environnemental' }}
+                </div>
+                <div class="remise__meta">
+                  Remis le {{ formatDate(t.transmis_le) }}
+                  @if (t.periode_debut && t.periode_fin) {
+                    · période du {{ formatDate(t.periode_debut) }}
+                    au {{ formatDate(t.periode_fin) }}
+                  }
+                </div>
+                <div class="remise__emetteur">
+                  Émis par {{ t.emetteur_email }}
+                </div>
+              </div>
+              @if (!t.succes) {
+                <span class="remise__etat">Échec d'envoi</span>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="vide">
+          Aucun rapport ne vous a encore été transmis. Les remises
+          apparaîtront ici, avec leur date et leur émetteur.
+        </div>
+      }
+    </section>
+
+    <!-- Le rappel de ce que cet ecran ne fait pas. Un controleur doit
+         savoir ou s'arrete son acces, plutot que de le decouvrir sur un
+         refus. -->
+    <footer class="rappel">
+      <lucide-icon [img]="Eye" size="15"></lucide-icon>
+      <span>
+        Votre accès est en consultation. La saisie des constats relève des
+        agents de terrain, leur traitement de l'Expert HSE, et la
+        composition des rapports du Spécialiste Suivi Environnemental.
+        Toute requête de modification est refusée par le serveur.
+      </span>
+    </footer>
+  }
+</div>

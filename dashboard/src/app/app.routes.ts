@@ -1,6 +1,7 @@
 import { Routes, Router } from '@angular/router';
 import { inject } from '@angular/core';
-import { authGuard, adminGuard, alertesGuard, specEnvGuard, specParGuard } from './core/guards';
+import { authGuard, adminGuard, alertesGuard, specEnvGuard, specParGuard,
+         controleGuard } from './core/guards';
 import { AuthService } from './core/auth.service';
 
 export const routes: Routes = [
@@ -27,8 +28,20 @@ export const routes: Routes = [
           const auth = inject(AuthService);
           const router = inject(Router);
           if (auth.hasRole('ADMIN')) { router.navigate(['/admin-dashboard']); return false; }
+          // Les organismes de controle ont leur propre ecran d'accueil.
+          // Celui du specialiste repond a « que reste-t-il a traiter » ;
+          // le leur repond a « le suivi est-il tenu », ce qui n'est pas
+          // la meme question et ne se lit pas dans le meme ordre.
+          if (auth.hasRole('ANDE', 'BAD')) {
+            router.navigate(['/controle']); return false;
+          }
           return true;
         }]
+      },
+      {
+        path: 'controle',
+        canActivate: [controleGuard],
+        loadComponent: () => import('./pages/controle-dashboard/controle-dashboard').then(m => m.ControleDashboard)
       },
       { path: 'signalements', loadComponent: () => import('./pages/signalements/signalements').then(m => m.Signalements) },
       { path: 'signalements/:id', loadComponent: () => import('./pages/signalement-detail/signalement-detail').then(m => m.SignalementDetail) },

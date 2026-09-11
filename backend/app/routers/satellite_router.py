@@ -152,11 +152,27 @@ def _tendance_label(t: str) -> str:
 # Endpoints
 # ─────────────────────────────────────────────
 
+#: Qui declenche une analyse, et qui en consulte le resultat.
+#:
+#: Le diagramme de cas d'utilisation, figure 4.2, relie « Lancer une
+#: analyse satellitaire » au seul Specialiste Suivi Environnemental. Le
+#: tableau 4.1 accorde a l'agence de tutelle et au bailleur la mention
+#: « Lecture » sur ce domaine : ils voient les indices calcules, ils ne
+#: commandent pas le calcul.
+#:
+#: La distinction n'est pas theorique. Une serie temporelle interroge
+#: Google Earth Engine sur une periode choisie par l'appelant, et ce
+#: choix oriente ce que la mesure montre ; le laisser au controleur
+#: reviendrait a lui laisser composer la preuve qu'il examine.
+ROLES_ANALYSE = (models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN)
+ROLES_LECTURE = ROLES_ANALYSE + (models.RoleEnum.ANDE,
+                                 models.RoleEnum.BAD)
+
+
 @router.get("/chantiers", response_model=List[ChantierInfo])
 def get_chantiers(
     db: Session = Depends(get_db),
-    _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
-                                                     models.RoleEnum.ANDE, models.RoleEnum.BAD))
+    _: models.Utilisateur = Depends(auth.roles_requis(*ROLES_LECTURE)),
 ):
     """Chantiers suivis par l'analyse satellitaire, lus dans la base.
 
@@ -171,8 +187,7 @@ def get_chantiers(
 def get_tous_indices(
     type_indice: Optional[str] = Query(None, description="NO2 | NDWI | NDVI | RISQUE_PLUIE"),
     db: Session = Depends(get_db),
-    _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
-                                                     models.RoleEnum.ANDE, models.RoleEnum.BAD))
+    _: models.Utilisateur = Depends(auth.roles_requis(*ROLES_LECTURE)),
 ):
     """Retourne les indices satellitaires courants (GEE temps réel) pour tous les chantiers."""
     from datetime import datetime
@@ -260,8 +275,7 @@ def get_serie_temporelle(
     type_indice: str,
     chantier_id: int = Query(1, description="Identifiant du chantier suivi"),
     db: Session = Depends(get_db),
-    _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
-                                                     models.RoleEnum.ANDE, models.RoleEnum.BAD))
+    _: models.Utilisateur = Depends(auth.roles_requis(*ROLES_LECTURE)),
 ):
     """
     Série temporelle mensuelle (2022→2026) pour un chantier donné.
@@ -301,8 +315,7 @@ def get_serie_temporelle(
 @router.get("/resume", response_model=ResumeSatellite)
 def get_resume(
     db: Session = Depends(get_db),
-    _: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
-                                                     models.RoleEnum.ANDE, models.RoleEnum.BAD))
+    _: models.Utilisateur = Depends(auth.roles_requis(*ROLES_LECTURE)),
 ):
     """Résumé synthétique des indicateurs satellitaires (GEE temps réel)."""
     from datetime import datetime

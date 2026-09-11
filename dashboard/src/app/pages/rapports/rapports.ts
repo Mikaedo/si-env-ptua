@@ -36,6 +36,19 @@ export class Rapports implements OnInit {
     return this.auth.hasRole('SPEC_ENV', 'ADMIN');
   }
 
+  /** Qui produit le rapport, par opposition à qui le consulte.
+   *
+   * Le diagramme de cas d'utilisation relie « Générer le rapport de
+   * suivi » au seul Spécialiste Suivi Environnemental. L'agence de
+   * tutelle et le bailleur accèdent à l'historique des remises, non à
+   * la composition du document : leur laisser choisir la période et le
+   * périmètre reviendrait à leur laisser composer la pièce qu'ils
+   * doivent contrôler.
+   */
+  get peutGenerer(): boolean {
+    return this.auth.hasRole('SPEC_ENV', 'ADMIN');
+  }
+
   readonly FileText = FileText;
   readonly Download = Download;
   readonly Calendar = Calendar;

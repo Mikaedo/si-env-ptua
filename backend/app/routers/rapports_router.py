@@ -144,12 +144,26 @@ def _collecter_donnees(db: Session, req: "RapportRequest") -> list[dict]:
     return chantiers_data
 
 
+#: Les profils qui produisent le rapport, et ceux qui le consultent.
+#:
+#: Le diagramme de cas d'utilisation, figure 4.2, relie « Generer le
+#: rapport de suivi » au seul Specialiste Suivi Environnemental, et ne
+#: relie l'agence de tutelle et le bailleur qu'au tableau de bord et a
+#: l'historique des rapports. Un rapport produit se consulte, il ne se
+#: produit pas une seconde fois par celui qui le controle : le rendre
+#: generable par ses destinataires reviendrait a leur laisser choisir la
+#: periode et le perimetre du document qu'ils doivent verifier.
+ROLES_PRODUCTION = (models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN)
+ROLES_CONSULTATION = ROLES_PRODUCTION + (models.RoleEnum.ANDE,
+                                         models.RoleEnum.BAD)
+
+
 @router.post("/generate")
 def generate_rapport(
     req: RapportRequest,
     db: Session = Depends(get_db),
-    current_user: models.Utilisateur = Depends(auth.roles_requis(models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
-                                                     models.RoleEnum.ANDE, models.RoleEnum.BAD))
+    current_user: models.Utilisateur = Depends(
+        auth.roles_requis(*ROLES_PRODUCTION)),
 ):
     """Genere le rapport de suivi environnemental en PDF pour la periode retenue."""
     chantiers_data = _collecter_donnees(db, req)
@@ -283,9 +297,7 @@ def transmettre_rapport(
 @router.get("/transmissions", response_model=List[TransmissionOut])
 def historique_transmissions(
     db: Session = Depends(get_db),
-    _: models.Utilisateur = Depends(auth.roles_requis(
-        models.RoleEnum.SPEC_ENV, models.RoleEnum.ADMIN,
-        models.RoleEnum.ANDE, models.RoleEnum.BAD)),
+    _: models.Utilisateur = Depends(auth.roles_requis(*ROLES_CONSULTATION)),
 ):
     """Historique des remises, consultable par l'emetteur comme par les destinataires.
 

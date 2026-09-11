@@ -152,12 +152,24 @@
             Transmission en cours...
           } @else {
             <lucide-icon [img]="Send" size="17"></lucide-icon>
-            Transmettre à {{ selectedEntreprise() }}
+            Transmettre le rapport
           }
         </button>
-        <p style="text-align:center; font-size:11.5px; color:#A1A1AA; margin:10px 0 0; font-weight:500; line-height:1.6;">
-          La transmission adresse le rapport en pièce jointe et enregistre la remise
-          à votre nom, avec sa date.
+        <!-- Le bouton portait « Transmettre à ANDE », le sigle du
+             destinataire sélectionné. Mais ce sigle change sans que
+             l'oeil le suive, et rien ne rappelle, au moment de cliquer,
+             vers qui part la remise. Le destinataire est donc nommé en
+             toutes lettres sous le bouton, avec l'adresse employée. -->
+        <p style="text-align:center; font-size:12.5px; color:#52525B; margin:10px 0 0; font-weight:600; line-height:1.6;">
+          Destinataire : {{ libelleDestinataire() }}
+        </p>
+        <p style="text-align:center; font-size:11.5px; color:#A1A1AA; margin:4px 0 0; font-weight:500; line-height:1.6;">
+          @if (emailPersonnalise()) {
+            Envoi à {{ emailPersonnalise() }}.
+          } @else {
+            Envoi à l'adresse institutionnelle enregistrée.
+          }
+          La remise est tracée à votre nom, avec sa date.
         </p>
       } @else {
         <p style="text-align:center; font-size:12px; color:#A1A1AA; margin:10px 0 0; font-weight:500;">

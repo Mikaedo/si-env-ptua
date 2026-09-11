@@ -53,17 +53,27 @@ export class Rapports implements OnInit {
   generating = signal(false);
   error = signal('');
 
+  // Les deux seuls destinataires du rapport de suivi environnemental.
+  //
+  // La liste en comptait huit, dont les entreprises de travaux et la
+  // cellule de coordination elle-même. Or le PGES ne désigne que deux
+  // destinataires : l'agence de tutelle, qui valide la conformité
+  // réglementaire, et le bailleur, qui contrôle le respect de ses
+  // sauvegardes. Les autres reçoivent le rapport, ils n'en sont pas
+  // destinataires au sens réglementaire, et les faire figurer ici
+  // laissait croire à une remise officielle qui n'en est pas une.
   entreprises = [
     { value: 'ANDE', label: 'ANDE · Agence Nationale de l\'Environnement' },
     { value: 'BAD', label: 'BAD · Banque Africaine de Développement' },
-    { value: 'AGEROUTE', label: 'AGEROUTE · Agence de Gestion des Routes' },
-    { value: 'CC-PTUA', label: 'CC-PTUA · Cellule de Coordination du Projet' },
-    { value: 'BEIE', label: 'BEIE · Bureau d\'Études d\'Impact Environnemental' },
-    { value: 'CSCEC', label: 'CSCEC · China State Construction Engineering' },
-    { value: 'SOGEA-SATOM', label: 'SOGEA-SATOM · Entreprise de Travaux' },
-    { value: 'COLAS', label: 'COLAS · Entreprise de Travaux' },
   ];
   selectedEntreprise = signal('ANDE');
+
+  /** Le destinataire en toutes lettres, pour le rappel sous le bouton. */
+  libelleDestinataire(): string {
+    const choisi = this.entreprises.find(
+      e => e.value === this.selectedEntreprise());
+    return choisi ? choisi.label : this.selectedEntreprise();
+  }
 
   // Etat de chargement du referentiel. Sans lui, un echec de l'appel laissait
   // la liste vide et affichait « Aucun chantier disponible », message qui

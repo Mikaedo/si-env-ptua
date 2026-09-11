@@ -6,6 +6,7 @@ import { CommonModule, DecimalPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../core/auth.service';
+import { BandeauMandat } from '../../shared/bandeau-mandat';
 import {
   LucideAngularModule,
   Satellite as SatelliteIcon, Wind, Droplets, Leaf, CloudRain,
@@ -85,13 +86,33 @@ interface SeuilRef {
 // ─── Composant ───────────────────────────────────────────
 @Component({
   selector: 'app-satellite',
-  imports: [CommonModule, FormsModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule, BandeauMandat],
   templateUrl: './satellite.html',
   styleUrl: './satellite.scss'
 })
 export class Satellite implements OnInit, AfterViewInit, OnDestroy {
   private http = inject(HttpClient);
   private auth = inject(AuthService);
+
+  /** Ce que chaque organisme lit dans les indices satellitaires.
+   *
+   * L'agence de tutelle les confronte au cadre reglementaire, quitte a
+   * constater qu'aucun texte ne norme un indice de teledetection. Le
+   * bailleur y cherche l'exposition des populations riveraines, qui
+   * releve de ses sauvegardes.
+   */
+  proposSatellite = () => {
+    const role = this.auth.user()?.role;
+    if (role === 'ANDE') {
+      return "Indices de vigilance sur l'emprise des chantiers, "
+           + 'en appui de la vérification de conformité';
+    }
+    if (role === 'BAD') {
+      return 'Indices de vigilance et exposition des populations '
+           + 'riveraines, au titre des sauvegardes environnementales';
+    }
+    return '';
+  };
 
   // Icônes
   readonly SatelliteIcon = SatelliteIcon;

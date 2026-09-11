@@ -5,10 +5,11 @@ import { AuthService } from '../../core/auth.service';
 import { ToastService } from '../../core/toast.service';
 import { Alerte } from '../../core/models';
 import { LucideAngularModule, Bell, AlertTriangle, CheckCircle, Info, X, MapPin, Clock, Activity } from 'lucide-angular';
+import { BandeauMandat } from '../../shared/bandeau-mandat';
 
 @Component({
   selector: 'app-alertes',
-  imports: [CommonModule, LucideAngularModule],
+  imports: [CommonModule, LucideAngularModule, BandeauMandat],
   templateUrl: './alertes.html',
   styleUrl: './alertes.scss'
 })
@@ -17,6 +18,26 @@ export class Alertes implements OnInit {
   public auth = inject(AuthService);
   private toast = inject(ToastService);
   isAdmin = () => this.auth.user()?.role === 'ADMIN';
+
+  /** Ce que chaque organisme vient chercher dans les alertes.
+   *
+   * Une meme alerte de depassement ne se lit pas de la meme facon selon
+   * qui la consulte : l'agence de tutelle verifie qu'un seuil franchi a
+   * bien declenche une suite, le bailleur verifie que ses sauvegardes
+   * tiennent, y compris envers les riverains exposes.
+   */
+  proposAlertes = () => {
+    const role = this.auth.user()?.role;
+    if (role === 'ANDE') {
+      return 'Franchissements de seuil relevés sur les chantiers, '
+           + 'et suites qui leur ont été données';
+    }
+    if (role === 'BAD') {
+      return 'Franchissements de seuil au regard des sauvegardes '
+           + 'opérationnelles, exposition des populations riveraines';
+    }
+    return '';
+  };
 
   readonly Bell = Bell;
   readonly AlertTriangle = AlertTriangle;

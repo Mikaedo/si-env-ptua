@@ -138,6 +138,37 @@
   font-size: 12px; color: #A1A1AA; font-weight: 500; margin-top: 10px;
 }
 
+/* ── Le volet social, propre au bailleur ───────────────────────── */
+.social {
+  display: grid; gap: 12px; align-items: stretch;
+  grid-template-columns: 1fr 1fr 2fr;
+}
+@media (max-width: 800px) {
+  .social { grid-template-columns: 1fr 1fr; }
+  .social__lien { grid-column: 1 / -1; }
+}
+.social__carte {
+  padding: 16px 18px; border-radius: 12px;
+  background: white; border: 1.5px solid #E4E4E7;
+}
+.social__carte--alerte { border-color: #FED7AA; background: #FFF7ED; }
+.social__chiffre {
+  font-size: 28px; font-weight: 800; color: #18181B;
+  line-height: 1.1; letter-spacing: -1px;
+}
+.social__libelle {
+  font-size: 12px; font-weight: 600; color: #52525B;
+  margin-top: 6px; line-height: 1.4;
+}
+.social__lien {
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  padding: 16px 18px; border-radius: 12px; text-decoration: none;
+  background: #FFF7ED; border: 1.5px solid #FED7AA;
+  font-size: 12.5px; font-weight: 700; color: #C4660A;
+  transition: background 0.15s, border-color 0.15s;
+}
+.social__lien:hover { background: #FFEDD5; border-color: #FDBA74; }
+
 /* ── Les remises recues ────────────────────────────────────────── */
 .remises { display: flex; flex-direction: column; gap: 10px; }
 .remise {

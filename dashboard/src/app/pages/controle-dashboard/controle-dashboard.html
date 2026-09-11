@@ -89,6 +89,41 @@
       </div>
     </section>
 
+    <!-- Le volet social, propre au bailleur.
+         C'est la difference de fond entre les deux organismes : le
+         tableau 3.2 confie a la Banque le controle de ses sauvegardes
+         operationnelles, « volet social compris ». Les doleances de
+         riverains en relevent ; l'agence de tutelle, dont le mandat
+         porte sur l'environnement, n'y a pas acces. -->
+    @if (suitLeVoletSocial()) {
+      <section>
+        <h2 class="titre-section">
+          <lucide-icon [img]="Users" size="16"></lucide-icon>
+          Sauvegardes sociales
+        </h2>
+        <p class="titre-note">
+          Volet propre au mandat du bailleur. Le mécanisme de gestion des
+          plaintes recueille les doléances des populations riveraines.
+        </p>
+
+        <div class="social">
+          <div class="social__carte">
+            <div class="social__chiffre">{{ plaintes().length }}</div>
+            <div class="social__libelle">Doléances reçues</div>
+          </div>
+          <div class="social__carte"
+               [class.social__carte--alerte]="plaintesOuvertes() > 0">
+            <div class="social__chiffre">{{ plaintesOuvertes() }}</div>
+            <div class="social__libelle">Sans réponse à ce jour</div>
+          </div>
+          <a class="social__lien" routerLink="/plaintes">
+            <lucide-icon [img]="Users" size="15"></lucide-icon>
+            Consulter le mécanisme de gestion des plaintes
+          </a>
+        </div>
+      </section>
+    }
+
     <!-- ── 2. Que reste-t-il ouvert, et ou ? ─────────────────────── -->
     <section>
       <h2 class="titre-section">

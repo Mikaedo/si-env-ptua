@@ -4,10 +4,13 @@ import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import {
   Signalement, Alerte, Chantier, IndiceSatellite, TransmissionRapport,
+  Plainte,
 } from '../../core/models';
+import { RouterLink } from '@angular/router';
 import {
   LucideAngularModule, ShieldCheck, FileCheck2, AlertTriangle, Bell,
   Satellite, MapPin, Clock, TrendingDown, Eye, Inbox, Scale, Landmark,
+  Users,
 } from 'lucide-angular';
 
 /**
@@ -31,7 +34,7 @@ import {
  */
 @Component({
   selector: 'app-controle-dashboard',
-  imports: [CommonModule, LucideAngularModule],
+  imports: [CommonModule, LucideAngularModule, RouterLink],
   templateUrl: './controle-dashboard.html',
   styleUrl: './controle-dashboard.scss',
 })
@@ -51,13 +54,30 @@ export class ControleDashboard implements OnInit {
   readonly Inbox = Inbox;
   readonly Scale = Scale;
   readonly Landmark = Landmark;
+  readonly Users = Users;
 
   signalements = signal<Signalement[]>([]);
   alertes = signal<Alerte[]>([]);
   chantiers = signal<Chantier[]>([]);
   indices = signal<IndiceSatellite[]>([]);
   transmissions = signal<TransmissionRapport[]>([]);
+  plaintes = signal<Plainte[]>([]);
   loading = signal(true);
+
+  /** Le bailleur seul suit le volet social.
+   *
+   * C'est la difference de fond entre les deux organismes, et elle vient
+   * du tableau 3.2 : l'agence de tutelle controle la conformite
+   * environnementale, le bailleur controle ses sauvegardes
+   * operationnelles, « volet social compris ». Les doleances de
+   * riverains relevent de ce volet, d'ou l'acces du bailleur au
+   * mecanisme de gestion des plaintes, que l'agence n'a pas.
+   */
+  suitLeVoletSocial = computed(() => this.auth.user()?.role === 'BAD');
+
+  plaintesOuvertes = computed(() =>
+    this.plaintes().filter(p => p.statut !== 'RESOLU'
+                             && p.statut !== 'REJETE').length);
 
   /** L'organisme connecte, nomme en toutes lettres.
    *
@@ -177,8 +197,18 @@ export class ControleDashboard implements OnInit {
 
   private charger(): void {
     this.loading.set(true);
-    let restants = 5;
+    // Les doleances ne sont demandees qu'au bailleur : le serveur les
+    // refuse a l'agence de tutelle, et une requete vouee au 403 salirait
+    // la console sans rien apporter.
+    let restants = this.suitLeVoletSocial() ? 6 : 5;
     const fini = () => { if (--restants <= 0) this.loading.set(false); };
+
+    if (this.suitLeVoletSocial()) {
+      this.api.getPlaintes().subscribe({
+        next: d => { this.plaintes.set(d); fini(); },
+        error: () => fini(),
+      });
+    }
 
     this.api.getSignalements().subscribe({
       next: d => { this.signalements.set(d); fini(); },

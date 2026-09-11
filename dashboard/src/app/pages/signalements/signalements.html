@@ -1,5 +1,9 @@
 <div class="space-y-4">
 
+  <!-- Le bandeau nomme l'organisme et l'angle sous lequel il lit ces
+       constats. -->
+  <app-bandeau-mandat [propos]="proposSignalements()" />
+
   <!-- Admin consultation badge -->
   @if (isAdmin()) {
     <div class="badge-consultation" style="align-self:flex-start;">

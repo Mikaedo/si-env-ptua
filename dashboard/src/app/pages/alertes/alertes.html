@@ -1,5 +1,11 @@
 <div class="space-y-4">
 
+  <!-- Le bandeau nomme l'organisme et ce qu'il vient chercher ici.
+       Les deux ne lisent pas une alerte pour la même raison : l'agence
+       de tutelle au regard des seuils réglementaires, le bailleur au
+       regard de ses sauvegardes. -->
+  <app-bandeau-mandat [propos]="proposAlertes()" />
+
   @if (isAdmin()) {
     <div class="badge-consultation" style="align-self:flex-start;">
       <lucide-icon [img]="Bell" size="13"></lucide-icon>

@@ -7,10 +7,11 @@ import { AuthService } from '../../core/auth.service';
 import { Signalement, Chantier } from '../../core/models';
 import { LucideAngularModule, Search, Filter, MapPin, ChevronRight, FileSearch, BarChart2, Clock, CheckCircle, AlertTriangle } from 'lucide-angular';
 import { CustomSelect } from '../../shared/custom-select';
+import { BandeauMandat } from '../../shared/bandeau-mandat';
 
 @Component({
   selector: 'app-signalements',
-  imports: [CommonModule, LucideAngularModule, CustomSelect],
+  imports: [CommonModule, LucideAngularModule, CustomSelect, BandeauMandat],
   templateUrl: './signalements.html',
   styleUrl: './signalements.scss'
 })
@@ -18,6 +19,25 @@ export class Signalements implements OnInit, OnDestroy {
   private api = inject(ApiService);
   public auth = inject(AuthService);
   isAdmin = () => this.auth.user()?.role === 'ADMIN';
+
+  /** L'angle sous lequel chaque organisme lit les constats.
+   *
+   * L'agence de tutelle regarde leur traitement au regard du Plan de
+   * Gestion ; le bailleur regarde en outre ceux qui touchent la sante
+   * ou les biens des riverains, qui relevent de sa sauvegarde sociale.
+   */
+  proposSignalements = () => {
+    const role = this.auth.user()?.role;
+    if (role === 'ANDE') {
+      return 'Constats de terrain et suites données, au regard du Plan '
+           + 'de Gestion Environnementale et Sociale';
+    }
+    if (role === 'BAD') {
+      return 'Constats de terrain, avec une attention aux nuisances '
+           + 'affectant la santé ou les biens des riverains';
+    }
+    return '';
+  };
   private router = inject(Router);
   private route = inject(ActivatedRoute);
 

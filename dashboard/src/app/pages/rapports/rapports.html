@@ -1,20 +1,30 @@
 <div style="max-width:820px; margin:0 auto;" class="space-y-5">
 
-  <!-- En-tête -->
+  <!-- En-tête. Le titre suit ce que l'utilisateur vient faire : le
+       spécialiste compose un rapport, le contrôleur consulte ce qui lui
+       a été remis. -->
   <div class="page-header" style="justify-content:space-between; flex-wrap:wrap; gap:12px;">
     <div class="flex items-center gap-4">
       <div class="page-header-icon" style="background:linear-gradient(135deg,#004F9F,#003366);">
         <lucide-icon [img]="FileText" size="22" style="color:white;"></lucide-icon>
       </div>
       <div>
-        <h1 class="page-header-title">Génération du rapport de suivi environnemental</h1>
-        <p class="page-header-sub">Plan de Gestion Environnementale et Sociale · Conforme aux exigences BAD</p>
+        <h1 class="page-header-title">
+          @if (peutGenerer) {
+            Rapport de suivi environnemental
+          } @else {
+            Rapports qui vous ont été transmis
+          }
+        </h1>
+        <p class="page-header-sub">
+          @if (peutGenerer) {
+            Plan de Gestion Environnementale et Sociale · Destiné à l'ANDE et à la BAD
+          } @else {
+            Registre des remises, avec leur date et leur émetteur
+          }
+        </p>
       </div>
     </div>
-    <span class="badge badge-navy" style="padding:8px 16px; font-size:12px;">
-      <lucide-icon [img]="FileText" size="13"></lucide-icon>
-      Rapport trimestriel
-    </span>
   </div>
 
   @if (error()) {
@@ -24,32 +34,40 @@
     </div>
   }
 
-  <!-- Formulaire -->
+  <!-- Le formulaire de composition. Réservé au Spécialiste Suivi
+       Environnemental : choisir la période et le périmètre, c'est
+       composer la pièce, et un contrôleur ne compose pas ce qu'il
+       contrôle. -->
+  @if (peutGenerer) {
   <div class="card">
 
     <!-- Section période -->
     <div style="padding:22px 26px; border-bottom:1px solid #F4F4F5;">
       <div class="section-label">
         <lucide-icon [img]="Calendar" size="13"></lucide-icon>
-        Période d'analyse
+        Période couverte
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="form-label">Date début</label>
-          <app-date-picker [value]="dateDebut()" placeholder="Sélectionner la date de début" (valueChange)="dateDebut.set($event)" />
+          <label class="form-label">Du</label>
+          <app-date-picker [value]="dateDebut()" placeholder="Début de période" (valueChange)="dateDebut.set($event)" />
         </div>
         <div>
-          <label class="form-label">Date fin</label>
-          <app-date-picker [value]="dateFin()" placeholder="Sélectionner la date de fin" (valueChange)="dateFin.set($event)" />
+          <label class="form-label">Au</label>
+          <app-date-picker [value]="dateFin()" placeholder="Fin de période" (valueChange)="dateFin.set($event)" />
         </div>
       </div>
+      <p style="font-size:11.5px; color:#A1A1AA; margin:10px 0 0; font-weight:500; line-height:1.6;">
+        Le rapport ne retient que les constats enregistrés dans cette
+        fenêtre. Laisser les dates vides couvre l'ensemble de l'historique.
+      </p>
     </div>
 
     <!-- Section chantiers -->
     <div style="padding:22px 26px; border-bottom:1px solid #F4F4F5;">
       <div class="section-label">
         <lucide-icon [img]="Building2" size="13"></lucide-icon>
-        Chantiers à inclure
+        Chantiers couverts
         @if (selectedChantiers().length > 0) {
           <span class="badge badge-orange" style="margin-left:auto;">{{ selectedChantiers().length }} sélectionné{{ selectedChantiers().length > 1 ? 's' : '' }}</span>
         }
@@ -76,6 +94,9 @@
             </label>
           }
         </div>
+        <p style="font-size:11.5px; color:#A1A1AA; margin:10px 0 0; font-weight:500; line-height:1.6;">
+          Aucune sélection couvre l'ensemble des chantiers du programme.
+        </p>
       } @else if (chargementChantiers()) {
         <div style="padding:20px; background:#FAFAFA; border:1.5px dashed #E4E4E7; border-radius:10px; text-align:center;">
           <div style="font-size:12.5px; color:#A1A1AA; font-weight:500;">
@@ -103,10 +124,8 @@
       }
     </div>
 
-    <!-- Section destinataire. Masquée pour les organismes de contrôle :
-         le choix du destinataire appartient à celui qui remet le
-         rapport, non à celui qui le reçoit. -->
-    @if (peutGenerer) {
+    <!-- Section destinataire. Le PGES ne désigne que deux organismes :
+         l'agence de tutelle et le bailleur. -->
     <div style="padding:22px 26px; border-bottom:1px solid #F4F4F5;">
       <div class="section-label">
         <lucide-icon [img]="Send" size="13"></lucide-icon>
@@ -118,8 +137,8 @@
           <option [value]="e.value">{{ e.label }}</option>
         }
       </select>
-      <p style="font-size:11.5px; color:#A1A1AA; margin:8px 0 0; font-weight:500;">
-        Le rapport sera adressé à l'entreprise sélectionnée (visible sur la page de garde du PDF)
+      <p style="font-size:11.5px; color:#A1A1AA; margin:8px 0 0; font-weight:500; line-height:1.6;">
+        Le nom de l'organisme figure sur la page de garde du document.
       </p>
 
       @if (peutTransmettre) {
@@ -133,53 +152,37 @@
         </div>
       }
     </div>
-    }
 
-    <!-- Actions -->
+    <!-- Actions. Deux gestes distincts : télécharger pour relire,
+         transmettre pour engager. Le second est donc en second, et son
+         destinataire est rappelé au moment de cliquer. -->
     <div style="padding:22px 26px; background:#FAFAFA;">
-      <!-- La composition du rapport revient au Spécialiste Suivi
-           Environnemental. L'agence de tutelle et le bailleur consultent
-           l'historique des remises : leur laisser choisir la période et
-           le périmètre reviendrait à leur laisser composer la pièce
-           qu'ils contrôlent. -->
-      @if (peutGenerer) {
-        <button (click)="generate()" [disabled]="generating()" class="btn btn-primary" style="width:100%; justify-content:center; padding:13px 24px; font-size:14px;" [style.opacity]="generating() ? '0.7' : '1'">
-          @if (generating()) {
-            <div class="spinner"></div>
-            Génération en cours...
-          } @else {
-            <lucide-icon [img]="Download" size="18"></lucide-icon>
-            Générer le rapport PDF
-          }
-        </button>
-      } @else {
-        <div style="display:flex; gap:10px; align-items:flex-start; padding:14px 16px; background:#EEF1F8; border:1px solid #CBD5E1; border-radius:10px;">
-          <lucide-icon [img]="Info" size="16" style="color:#004F9F; flex-shrink:0; margin-top:1px;"></lucide-icon>
-          <p style="margin:0; font-size:12.5px; color:#3F3F46; line-height:1.65; font-weight:500;">
-            La composition du rapport relève du Spécialiste Suivi
-            Environnemental. Vous accédez ci-dessous à l'historique des
-            rapports qui vous ont été transmis, avec leur date de remise.
-          </p>
-        </div>
-      }
+      <button (click)="generate()" [disabled]="generating()" class="btn btn-primary" style="width:100%; justify-content:center; padding:13px 24px; font-size:14px;" [style.opacity]="generating() ? '0.7' : '1'">
+        @if (generating()) {
+          <div class="spinner"></div>
+          Génération en cours...
+        } @else {
+          <lucide-icon [img]="Download" size="18"></lucide-icon>
+          Télécharger le rapport
+        }
+      </button>
+      <p style="text-align:center; font-size:11.5px; color:#A1A1AA; margin:8px 0 0; font-weight:500;">
+        Pour relecture. Rien n'est transmis ni tracé.
+      </p>
 
       @if (peutTransmettre) {
+        <div style="margin:16px 0 14px; border-top:1px dashed #E4E4E7;"></div>
         <button (click)="transmettre()" [disabled]="transmission()"
-          style="width:100%; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:9px; padding:13px 24px; border:1.5px solid #004F9F; border-radius:10px; background:white; color:#004F9F; font-size:14px; font-weight:600; font-family:inherit; cursor:pointer;"
+          style="width:100%; display:flex; align-items:center; justify-content:center; gap:9px; padding:13px 24px; border:1.5px solid #004F9F; border-radius:10px; background:white; color:#004F9F; font-size:14px; font-weight:600; font-family:inherit; cursor:pointer;"
           [style.opacity]="transmission() ? '0.7' : '1'">
           @if (transmission()) {
             <div class="spinner" style="border-top-color:#004F9F;"></div>
             Transmission en cours...
           } @else {
             <lucide-icon [img]="Send" size="17"></lucide-icon>
-            Transmettre le rapport
+            Transmettre officiellement
           }
         </button>
-        <!-- Le bouton portait « Transmettre à ANDE », le sigle du
-             destinataire sélectionné. Mais ce sigle change sans que
-             l'oeil le suive, et rien ne rappelle, au moment de cliquer,
-             vers qui part la remise. Le destinataire est donc nommé en
-             toutes lettres sous le bouton, avec l'adresse employée. -->
         <p style="text-align:center; font-size:12.5px; color:#52525B; margin:10px 0 0; font-weight:600; line-height:1.6;">
           Destinataire : {{ libelleDestinataire() }}
         </p>
@@ -191,36 +194,53 @@
           }
           La remise est tracée à votre nom, avec sa date.
         </p>
-      } @else {
-        <p style="text-align:center; font-size:12px; color:#A1A1AA; margin:10px 0 0; font-weight:500;">
-          Le rapport agrège signalements, alertes et mesures · Modèle réglementaire BAD
-        </p>
       }
     </div>
   </div>
+  }
 
-  <!-- Historique des transmissions -->
+  <!-- Le registre des remises.
+       Pour le spécialiste, c'est un repli qu'il déplie au besoin : il
+       vient ici pour composer. Pour le contrôleur, c'est l'écran
+       lui-même, et il est donc ouvert d'emblée. -->
   <div class="card">
-    <button (click)="basculerHistorique()"
-      style="width:100%; display:flex; align-items:center; gap:11px; padding:18px 26px; border:none; background:none; cursor:pointer; font-family:inherit; text-align:left;">
-      <div style="width:34px; height:34px; border-radius:9px; background:#F0F7FF; color:#004F9F; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-        <lucide-icon [img]="History" size="16"></lucide-icon>
-      </div>
-      <div style="flex:1;">
-        <div style="font-size:13.5px; font-weight:700; color:#18181B;">Historique des transmissions</div>
-        <div style="font-size:11.5px; color:#A1A1AA; margin-top:2px;">
-          Preuve des remises effectuées aux organismes de contrôle
+    @if (peutGenerer) {
+      <button (click)="basculerHistorique()"
+        style="width:100%; display:flex; align-items:center; gap:11px; padding:18px 26px; border:none; background:none; cursor:pointer; font-family:inherit; text-align:left;">
+        <div style="width:34px; height:34px; border-radius:9px; background:#F0F7FF; color:#004F9F; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <lucide-icon [img]="History" size="16"></lucide-icon>
         </div>
+        <div style="flex:1;">
+          <div style="font-size:13.5px; font-weight:700; color:#18181B;">Registre des remises</div>
+          <div style="font-size:11.5px; color:#A1A1AA; margin-top:2px;">
+            Trace des rapports adressés aux organismes de contrôle
+          </div>
+        </div>
+        @if (transmissions().length) {
+          <span class="badge badge-navy">{{ transmissions().length }}</span>
+        }
+      </button>
+    } @else {
+      <div style="display:flex; align-items:center; gap:11px; padding:18px 26px;">
+        <div style="width:34px; height:34px; border-radius:9px; background:#F0F7FF; color:#004F9F; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <lucide-icon [img]="History" size="16"></lucide-icon>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:13.5px; font-weight:700; color:#18181B;">Registre des remises</div>
+          <div style="font-size:11.5px; color:#A1A1AA; margin-top:2px;">
+            Chaque remise est tracée au nom de son émetteur, avec sa date
+          </div>
+        </div>
+        @if (transmissions().length) {
+          <span class="badge badge-navy">{{ transmissions().length }}</span>
+        }
       </div>
-      @if (transmissions().length) {
-        <span class="badge badge-navy">{{ transmissions().length }}</span>
-      }
-    </button>
+    }
 
-    @if (afficherHistorique()) {
+    @if (afficherHistorique() || !peutGenerer) {
       <div style="border-top:1px solid #F4F4F5;">
         @for (t of transmissions(); track t.id) {
-          <div style="display:flex; align-items:center; gap:12px; padding:13px 26px; border-bottom:1px solid #F8F8F9;">
+          <div style="display:flex; align-items:center; gap:12px; padding:14px 26px; border-bottom:1px solid #F8F8F9;">
             <div style="width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;"
                  [style.background]="t.succes ? '#F0FDF4' : '#FEF2F2'"
                  [style.color]="t.succes ? '#16A34A' : '#B91C1C'">
@@ -230,10 +250,10 @@
               <div style="font-size:13px; font-weight:600; color:#18181B;">
                 {{ t.organisme }} · {{ t.destinataire_email }}
               </div>
-              <div style="font-size:11.5px; color:#A1A1AA; margin-top:2px;">
-                {{ dateTransmission(t) }} · par {{ t.emetteur_email }}
+              <div style="font-size:11.5px; color:#A1A1AA; margin-top:3px; line-height:1.5;">
+                Remis le {{ dateTransmission(t) }} par {{ t.emetteur_email }}
                 @if (t.periode_debut && t.periode_fin) {
-                  · période du {{ t.periode_debut }} au {{ t.periode_fin }}
+                  <br />Période du {{ dateLisible(t.periode_debut) }} au {{ dateLisible(t.periode_fin) }}
                 }
               </div>
             </div>
@@ -243,23 +263,47 @@
             }
           </div>
         } @empty {
-          <div style="padding:26px; text-align:center; font-size:12.5px; color:#A1A1AA; line-height:1.6;">
-            Aucune transmission enregistrée à ce jour.
+          <div style="padding:30px 26px; text-align:center; font-size:12.5px; color:#A1A1AA; line-height:1.7;">
+            @if (peutGenerer) {
+              Aucune transmission enregistrée à ce jour.
+            } @else {
+              Aucun rapport ne vous a encore été transmis.<br />
+              Les remises apparaîtront ici, avec leur date et leur émetteur.
+            }
           </div>
         }
       </div>
     }
   </div>
 
-  <!-- Note contextuelle -->
+  <!-- Note contextuelle. Elle disait « trimestriel » alors que la
+       période se choisit librement, et « entreprise » pour désigner un
+       organisme de contrôle. -->
   <div style="background:linear-gradient(135deg,#EEF1F8,#E6EDF8); border:1px solid rgba(0,79,159,0.12); border-radius:12px; padding:18px 22px; display:flex; gap:14px; align-items:flex-start;">
     <div style="width:36px;height:36px;border-radius:9px;background:rgba(0,79,159,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
       <lucide-icon [img]="Info" size="18" style="color:#004F9F;"></lucide-icon>
     </div>
     <div>
-      <div style="font-size:13px; font-weight:700; color:#004F9F; margin-bottom:5px;">Rapport de suivi trimestriel</div>
+      <div style="font-size:13px; font-weight:700; color:#004F9F; margin-bottom:5px;">
+        @if (peutGenerer) {
+          Ce que contient le document
+        } @else {
+          Ce que ce registre atteste
+        }
+      </div>
       <p style="font-size:12.5px; color:#3F5A8A; margin:0; line-height:1.7;">
-        Ce rapport est destiné à l'<strong>ANDE</strong> et aux <strong>bailleurs de fonds (BAD)</strong>. Il consolide automatiquement les signalements, les mesures correctives et les alertes sur la période sélectionnée · une opération autrefois réalisée manuellement en plusieurs jours.
+        @if (peutGenerer) {
+          Le rapport agrège les signalements, les alertes et les plaintes de
+          la période, chantier par chantier, et en tire une synthèse rédigée
+          et des recommandations. Il est destiné à l'<strong>ANDE</strong> et
+          à la <strong>Banque Africaine de Développement</strong>, au titre du
+          Plan de Gestion Environnementale et Sociale.
+        } @else {
+          Chaque ligne atteste qu'un rapport vous a été adressé, à quelle
+          date et par qui. Sa composition relève du Spécialiste Suivi
+          Environnemental : la période et le périmètre sont de son ressort,
+          non du vôtre.
+        }
       </p>
     </div>
   </div>

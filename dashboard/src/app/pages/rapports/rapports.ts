@@ -227,6 +227,22 @@ export class Rapports implements OnInit {
     });
   }
 
+  /** Une date de periode, en toutes lettres.
+   *
+   * Les bornes arrivent au format ISO, tel que le champ de saisie les
+   * produit. « 2026-06-01 » dans un registre de remises officielles se
+   * lit mal : la date est donc rendue en clair.
+   */
+  dateLisible(valeur?: string | null): string {
+    if (!valeur) return '';
+    const d = new Date(valeur);
+    return Number.isNaN(d.getTime())
+      ? valeur
+      : d.toLocaleDateString('fr-FR', {
+          day: '2-digit', month: 'long', year: 'numeric',
+        });
+  }
+
   poidsLisible(t: TransmissionRapport): string {
     const o = t.taille_octets ?? 0;
     return o >= 1024 * 1024

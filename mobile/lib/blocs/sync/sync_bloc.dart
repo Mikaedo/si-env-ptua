@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../services/api_service.dart';
 import '../../services/local_database.dart';
@@ -47,6 +48,19 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
   Timer? _veille;
   bool _envoiEnCours = false;
 
+  /// Ecoute du retour de la couverture reseau.
+  ///
+  /// La minuterie seule faisait attendre : un agent qui retrouvait le
+  /// reseau a la seconde qui suivait un battement patientait une minute
+  /// entiere avant que ses constats ne partent, puis encore le temps du
+  /// test de joignabilite. Le systeme previent desormais des que
+  /// l'interface reseau change, et l'envoi part dans la foulee.
+  ///
+  /// La minuterie reste, en second rideau : la couverture peut revenir
+  /// sans changement d'interface, par exemple quand le reseau mobile
+  /// redevient joignable au meme endroit.
+  StreamSubscription<List<ConnectivityResult>>? _ecouteReseau;
+
   SyncBloc(this._api, this._localDb) : super(SyncInitial()) {
     on<CheckPendingCount>((event, emit) async {
       final count = await _localDb.pendingCount();
@@ -81,6 +95,14 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
 
     _veille = Timer.periodic(periodeVeille, (_) {
       if (!isClosed) add(AutoSyncTick());
+    });
+
+    // Le retour de la couverture declenche l'envoi sans attendre le
+    // prochain battement de la minuterie.
+    _ecouteReseau = Connectivity().onConnectivityChanged.listen((etats) {
+      final horsLigne = etats.isEmpty ||
+          etats.every((e) => e == ConnectivityResult.none);
+      if (!horsLigne && !isClosed) add(AutoSyncTick());
     });
   }
 
@@ -203,6 +225,7 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
   @override
   Future<void> close() {
     _veille?.cancel();
+    _ecouteReseau?.cancel();
     return super.close();
   }
 }

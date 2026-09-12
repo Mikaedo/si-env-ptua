@@ -200,6 +200,34 @@ class _MapScreenState extends State<MapScreen> {
     setState(() => _selectedChantier = c.index);
   }
 
+  /// Un fond de carte, pose sur ArcGIS Online.
+  ///
+  /// `keepBuffer` retient deux couronnes de tuiles autour de ce qui est
+  /// visible : sans lui, un simple deplacement du doigt les jetait et
+  /// les redemandait aussitot, ce qui donnait cette impression de
+  /// lenteur alors que le fournisseur repond en moins de trois cents
+  /// millisecondes.
+  ///
+  /// `panBuffer` prend de l'avance sur le deplacement, si bien que la
+  /// tuile est deja la quand elle entre a l'ecran.
+  Widget _fondDeCarte(String adresse) {
+    return TileLayer(
+      urlTemplate: adresse,
+      userAgentPackageName: 'ci.ageroute.si_env',
+      // Deux couronnes gardees, une couronne chargee d'avance : au-dela,
+      // on telecharge des tuiles que l'agent ne verra pas, et sur un
+      // forfait de chantier cela se paie.
+      keepBuffer: 2,
+      panBuffer: 1,
+      // ArcGIS ne sert pas au-dela du zoom 19 : demander plus renvoie
+      // des tuiles vides, et la carte semble se vider en zoomant.
+      maxNativeZoom: 19,
+      tileDisplay: const TileDisplay.fadeIn(
+        duration: Duration(milliseconds: 120),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -216,28 +244,24 @@ class _MapScreenState extends State<MapScreen> {
                 onTap: (_, __) => setState(() => _selectedChantier = -1),
               ),
               children: [
-                TileLayer(
-                  // La cle change avec le mode : force flutter_map a
-                  // re-instancier le layer et vider son cache de tiles,
-                  // sans quoi le switch Plan/Satellite ne rechargeait rien.
-                  key: ValueKey(_satelliteMode),
-                  // Les deux fonds viennent d'ArcGIS Online, libre
-                  // d'acces et sans cle.
-                  //
-                  // Le mode Plan tirait ses tuiles d'OpenStreetMap, qui
-                  // exige desormais un User-Agent de navigateur et
-                  // renvoie une image vide de cent trois octets a une
-                  // application mobile : la carte restait blanche. Le
-                  // fond sombre de CARTO, essaye avant, reclame une cle
-                  // et affichait un filigrane « API KEY REQUIRED » en
-                  // travers de la carte.
-                  urlTemplate: _satelliteMode
-                      ? 'https://server.arcgisonline.com/ArcGIS/rest/'
-                        'services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-                      : 'https://server.arcgisonline.com/ArcGIS/rest/'
-                        'services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-                  userAgentPackageName: 'ci.ageroute.si_env',
+                // Les deux fonds sont poses l'un sur l'autre, le
+                // satellite au-dessus, et la bascule ne joue que sur son
+                // opacite.
+                //
+                // Une seule couche dont on changeait l'adresse imposait
+                // une cle qui la detruisait a chaque bascule : tout le
+                // cache partait avec elle, et la carte se retelechargeait
+                // entierement. Les garder toutes deux vivantes rend le
+                // basculement immediat des le second passage.
+                _fondDeCarte(
+                  'https://server.arcgisonline.com/ArcGIS/rest/'
+                  'services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
                 ),
+                if (_satelliteMode)
+                  _fondDeCarte(
+                    'https://server.arcgisonline.com/ArcGIS/rest/'
+                    'services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                  ),
                 PolygonLayer(polygons: _filteredZones),
                 MarkerLayer(markers: _filteredMarkers),
               ],

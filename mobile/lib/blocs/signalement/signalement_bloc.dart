@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../services/api_service.dart';
+import '../../services/local_database.dart';
 import '../../models/models.dart';
 
 abstract class SignalementEvent {}
@@ -71,6 +72,39 @@ class SignalementError extends SignalementState {
 class SignalementBloc extends Bloc<SignalementEvent, SignalementState> {
   final ApiService _api;
 
+  final LocalDatabase _localDb = LocalDatabase();
+
+  /// Ajoute a la liste du serveur les constats encore dans le telephone.
+  ///
+  /// Un rafraichissement reussi remplacait la liste par celle du
+  /// serveur, qui ignore par construction ce qui ne lui est pas encore
+  /// parvenu : les constats en attente disparaissaient de l'ecran de
+  /// l'agent au premier retour de reseau, avant meme d'avoir ete
+  /// transmis.
+  ///
+  /// Les constats sont classes par heure de terrain, toutes provenances
+  /// confondues : c'est l'ordre des faits, non celui des arrivees.
+  Future<List<Signalement>> _completerAvecLocaux(
+      List<Signalement> duServeur) async {
+    final locaux = await _localDb.getAllLocal();
+    final dejaLa = duServeur.map((s) => s.uuidMobile).toSet();
+
+    final fusion = <Signalement>[
+      ...duServeur,
+      ...locaux
+          .map(Signalement.depuisBaseLocale)
+          .where((s) => !s.transmis && !dejaLa.contains(s.uuidMobile)),
+    ];
+
+    fusion.sort((a, b) {
+      final da = a.saisiLe ?? a.creeLe;
+      final db = b.saisiLe ?? b.creeLe;
+      if (da == null || db == null) return 0;
+      return db.compareTo(da);
+    });
+    return fusion;
+  }
+
   SignalementBloc(this._api) : super(SignalementInitial()) {
     on<LoadSignalements>((event, emit) async {
       // Stale-while-revalidate : si un cache local existe et qu'on charge
@@ -82,8 +116,23 @@ class SignalementBloc extends Bloc<SignalementEvent, SignalementState> {
           event.chantierId == null &&
           event.periodeJours == null;
       if (sansFiltre) {
-        final cache = await _api.signalementsEnCache();
-        if (cache != null) emit(SignalementsLoaded(cache));
+        // La base locale d'abord, et non le cache du serveur.
+        //
+        // Le cache ne contenait que ce que le serveur avait deja
+        // renvoye : un constat saisi hors couverture n'y figurait pas,
+        // et l'agent ne le voyait donc qu'apres la synchronisation. Il
+        // attendait, sans reseau, l'affichage de ce qu'il venait lui-meme
+        // de saisir. La base locale, elle, porte tout : ce qui est parti
+        // comme ce qui attend.
+        final local = await _localDb.getAllLocal();
+        if (local.isNotEmpty) {
+          emit(SignalementsLoaded(
+            local.map(Signalement.depuisBaseLocale).toList(),
+          ));
+        } else {
+          final cache = await _api.signalementsEnCache();
+          if (cache != null) emit(SignalementsLoaded(cache));
+        }
       } else {
         emit(SignalementLoading());
       }
@@ -95,7 +144,11 @@ class SignalementBloc extends Bloc<SignalementEvent, SignalementState> {
           chantierId: event.chantierId,
           periodeJours: event.periodeJours,
         );
-        emit(SignalementsLoaded(list));
+        // Les constats encore dans le telephone sont ajoutes a ce que
+        // le serveur renvoie : sans cela, un rafraichissement reussi
+        // les effacerait de l'ecran alors qu'ils n'ont pas encore ete
+        // transmis.
+        emit(SignalementsLoaded(await _completerAvecLocaux(list)));
       } catch (e) {
         // Si un cache a deja ete affiche, on garde l'affichage (pas d'erreur
         // ecran) : mieux vaut des donnees potentiellement datees que rien.

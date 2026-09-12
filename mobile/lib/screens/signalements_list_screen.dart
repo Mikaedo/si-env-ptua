@@ -9,7 +9,6 @@ import '../services/api_service.dart';
 import '../widgets/ptua_logo.dart';
 import 'signalement_detail_screen.dart';
 import 'filters_screen.dart';
-import 'nouveau_signalement_screen.dart';
 
 class SignalementsListScreen extends StatefulWidget {
   const SignalementsListScreen({super.key});
@@ -178,6 +177,28 @@ class _SignalementsListScreenState extends State<SignalementsListScreen>
     }
   }
 
+  /// L'intertitre qui separe les deux groupes de la liste.
+  Widget _intertitre(_Entree entree) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 2),
+      child: Row(children: [
+        Icon(entree.icone, size: 15, color: entree.teinte),
+        const SizedBox(width: 8),
+        Text(
+          entree.libelle!.toUpperCase(),
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.6,
+            color: entree.teinte,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Container(height: 1, color: kGray200)),
+      ]),
+    );
+  }
+
   Widget _buildSearchBar() {
     return Container(
       color: kBlue,
@@ -276,15 +297,33 @@ class _SignalementsListScreenState extends State<SignalementsListScreen>
           if (list.isEmpty) {
             return _buildEmptyState();
           }
+          // Les constats encore dans le telephone passent devant, sous
+          // leur propre intertitre. Melanges aux autres, ils se
+          // perdaient : l'agent ne savait pas ce qu'il lui restait a
+          // remonter avant de quitter le chantier.
+          final enAttente = list.where((s) => !s.transmis).toList();
+          final transmis = list.where((s) => s.transmis).toList();
+          final entrees = <_Entree>[
+            if (enAttente.isNotEmpty)
+              _Entree.titre('À transmettre (${enAttente.length})',
+                  Icons.cloud_off_rounded, kOrange),
+            ...enAttente.map(_Entree.constat),
+            if (transmis.isNotEmpty)
+              _Entree.titre('Transmis (${transmis.length})',
+                  Icons.cloud_done_rounded, kGray500),
+            ...transmis.map(_Entree.constat),
+          ];
           return RefreshIndicator(
             color: kBlue,
             onRefresh: () async { _loadWithFilters(); await _loadStats(); },
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-              itemCount: list.length,
+              itemCount: entrees.length,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
-                final sig = list[index];
+                final entree = entrees[index];
+                if (entree.estTitre) return _intertitre(entree);
+                final sig = entree.constat!;
                 return TweenAnimationBuilder<double>(
                   duration: Duration(milliseconds: 300 + (index * 50).clamp(0, 500)),
                   tween: Tween(begin: 0, end: 1),
@@ -369,6 +408,28 @@ class _SignalementsListScreenState extends State<SignalementsListScreen>
   }
 }
 
+/// Une ligne de la liste : soit un intertitre, soit un constat.
+///
+/// La liste porte deux groupes, ce qui reste a transmettre et ce qui est
+/// parti. Les melanger privait l'agent de la seule information qui lui
+/// importe en quittant une zone sans couverture : ce qu'il lui reste a
+/// remonter.
+class _Entree {
+  final String? libelle;
+  final IconData? icone;
+  final Color? teinte;
+  final Signalement? constat;
+
+  const _Entree._({this.libelle, this.icone, this.teinte, this.constat});
+
+  factory _Entree.titre(String libelle, IconData icone, Color teinte) =>
+      _Entree._(libelle: libelle, icone: icone, teinte: teinte);
+
+  factory _Entree.constat(Signalement s) => _Entree._(constat: s);
+
+  bool get estTitre => constat == null;
+}
+
 class _SignalementCard extends StatelessWidget {
   final Signalement signalement;
   final VoidCallback onTap;
@@ -384,7 +445,11 @@ class _SignalementCard extends StatelessWidget {
         (chantierId >= 1 && chantierId <= kChantiers.length
             ? kChantiers[chantierId - 1]
             : 'Chantier $chantierId');
-    final date = signalement.creeLe != null ? _formatDate(signalement.creeLe!) : '—';
+    // L'heure du constat sur le terrain, non celle de sa reception par
+    // le serveur : c'est celle-la que l'agent reconnait.
+    final quand = signalement.saisiLe ?? signalement.creeLe;
+    final date = quand != null ? _formatDate(quand) : '—';
+    final enAttente = !signalement.transmis;
 
     return InkWell(
       onTap: onTap,
@@ -393,7 +458,13 @@ class _SignalementCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: kWhite,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kGray200),
+          // Un constat encore dans le telephone se distingue au premier
+          // coup d'oeil : l'agent quittant une zone sans couverture doit
+          // savoir ce qui lui reste a remonter.
+          border: Border.all(
+            color: enAttente ? kOrange.withValues(alpha: 0.55) : kGray200,
+            width: enAttente ? 1.5 : 1,
+          ),
           boxShadow: const [BoxShadow(color: kShadowColor, blurRadius: 8, offset: Offset(0, 2))],
         ),
         child: Column(
@@ -402,10 +473,28 @@ class _SignalementCard extends StatelessWidget {
             Container(
               height: 4,
               decoration: BoxDecoration(
-                color: statusColor,
+                color: enAttente ? kOrange : statusColor,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               ),
             ),
+            if (enAttente)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 7),
+                color: kOrange.withValues(alpha: 0.08),
+                child: Row(children: const [
+                  Icon(Icons.cloud_off_rounded, size: 14, color: kOrange),
+                  SizedBox(width: 7),
+                  Text(
+                    'Dans le téléphone, pas encore transmis',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        color: kOrange,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ]),
+              ),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(

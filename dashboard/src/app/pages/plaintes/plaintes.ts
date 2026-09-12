@@ -81,6 +81,16 @@ export class Plaintes implements OnInit {
     return Math.round((closes / total) * 100);
   }
 
+  libelleStatut(code: string): string {
+    const libelles: Record<string, string> = {
+      OUVERTE: 'Ouverte',
+      EN_COURS: 'En cours de traitement',
+      RESOLU: 'Close',
+      REJETE: 'Classée sans suite',
+    };
+    return libelles[code] ?? code;
+  }
+
   couleurTaux(taux: number): string {
     if (taux >= 80) return '#16A34A';
     if (taux >= 50) return '#F37021';

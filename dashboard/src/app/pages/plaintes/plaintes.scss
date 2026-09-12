@@ -71,3 +71,72 @@
   background: #F4F4F5; color: #52525B; border-color: #E4E4E7;
   cursor: default;
 }
+
+/* ── La fiche de doleance ──────────────────────────────────────────
+   Elle n'avait pas de hauteur maximale : sur un ecran court, le bas
+   de la fiche passait sous le bord de la fenetre et rien ne permettait
+   d'y descendre. Le voile occupe la hauteur visible, la fiche s'y
+   borne, et c'est son corps qui defile. */
+.voile {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.fiche {
+  background: white; border-radius: 20px;
+  width: 100%; max-width: 520px;
+  max-height: calc(100vh - 40px);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+/* L'entete reste visible pendant que le corps defile : le nom du
+   plaignant et la croix de fermeture ne doivent jamais partir. */
+.fiche__entete { flex-shrink: 0; }
+
+.fiche__corps {
+  padding: 24px 28px;
+  display: flex; flex-direction: column; gap: 14px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── L'etat de la doleance et le geste qui suit ────────────────── */
+.etat {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+  padding: 14px 16px; background: #F8F8F9; border-radius: 10px;
+}
+.etat__intitule {
+  font-size: 11px; color: #A1A1AA; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.etat__valeur { font-size: 13px; font-weight: 700; margin-top: 4px; }
+
+/* ── Ecrans etroits ────────────────────────────────────────────────
+   Sous 640 px, la fiche prend toute la place disponible et les gestes
+   passent l'un sous l'autre plutot que de deborder de leur ligne. */
+@media (max-width: 640px) {
+  .voile { padding: 12px; align-items: flex-start; }
+  .fiche { max-height: calc(100vh - 24px); border-radius: 16px; }
+  .fiche__entete { padding: 18px 20px !important; }
+  .fiche__corps { padding: 18px 20px; gap: 12px; }
+
+  .etat { flex-direction: column; align-items: stretch; }
+  .gestes { width: 100%; }
+  .geste { flex: 1 1 auto; justify-content: center; }
+
+  .progression { padding: 16px 18px; }
+  .progression__entete { flex-direction: column; gap: 8px; }
+  .progression__taux { font-size: 26px; }
+}
+
+/* Ecrans courts : un portable en paysage laisse peu de hauteur. */
+@media (max-height: 560px) {
+  .voile { align-items: flex-start; padding: 12px; }
+  .fiche { max-height: calc(100vh - 24px); }
+}

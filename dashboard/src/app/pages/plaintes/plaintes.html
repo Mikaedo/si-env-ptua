@@ -267,13 +267,11 @@
 
 <!-- ====== MODALE DÉTAIL PLAINTE ====== -->
 @if (selectedPlainte(); as p) {
-  <div style="position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px;"
-       (click)="closeDetail()">
-    <div style="background:white; border-radius:20px; max-width:520px; width:100%; box-shadow:0 24px 64px rgba(0,0,0,0.25); overflow:hidden;"
-         (click)="$event.stopPropagation()">
+  <div class="voile" (click)="closeDetail()">
+    <div class="fiche" (click)="$event.stopPropagation()">
 
       <!-- Header modale -->
-      <div style="padding:24px 28px; border-bottom:1px solid #F4F4F5; display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"
+      <div class="fiche__entete" style="padding:24px 28px; border-bottom:1px solid #F4F4F5; display:flex; align-items:flex-start; justify-content:space-between; gap:12px;"
            [style.background]="p.statut === 'OUVERTE' ? '#FFF8F2' : p.statut === 'EN_COURS' ? '#F0F8FF' : p.statut === 'RESOLU' ? '#F0FDF4' : '#FAFAFA'">
         <div style="display:flex; align-items:center; gap:14px;">
           <div style="width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#FEF3E8,#FCE0C2);">
@@ -291,7 +289,7 @@
       </div>
 
       <!-- Body modale -->
-      <div style="padding:24px 28px; display:flex; flex-direction:column; gap:14px;">
+      <div class="fiche__corps">
 
         <!-- Contact -->
         <div style="display:flex; align-items:center; gap:10px; padding:14px 16px; background:#F8F8F9; border-radius:10px;">
@@ -326,26 +324,47 @@
           </div>
         </div>
 
-        <!-- Statut + action -->
-        <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:#F8F8F9; border-radius:10px;">
+        <!-- Statut, et le geste qui suit -->
+        <!--
+          Une liste déroulante demandait de choisir un état dans une liste
+          où figuraient aussi ceux d'où l'on venait. Le spécialiste ne
+          choisit pas un état : il pose un acte, et l'état en découle. Ces
+          boutons nomment l'acte, et n'offrent que ceux qui ont un sens
+          depuis la position actuelle de la doléance.
+        -->
+        <div class="etat">
           <div>
-            <div style="font-size:11px; color:#A1A1AA; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Statut actuel</div>
-            <div style="font-size:13px; font-weight:700; margin-top:4px;" [style.color]="statutColors[p.statut] || '#A1A1AA'">
-              {{ p.statut === 'OUVERTE' ? 'Ouverte' : p.statut === 'EN_COURS' ? 'En cours' : p.statut === 'RESOLU' ? 'Résolue' : 'Rejetée' }}
+            <div class="etat__intitule">Statut actuel</div>
+            <div class="etat__valeur" [style.color]="statutColors[p.statut] || '#A1A1AA'">
+              {{ libelleStatut(p.statut) }}
             </div>
           </div>
           @if (canManage) {
-            <!-- « Résolue » suppose qu'un traitement ait été enregistré :
-                 l'option reste indisponible tant qu'aucun ne l'est, pour
-                 que le plaignant ait toujours une réponse à recevoir. -->
-            <select [value]="p.statut" (change)="updateStatut(p.id, $any($event.target).value)" class="form-select" style="font-size:12px; padding:8px 12px;">
-              <option value="OUVERTE">Ouverte</option>
-              <option value="EN_COURS">En cours</option>
-              <option value="RESOLU" [disabled]="!aUnTraitement(p)">
-                Résolue{{ aUnTraitement(p) ? '' : ' (traitement à enregistrer)' }}
-              </option>
-              <option value="REJETE">Rejetée</option>
-            </select>
+            <div class="gestes">
+              @if (p.statut === 'OUVERTE') {
+                <button class="geste geste--principal" (click)="updateStatut(p.id, 'EN_COURS')">
+                  <lucide-icon [img]="Play" size="14"></lucide-icon> Prendre en charge
+                </button>
+                <button class="geste geste--discret" (click)="updateStatut(p.id, 'REJETE')">Classer sans suite</button>
+              }
+              @else if (p.statut === 'EN_COURS') {
+                <!-- Clore suppose qu'un traitement soit consigné : sans
+                     lui, le riverain recevrait une réponse vide. -->
+                @if (aUnTraitement(p)) {
+                  <button class="geste geste--valider" (click)="updateStatut(p.id, 'RESOLU')">
+                    <lucide-icon [img]="CheckCircle" size="14"></lucide-icon> Clore la doléance
+                  </button>
+                } @else {
+                  <button class="geste geste--principal" (click)="showActionForm.set(true)">
+                    Consigner l'action corrective
+                  </button>
+                }
+                <button class="geste geste--discret" (click)="updateStatut(p.id, 'REJETE')">Classer sans suite</button>
+              }
+              @else {
+                <button class="geste geste--discret" (click)="updateStatut(p.id, 'OUVERTE')">Rouvrir</button>
+              }
+            </div>
           }
         </div>
 

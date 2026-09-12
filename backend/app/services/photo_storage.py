@@ -52,6 +52,12 @@ class _StockageLocal:
 
     def enregistrer(self, nom_fichier: str, donnees: bytes) -> str:
         chemin_absolu = os.path.join(self.dossier, nom_fichier)
+        # Second verrou, independant de nom_unique : quel que soit
+        # l'appelant, l'ecriture ne sort pas du dossier des photographies.
+        racine = os.path.realpath(self.dossier)
+        vise = os.path.realpath(chemin_absolu)
+        if not vise.startswith(racine + os.sep):
+            raise ValueError("Nom de fichier refusé : hors du dossier des photos")
         with open(chemin_absolu, "wb") as f:
             f.write(donnees)
         # Chemin relatif : les clients le prefixent par ${apiUrl}/uploads/photos/.
@@ -128,8 +134,42 @@ def _instancier() -> BackendStockage:
 backend: BackendStockage = _instancier()
 
 
+#: Extensions acceptees pour une photographie de terrain. Toute autre
+#: valeur est ramenee a .jpg : le client envoie des photographies, et le
+#: serveur n'a pas a ecrire sur son disque un nom d'extension choisi par
+#: l'appelant.
+EXTENSIONS_PHOTO = {".jpg", ".jpeg", ".png", ".webp", ".heic"}
+
+
+def _assainir(nom_original: str) -> str:
+    """Ne garde du nom fourni par le client que ce qui peut nommer un
+    fichier, et rien qui puisse designer un chemin.
+
+    Le nom arrivait jusqu'a os.path.join sans filtrage. Le prefixe ne
+    protegeait pas : « ../../../etc/passwd » remonte depuis lui, et
+    l'ecriture sortait du dossier des photographies. Un appelant
+    authentifie pouvait donc ecrire ailleurs sur le disque du conteneur.
+
+    On ne retient que le dernier segment, on ecarte les caracteres qui
+    ne nomment pas un fichier, et on impose une extension d'image.
+    """
+    # Les deux separateurs sont traites, le serveur pouvant tourner sur
+    # l'un ou l'autre systeme.
+    dernier = nom_original.replace("\\", "/").rsplit("/", 1)[-1]
+
+    base, _, extension = dernier.rpartition(".")
+    if not base:  # un nom sans point : tout est la base
+        base, extension = dernier, ""
+    extension = f".{extension.lower()}" if extension else ""
+    if extension not in EXTENSIONS_PHOTO:
+        extension = ".jpg"
+
+    base = "".join(c for c in base if c.isalnum() or c in "-_")[:60]
+    return f"{base or 'photo'}{extension}"
+
+
 def nom_unique(signalement_id: int, nom_original: str) -> str:
     """Prefixe temporel et identifiant : evite les collisions et facilite le
     tri par ordre chronologique dans un explorateur d'objets."""
     horodatage = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    return f"sig_{signalement_id}_{horodatage}_{nom_original}"
+    return f"sig_{signalement_id}_{horodatage}_{_assainir(nom_original)}"

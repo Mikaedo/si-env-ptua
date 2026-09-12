@@ -14,14 +14,14 @@ Endpoints d'authentification :
 import os
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from .. import models, schemas, auth
 from ..database import get_db
 from ..services.email_service import envoyer_email
-from ..services import otp_service
+from ..services import otp_service, journal_service
 
 router = APIRouter(prefix="/auth", tags=["Authentification"])
 
@@ -171,8 +171,9 @@ def register(data: schemas.UtilisateurCreate,
     db.add(utilisateur)
     db.add(models.Journal(
         niveau="INFO",
-        message=f"Invitation créée pour {data.email} ({data.role.value})",
+        message=f"Compte créé : {data.nom} ({data.email}), rôle {data.role.value}",
         utilisateur=courant.email,
+        categorie=journal_service.CAT_COMPTE,
     ))
     db.commit()
     db.refresh(utilisateur)
@@ -326,10 +327,19 @@ def _envoyer_email_bienvenue(email_dest: str,
 @router.post("/login", response_model=schemas.Token)
 def login(form: OAuth2PasswordRequestForm = Depends(),
           background_tasks: BackgroundTasks = None,
-          db: Session = Depends(get_db)):
+          db: Session = Depends(get_db),
+          request: Request = None):
     utilisateur = db.query(models.Utilisateur).filter(
         models.Utilisateur.email == form.username).first()
     if not utilisateur:
+        # Une tentative sur un compte inexistant se trace : c'est ainsi
+        # qu'on voit quelqu'un essayer des adresses au hasard.
+        journal_service.journaliser(
+            db, f"Tentative de connexion sur un compte inconnu : {form.username}",
+            niveau=journal_service.NIVEAU_WARNING,
+            utilisateur=form.username, request=request,
+            categorie=journal_service.CAT_ACCES)
+        db.commit()
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
 
     # Premiere connexion (mot de passe non defini) : on retourne un jeton
@@ -344,6 +354,14 @@ def login(form: OAuth2PasswordRequestForm = Depends(),
         }
 
     if not auth.verifier_mot_de_passe(form.password, utilisateur.mot_de_passe_hash):
+        # Un mot de passe errone sur un compte qui existe : c'est le
+        # signal qu'un administrateur doit pouvoir lire, repete ou non.
+        journal_service.journaliser(
+            db, f"Mot de passe incorrect pour {utilisateur.email}",
+            niveau=journal_service.NIVEAU_WARNING,
+            utilisateur=utilisateur.email, request=request,
+            categorie=journal_service.CAT_ACCES)
+        db.commit()
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
 
     # 2FA activee : on ne remet pas encore de jeton. On genere un code, on
@@ -363,6 +381,11 @@ def login(form: OAuth2PasswordRequestForm = Depends(),
 
     access = auth.creer_token({"sub": str(utilisateur.id), "role": utilisateur.role.value})
     refresh = auth.emettre_refresh_token(db, utilisateur)
+    journal_service.journaliser(
+        db, f"Connexion de {utilisateur.nom} ({utilisateur.role.value})",
+        utilisateur=utilisateur.email, request=request,
+        categorie=journal_service.CAT_ACCES)
+    db.commit()
     return {
         "access_token": access,
         "token_type": "bearer",
@@ -412,9 +435,25 @@ def refresh_access(data: schemas.RefreshInput, db: Session = Depends(get_db)):
 
 
 @router.post("/logout")
-def logout(data: schemas.RefreshInput, db: Session = Depends(get_db)):
+def logout(data: schemas.RefreshInput, db: Session = Depends(get_db),
+           request: Request = None):
     """Revoque un refresh token (deconnexion cote client)."""
+    # Le porteur du jeton est retrouve avant revocation : apres, la ligne
+    # n'existe plus et la trace ne pourrait plus nommer personne.
+    porteur = (
+        db.query(models.Utilisateur)
+        .join(models.RefreshToken,
+              models.RefreshToken.utilisateur_id == models.Utilisateur.id)
+        .filter(models.RefreshToken.jeton == data.refresh_token)
+        .first()
+    )
     auth.revoquer_refresh_token(db, data.refresh_token)
+    if porteur:
+        journal_service.journaliser(
+            db, f"Déconnexion de {porteur.nom}",
+            utilisateur=porteur.email, request=request,
+            categorie=journal_service.CAT_ACCES)
+        db.commit()
     return {"message": "Deconnexion effectuee"}
 
 

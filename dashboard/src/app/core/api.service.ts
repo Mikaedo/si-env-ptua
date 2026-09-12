@@ -187,11 +187,11 @@ export class ApiService {
     return this.http.get<User[]>(`${API_URL}/admin/users`, { headers: this.headers });
   }
 
-  createUser(data: { email: string; role: string; nom?: string }): Observable<User> {
+  createUser(data: { email: string; role: string; nom?: string; telephone?: string }): Observable<User> {
     return this.http.post<User>(`${API_URL}/auth/register`, data, { headers: this.headers });
   }
 
-  updateUser(id: number, data: { role?: string; nom?: string }): Observable<User> {
+  updateUser(id: number, data: { role?: string; nom?: string; telephone?: string }): Observable<User> {
     return this.http.patch<User>(`${API_URL}/admin/users/${id}`, data, { headers: this.headers });
   }
 
@@ -244,7 +244,17 @@ export class ApiService {
   }
 
   // Logs (admin)
-  getLogs(): Observable<Journal[]> {
-    return this.http.get<Journal[]>(`${API_URL}/admin/logs`, { headers: this.headers });
+  /**
+   * Le journal d'audit.
+   *
+   * Sans categorie, le serveur s'en tient aux actions des personnes :
+   * connexions, comptes, parametrage. C'est ce que l'administrateur
+   * vient lire. `tout` rend la vue complete, `categorie` en isole une.
+   */
+  getLogs(categorie?: string, tout = false): Observable<Journal[]> {
+    let params = '';
+    if (categorie) params = `?categorie=${categorie}`;
+    else if (tout) params = '?tout=true';
+    return this.http.get<Journal[]>(`${API_URL}/admin/logs${params}`, { headers: this.headers });
   }
 }

@@ -172,6 +172,12 @@ def au_demarrage():
     _ajouter_colonne_si_absente(
         "signalements", "saisi_le", "TIMESTAMP"
     )
+    # La nature de l'evenement journalise. Les entrees deja en base n'en
+    # portent pas : elles relevaient toutes du metier, et le journal de
+    # l'administrateur les ecarte donc naturellement.
+    _ajouter_colonne_si_absente(
+        "journaux", "categorie", "VARCHAR(20)"
+    )
     for nom_colonne, definition in (
         ("plaignant_id", "INTEGER"),
         ("categorie", "VARCHAR(40)"),

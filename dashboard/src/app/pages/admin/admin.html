@@ -40,12 +40,13 @@
           </div>
           <div>
             <label class="form-label">Rôle d'accès</label>
+            <!-- La liste vient du composant : l'ANDE et la BAD y
+                 manquaient, et leurs comptes ne pouvaient donc pas être
+                 créés depuis cet écran. -->
             <select [value]="newUserRole()" (change)="newUserRole.set($any($event.target).value)" class="form-select">
-              <option value="RESP_ENV">Responsable Environnement</option>
-              <option value="EXPERT_HSE">Expert HSE (Validation)</option>
-              <option value="SPEC_ENV">Spécialiste Suivi Env.</option>
-              <option value="SPEC_PAR">Spécialiste Suivi P.A.R</option>
-              <option value="ADMIN">Administrateur Système</option>
+              @for (r of rolesDisponibles; track r) {
+                <option [value]="r">{{ roleLabels[r] || r }}</option>
+              }
             </select>
           </div>
           <button (click)="createUser()" [disabled]="creating() || !newUserEmail()" class="btn btn-primary"
@@ -107,9 +108,18 @@
                     }
                   </td>
                   <td>
-                    <button (click)="deleteUser(u)" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#C62828;transition:all 0.15s;" onmouseenter="this.style.background='#FFEBEE'" onmouseleave="this.style.background='none'" title="Supprimer">
-                      <lucide-icon [img]="Trash2" size="14"></lucide-icon>
-                    </button>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                      <!-- Modifier : le nom, le téléphone et le rôle.
+                           Seul le rôle changeait auparavant, ce qui
+                           obligeait à recréer un compte pour corriger
+                           un nom mal saisi. -->
+                      <button (click)="openEdit(u)" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#004F9F;transition:all 0.15s;" onmouseenter="this.style.background='#EFF6FF'" onmouseleave="this.style.background='none'" title="Modifier le compte">
+                        <lucide-icon [img]="Pencil" size="14"></lucide-icon>
+                      </button>
+                      <button (click)="deleteUser(u)" style="background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:#C62828;transition:all 0.15s;" onmouseenter="this.style.background='#FFEBEE'" onmouseleave="this.style.background='none'" title="Supprimer">
+                        <lucide-icon [img]="Trash2" size="14"></lucide-icon>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               } @empty {
@@ -194,9 +204,21 @@
       <div style="padding:16px 22px; border-bottom:1px solid #F4F4F5; background:#FAFAFA; display:flex; align-items:center; justify-content:space-between;">
         <div style="display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; color:#18181B;">
           <lucide-icon [img]="ScrollText" size="16" style="color:#A1A1AA;"></lucide-icon>
-          Audit des journaux système
+          Journal des actions
         </div>
         <span class="badge badge-gray">{{ logs().length }} entrée{{ logs().length !== 1 ? 's' : '' }}</span>
+      </div>
+
+      <!-- Le journal s'en tient aux actions des personnes : connexions,
+           comptes, paramétrage. Les alertes de dépassement de seuil sont
+           déclenchées par le système et relèvent du Spécialiste ; elles
+           noyaient ce que l'administrateur vient lire. La vue complète
+           reste accessible. -->
+      <div class="filtres-journal">
+        @for (f of filtresJournal; track f.cle) {
+          <button class="filtre" [class.filtre--actif]="filtreJournal() === f.cle"
+                  (click)="filtrerJournal(f.cle)">{{ f.libelle }}</button>
+        }
       </div>
 
       <div style="max-height:600px; overflow-y:auto; font-family:monospace;">
@@ -228,3 +250,58 @@
     </div>
   }
 </div>
+
+<!-- ====== MODIFIER UN COMPTE ====== -->
+@if (editingUser(); as u) {
+  <div class="voile-compte" (click)="closeEdit()">
+    <div class="fiche-compte" (click)="$event.stopPropagation()">
+      <div class="fiche-compte__entete">
+        <div>
+          <div class="fiche-compte__titre">Modifier le compte</div>
+          <div class="fiche-compte__mail">{{ u.email }}</div>
+        </div>
+        <button class="fiche-compte__fermer" (click)="closeEdit()">
+          <lucide-icon [img]="X" size="18"></lucide-icon>
+        </button>
+      </div>
+
+      <div class="fiche-compte__corps">
+        <!-- L'adresse ne se modifie pas : elle identifie le compte et
+             porte ses signalements. La changer reviendrait à en créer
+             un autre, ce que fait déjà l'invitation. -->
+        <label class="champ">
+          <span class="champ__intitule">Nom complet</span>
+          <input class="champ__saisie" [value]="editNom()"
+                 (input)="editNom.set($any($event.target).value)"
+                 placeholder="Nom et prénoms">
+        </label>
+
+        <label class="champ">
+          <span class="champ__intitule">Téléphone</span>
+          <input class="champ__saisie" [value]="editTelephone()"
+                 (input)="editTelephone.set($any($event.target).value)"
+                 placeholder="+225 ...">
+        </label>
+
+        <label class="champ">
+          <span class="champ__intitule">Rôle</span>
+          <select class="champ__saisie" [value]="editRole()"
+                  (change)="editRole.set($any($event.target).value)">
+            @for (r of rolesDisponibles; track r) {
+              <option [value]="r">{{ roleLabels[r] || r }}</option>
+            }
+          </select>
+        </label>
+
+        <div class="fiche-compte__gestes">
+          <button class="btn" style="background:#F4F4F5; color:#52525B;"
+                  (click)="closeEdit()">Annuler</button>
+          <button class="btn" style="background:#004F9F; color:white;"
+                  [disabled]="savingUser()" (click)="saveUser()">
+            {{ savingUser() ? 'Enregistrement...' : 'Enregistrer' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}

@@ -313,6 +313,18 @@ class Journal(Base):
     ip_source = Column(String(64), nullable=True)
     cree_le = Column(DateTime, default=datetime.utcnow)
 
+    # La nature de l'evenement : un acces, un compte, un reglage du
+    # systeme, ou le suivi environnemental lui-meme.
+    #
+    # Sans elle, le journal melait un depassement de NO2 et une creation
+    # de compte dans la meme liste. L'Administrateur y cherche qui s'est
+    # connecte et qui a cree quel compte ; un seuil franchi releve du
+    # Specialiste et noyait ce qu'il venait lire.
+    #
+    # Les entrees anterieures n'en portent pas : elles sont traitees
+    # comme relevant du metier, ce qu'elles etaient toutes.
+    categorie = Column(String(20), nullable=True, index=True)
+
 
 # ═════════════════════════════════════════════════════════════════════════
 # Ajouts pro pour rapprocher le SI-ENV d'une application moderne

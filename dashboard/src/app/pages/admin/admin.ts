@@ -4,7 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { ToastService } from '../../core/toast.service';
 import { User, Chantier, AlerteSeuil } from '../../core/models';
-import { LucideAngularModule, Users, UserPlus, Cpu, ScrollText, Shield, Settings2, ShieldCheck, Upload, Building2, BellRing, Plus, AlertCircle, Trash2, Pencil } from 'lucide-angular';
+import { LucideAngularModule, Users, UserPlus, Cpu, ScrollText, Shield, Settings2, ShieldCheck, Upload, Building2, BellRing, Plus, AlertCircle, Trash2, Pencil, X } from 'lucide-angular';
 
 @Component({
   selector: 'app-admin',
@@ -31,6 +31,7 @@ export class Admin implements OnInit {
   readonly AlertCircle = AlertCircle;
   readonly Trash2 = Trash2;
   readonly Pencil = Pencil;
+  readonly X = X;
 
   // Le referentiel des chantiers et les seuils d'alerte ont quitte cet ecran.
   // Ils relevent d'une appreciation environnementale et non de l'exploitation
@@ -76,13 +77,37 @@ export class Admin implements OnInit {
     });
   }
 
-  loadLogs() {
-    if (this.logs().length === 0) {
-      this.api.getLogs().subscribe({
+  // ── Le journal des actions ──────────────────────────────────────
+  //
+  // Il renvoyait tout, y compris les dépassements de seuil déclenchés
+  // par le système. L'administrateur y cherche ce que les personnes
+  // font : qui s'est connecté, qui a échoué, quel compte a changé. Un
+  // NO2 au-dessus du seuil relève du Spécialiste et noyait ces lignes.
+  filtreJournal = signal('');
+  readonly filtresJournal = [
+    { cle: '', libelle: 'Actions des utilisateurs' },
+    { cle: 'ACCES', libelle: 'Connexions' },
+    { cle: 'COMPTE', libelle: 'Comptes' },
+    { cle: 'SYSTEME', libelle: 'Paramétrage' },
+    { cle: 'TOUT', libelle: 'Tout, métier compris' },
+  ];
+
+  loadLogs(force = false) {
+    if (this.logs().length === 0 || force) {
+      const cle = this.filtreJournal();
+      this.api.getLogs(
+        cle && cle !== 'TOUT' ? cle : undefined,
+        cle === 'TOUT',
+      ).subscribe({
         next: (data) => this.logs.set(data),
         error: () => {}
       });
     }
+  }
+
+  filtrerJournal(cle: string) {
+    this.filtreJournal.set(cle);
+    this.loadLogs(true);
   }
 
   setTab(tab: 'users' | 'ia' | 'logs') {
@@ -180,7 +205,58 @@ export class Admin implements OnInit {
         this.users.update(list => list.map(x => x.id === u.id ? updated : x));
         this.toast.success('Rôle mis à jour avec succès');
       },
-      error: () => this.toast.error('Échec de la mise à jour du rôle')
+      // Le serveur refuse qu'un administrateur se retire son propre
+      // rôle : il dit pourquoi, autant le répéter à qui l'a tenté.
+      error: (err) => {
+        this.toast.error(err?.error?.detail
+          || 'Échec de la mise à jour du rôle');
+        this.loadUsers();
+      }
+    });
+  }
+
+  // ── Modification d'un compte ────────────────────────────────────
+  //
+  // Seul le rôle pouvait changer. Un agent qui se mariait, changeait de
+  // numéro ou dont le nom avait été mal saisi obligeait à supprimer puis
+  // recréer son compte, ce qui lui faisait perdre le lien avec ses
+  // propres signalements.
+  editingUser = signal<User | null>(null);
+  editNom = signal('');
+  editTelephone = signal('');
+  editRole = signal('');
+  savingUser = signal(false);
+
+  openEdit(u: User) {
+    this.editingUser.set(u);
+    this.editNom.set(u.nom ?? '');
+    this.editTelephone.set(u.telephone ?? '');
+    this.editRole.set(u.role);
+  }
+
+  closeEdit() {
+    this.editingUser.set(null);
+    this.savingUser.set(false);
+  }
+
+  saveUser() {
+    const u = this.editingUser();
+    if (!u) return;
+    this.savingUser.set(true);
+    this.api.updateUser(u.id, {
+      nom: this.editNom().trim() || undefined,
+      telephone: this.editTelephone().trim() || undefined,
+      role: this.editRole(),
+    }).subscribe({
+      next: (updated) => {
+        this.users.update(list => list.map(x => x.id === u.id ? updated : x));
+        this.closeEdit();
+        this.toast.success('Compte mis à jour');
+      },
+      error: (err) => {
+        this.savingUser.set(false);
+        this.toast.error(err?.error?.detail || 'La mise à jour a échoué.');
+      }
     });
   }
 
@@ -191,7 +267,11 @@ export class Admin implements OnInit {
         this.users.update(list => list.filter(x => x.id !== u.id));
         this.toast.success('Utilisateur supprimé avec succès');
       },
-      error: () => this.toast.error('Échec de la suppression de l\'utilisateur')
+      // Le serveur refuse la suppression du dernier administrateur et
+      // celle de son propre compte : son motif vaut mieux qu'un échec
+      // muet.
+      error: (err) => this.toast.error(err?.error?.detail
+        || 'Échec de la suppression de l\'utilisateur')
     });
   }
 
@@ -224,8 +304,24 @@ export class Admin implements OnInit {
       'SPEC_PAR': 'Spéc. P.A.R',
       'RESP_ENV': 'Resp. Env.',
       'EXPERT_HSE': 'Expert HSE',
+      // Les deux organismes de contrôle manquaient à la liste : leurs
+      // comptes existent en production mais s'affichaient sous leur
+      // sigle brut, et la modification d'un tel compte aurait écrasé
+      // son rôle par le premier de la liste.
+      'ANDE': 'ANDE (consultation)',
+      'BAD': 'BAD (consultation)',
     };
   }
+
+  /** Les rôles qu'un administrateur peut attribuer.
+   *
+   * Le riverain n'y figure pas : son compte se crée depuis
+   * l'application citoyenne, à l'inscription, non par invitation.
+   */
+  readonly rolesDisponibles = [
+    'RESP_ENV', 'EXPERT_HSE', 'SPEC_ENV', 'SPEC_PAR',
+    'ANDE', 'BAD', 'ADMIN',
+  ];
 
   get roleColors(): Record<string, string> {
     return {

@@ -98,7 +98,14 @@ export class Shell implements OnInit, OnDestroy {
     // sur du NO2, un NDVI ou un risque calcule sur trente jours, dont
     // un agent de chantier ne peut rien faire. Il constate ce qu'il
     // voit, il ne pilote pas des indices.
-    { label: 'Alertes', icon: Bell, route: '/alertes', roles: ['SPEC_ENV', 'ADMIN', 'ANDE', 'BAD'] },
+    //
+    // L'Administrateur en est ecarte lui aussi. Le tableau 3.2 du
+    // memoire le dit : il gere les comptes, les chantiers, les seuils et
+    // le modele, et n'intervient pas dans le suivi operationnel. Une
+    // alerte de depassement appelle une decision environnementale, qui
+    // revient au Specialiste. L'Administrateur regle le seuil, il ne
+    // traite pas ce que ce seuil declenche.
+    { label: 'Alertes', icon: Bell, route: '/alertes', roles: ['SPEC_ENV', 'ANDE', 'BAD'] },
     { label: 'Analyse satellitaire', icon: Satellite, route: '/satellite', roles: ['SPEC_ENV', 'ANDE', 'BAD'] },
     { label: 'Rapports de suivi', icon: FileText, route: '/rapports', roles: ['SPEC_ENV', 'ANDE', 'BAD'] },
     { label: 'Plaintes (MGP)', icon: ShieldAlert, route: '/plaintes', roles: ['SPEC_PAR', 'BAD'] },
@@ -108,8 +115,14 @@ export class Shell implements OnInit, OnDestroy {
     { label: 'Utilisateurs', icon: Users, route: '/admin', roles: ['ADMIN'], queryParams: { tab: 'users' } },
     { label: 'Modèle IA Mobile', icon: Cpu, route: '/admin', roles: ['ADMIN'], queryParams: { tab: 'ia' } },
     { label: 'Journaux Système', icon: ScrollText, route: '/admin', roles: ['ADMIN'], queryParams: { tab: 'logs' } },
-    // Admin: consultation
-    { label: 'Vue consultation', icon: Eye, route: '/admin-dashboard', roles: ['ADMIN'] },
+    // La « Vue consultation » a ete retiree du menu.
+    //
+    // Elle donnait a l'Administrateur le tableau de bord du suivi
+    // environnemental, en lecture. Or son metier porte sur les comptes
+    // et l'exploitation, non sur les nuisances : lui afficher les
+    // constats et les indices brouillait la separation que le memoire
+    // pose au tableau 3.2. Les trois entrees qui precedent couvrent son
+    // perimetre entier.
   ];
 
   get visibleNavItems(): NavItem[] {

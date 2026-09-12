@@ -5,6 +5,9 @@ export interface User {
   role: 'ADMIN' | 'SPEC_ENV' | 'SPEC_PAR' | 'RESP_ENV' | 'EXPERT_HSE'
       | 'ANDE' | 'BAD' | 'PLAIGNANT';
   premiere_connexion: boolean;
+  /** Le numéro de l'agent, que l'administrateur peut corriger. */
+  telephone?: string | null;
+  cree_le?: string;
 }
 
 export interface LoginResponse {

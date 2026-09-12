@@ -22,6 +22,10 @@ class UtilisateurCreate(BaseModel):
 class UtilisateurUpdate(BaseModel):
     nom: Optional[str] = None
     role: Optional[RoleEnum] = None
+    # Le telephone n'etait pas modifiable : un agent qui changeait de
+    # numero obligeait a supprimer puis recreer son compte, ce qui lui
+    # faisait perdre le lien avec ses propres signalements.
+    telephone: Optional[str] = None
 
 
 class UtilisateurOut(BaseModel):
@@ -377,6 +381,9 @@ class JournalOut(BaseModel):
     utilisateur: Optional[str] = None
     ip_source: Optional[str] = None
     cree_le: datetime
+    # Nature de l'evenement : ACCES, COMPTE, SYSTEME ou METIER. Absente
+    # des entrees anterieures a cette distinction.
+    categorie: Optional[str] = None
 
     class Config:
         from_attributes = True

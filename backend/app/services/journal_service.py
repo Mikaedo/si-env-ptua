@@ -26,6 +26,22 @@ NIVEAU_INFO = "INFO"
 NIVEAU_WARNING = "WARNING"
 NIVEAU_ERROR = "ERROR"
 
+# Categories d'evenements.
+#
+# Le journal melait deux choses de nature differente : ce que le systeme
+# calcule tout seul, comme un depassement de seuil, et ce que les gens
+# font, comme une connexion ou une creation de compte. L'Administrateur
+# y cherche la seconde : son metier porte sur les comptes et les acces,
+# non sur les nuisances. Un depassement de NO2 releve du Specialiste, et
+# le noyait dans une liste ou il ne pouvait rien reconnaitre.
+CAT_ACCES = "ACCES"          # connexion, deconnexion, echec, refus
+CAT_COMPTE = "COMPTE"        # creation, modification, suppression de compte
+CAT_SYSTEME = "SYSTEME"      # modele IA, seuils, parametrage
+CAT_METIER = "METIER"        # ce que le suivi environnemental produit
+
+#: Ce que l'Administrateur voit par defaut : les actions des personnes.
+CATEGORIES_ADMIN = (CAT_ACCES, CAT_COMPTE, CAT_SYSTEME)
+
 # Duree de conservation des traces d'audit (section 5.7 du memoire).
 RETENTION_JOURS = 30
 
@@ -49,7 +65,8 @@ def journaliser(db: Session,
                 message: str,
                 niveau: str = NIVEAU_INFO,
                 utilisateur: Optional[str] = None,
-                request: Optional[Request] = None) -> None:
+                request: Optional[Request] = None,
+                categorie: str = CAT_METIER) -> None:
     """Enregistre un evenement. `utilisateur` est l'adresse electronique.
 
     Volontairement tolerant : une panne de journalisation ne doit jamais
@@ -62,6 +79,7 @@ def journaliser(db: Session,
             message=message,
             utilisateur=utilisateur,
             ip_source=adresse_ip(request),
+            categorie=categorie,
         ))
     except Exception:
         pass

@@ -120,7 +120,17 @@
                   {{ statutLabels[s.statut] }}
                 </span>
               </td>
-              <td style="font-size:12.5px; color:#71717A; white-space:nowrap;">{{ formatDate(s.cree_le) }}</td>
+              <!-- La date du constat sur le terrain, et le délai de
+                   transmission quand il est notable : le mode hors ligne
+                   n'est un défaut que s'il est caché. -->
+              <td style="font-size:12.5px; color:#71717A; white-space:nowrap;">
+                {{ dateConstat(s) }}
+                @if (transmissionDifferee(s)) {
+                  <div style="font-size:10.5px; color:#A1A1AA; margin-top:2px;">
+                    {{ delaiTransmission(s) }}
+                  </div>
+                }
+              </td>
               <td>
                 <lucide-icon [img]="ChevronRight" size="16" style="color:#D1D1D6;"></lucide-icon>
               </td>

@@ -166,6 +166,12 @@ def au_demarrage():
     _ajouter_colonne_si_absente(
         "alertes_seuils", "chantier_id", "INTEGER"
     )
+    # L'heure du constat sur le terrain, distincte de l'heure de
+    # reception. Les constats deja en base n'en portent pas : les
+    # lectures retombent sur cree_le, qui reste leur seule date connue.
+    _ajouter_colonne_si_absente(
+        "signalements", "saisi_le", "TIMESTAMP"
+    )
     for nom_colonne, definition in (
         ("plaignant_id", "INTEGER"),
         ("categorie", "VARCHAR(40)"),

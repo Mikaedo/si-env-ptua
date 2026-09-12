@@ -110,6 +110,45 @@ export class Signalements implements OnInit, OnDestroy {
     return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
+  /**
+   * La date du constat sur le terrain, non celle de sa reception.
+   *
+   * Le tableau affichait l'heure a laquelle le serveur avait recu le
+   * signalement. Hors couverture, les deux sont separees de plusieurs
+   * heures : un constat releve a 7h et transmis a 18h se rangeait apres
+   * un constat releve a 8h par un agent couvert, et la liste inversait
+   * ainsi l'ordre des faits.
+   */
+  dateConstat(s: Signalement): string {
+    return this.formatDate(s.saisi_le || s.cree_le);
+  }
+
+  /**
+   * Le constat a-t-il ete transmis bien apres avoir ete releve ?
+   *
+   * L'ecart n'est pas un defaut, c'est le mode hors ligne qui
+   * fonctionne. Mais le specialiste doit le savoir : un constat qui
+   * arrive avec un jour de retard n'appelle pas la meme lecture qu'un
+   * constat remonte dans l'heure.
+   */
+  transmissionDifferee(s: Signalement): boolean {
+    if (!s.saisi_le) return false;
+    const ecart = new Date(s.cree_le).getTime()
+      - new Date(s.saisi_le).getTime();
+    return ecart > 2 * 60 * 60 * 1000;
+  }
+
+  /** Depuis combien de temps le constat attendait avant d'arriver. */
+  delaiTransmission(s: Signalement): string {
+    if (!s.saisi_le) return '';
+    const heures = Math.round(
+      (new Date(s.cree_le).getTime() - new Date(s.saisi_le).getTime())
+      / 3600000);
+    if (heures < 24) return `transmis ${heures} h après`;
+    const jours = Math.round(heures / 24);
+    return `transmis ${jours} jour${jours > 1 ? 's' : ''} après`;
+  }
+
   get statutColors(): Record<string, string> {
     return {
       'NOUVEAU': '#F37021',

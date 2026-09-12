@@ -38,6 +38,16 @@ export interface Signalement {
   gps_source: string;
   statut: StatutSignalement;
   cree_le: string;
+  /** L'heure du constat sur le terrain.
+   *
+   * Distincte de `cree_le`, qui porte l'heure de reception. Hors
+   * couverture, les deux sont separees de plusieurs heures : un constat
+   * releve a 7h et transmis a 18h doit se lire a 7h, sans quoi il se
+   * range apres un constat releve a 8h par un agent couvert.
+   *
+   * Absente des constats anterieurs a cette distinction : on retombe
+   * alors sur `cree_le`. */
+  saisi_le?: string | null;
   auteur_id?: number | null;
   chantier_id?: number | null;
   geom?: {

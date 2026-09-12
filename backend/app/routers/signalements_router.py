@@ -52,6 +52,9 @@ def _serialize_signalement(signalement: models.Signalement):
         "gps_source": signalement.gps_source,
         "statut": signalement.statut,
         "cree_le": signalement.cree_le,
+        # Absente pour les constats anterieurs a la distinction : les
+        # clients retombent alors sur l'heure de reception.
+        "saisi_le": signalement.saisi_le or signalement.cree_le,
         "auteur_id": signalement.auteur_id,
         "chantier_id": signalement.chantier_id,
         "geom": _geom_payload(signalement.geom),
@@ -92,6 +95,10 @@ def creer_signalement(data: schemas.SignalementCreate,
         geom=geom_value,
         auteur_id=courant.id,
         chantier_id=data.chantier_id,
+        # L'heure du constat telle que le mobile la rapporte. Une version
+        # anterieure de l'application ne l'envoie pas : on retient alors
+        # l'heure de reception, qui vaut mieux qu'une date absente.
+        saisi_le=data.saisi_le or datetime.utcnow(),
     )
     db.add(signalement)
     db.commit()
@@ -153,7 +160,14 @@ def lister_signalements(
     if periode_jours:
         date_limite = datetime.utcnow() - timedelta(days=periode_jours)
         q = q.filter(models.Signalement.cree_le >= date_limite)
-    return [_serialize_signalement(s) for s in q.order_by(models.Signalement.cree_le.desc()).all()]
+    # Tri sur l'heure du constat, non sur celle de la reception : un
+    # constat releve a 7h hors couverture et transmis a 18h precede bien
+    # un constat releve a 8h. Les constats anterieurs a cette colonne
+    # retombent sur leur heure de reception, seule date qu'ils portent.
+    ordre = func.coalesce(
+        models.Signalement.saisi_le, models.Signalement.cree_le
+    ).desc()
+    return [_serialize_signalement(s) for s in q.order_by(ordre).all()]
 
 
 @router.get("/{signalement_id}", response_model=schemas.SignalementOut)

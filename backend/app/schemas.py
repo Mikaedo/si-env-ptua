@@ -137,6 +137,10 @@ class SignalementCreate(BaseModel):
     latitude: float
     longitude: float
     chantier_id: Optional[int] = None
+    # L'heure du constat sur le terrain, envoyee par le mobile. Absente
+    # des versions anterieures de l'application : le serveur retient
+    # alors l'heure de reception.
+    saisi_le: Optional[datetime] = None
 
 
 class GeoPoint(BaseModel):
@@ -247,6 +251,7 @@ class SignalementOut(BaseModel):
     gps_source: str
     statut: StatutSignalement
     cree_le: datetime
+    saisi_le: Optional[datetime] = None
     auteur_id: Optional[int]
     chantier_id: Optional[int]
     geom: Optional[GeoPoint] = None

@@ -119,6 +119,20 @@ class Signalement(Base):
     geom = Column(Geometry(geometry_type="POINT", srid=4326))
     cree_le = Column(DateTime, default=datetime.utcnow)
 
+    # L'heure a laquelle l'agent a constate la nuisance sur le chantier,
+    # a distinguer de cree_le, qui porte l'heure de reception.
+    #
+    # Hors couverture, les deux sont separees de plusieurs heures. Sans
+    # cette colonne, un constat releve a 7h et transmis a 18h se rangeait
+    # apres un constat releve a 8h par un agent couvert : le tableau de
+    # bord inversait l'ordre des faits. Les deux dates sont conservees,
+    # l'une disant quand la nuisance a ete vue, l'autre quand le systeme
+    # l'a su.
+    #
+    # Nullable : les constats anterieurs a cette distinction n'en ont
+    # pas, et les lectures retombent alors sur cree_le.
+    saisi_le = Column(DateTime, nullable=True, index=True)
+
     auteur_id = Column(Integer, ForeignKey("utilisateurs.id"))
     chantier_id = Column(Integer, ForeignKey("chantiers.id"))
 

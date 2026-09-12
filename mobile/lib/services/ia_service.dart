@@ -267,10 +267,69 @@ class IaService {
           confidence: meilleure,
         ));
       }
-      return resultats;
+      return filtrerDoublons(resultats);
     } catch (_) {
       return const [];
     }
+  }
+
+  /// Ne garde qu'une boite par objet reellement present.
+  ///
+  /// YOLOv8 evalue 2100 ancres pour une entree en 320x320, et un meme
+  /// dechet en active souvent plusieurs dizaines : sans ce filtre, la
+  /// liste retournee compte des doublons du meme objet, parfois sous des
+  /// etiquettes differentes lorsque deux classes se disputent la meme
+  /// zone. Un unique sac plastique pouvait ainsi etre compte comme huit
+  /// objets, et une seule categorie apparaitre deux fois.
+  ///
+  /// La consequence depassait l'affichage : la criticite du signalement
+  /// est deduite du nombre d'objets (un ou deux pour une accumulation
+  /// faible, trois a cinq pour moderee, six ou plus pour importante).
+  /// Des doublons faisaient donc remonter la criticite d'un cran ou deux,
+  /// sans qu'aucun dechet supplementaire soit sur le terrain.
+  ///
+  /// Le principe est celui de la suppression non maximale : on trie par
+  /// confiance decroissante, on retient la meilleure boite, puis on
+  /// ecarte toutes celles qui la recouvrent au-dela du seuil. Le
+  /// recouvrement est mesure toutes classes confondues, car un objet vu
+  /// deux fois sous deux etiquettes reste un seul objet a compter.
+  static List<DetectionBox> filtrerDoublons(
+    List<DetectionBox> boites, {
+    double seuilRecouvrement = 0.45,
+  }) {
+    if (boites.length < 2) return boites;
+
+    final restantes = List<DetectionBox>.from(boites)
+      ..sort((a, b) => b.confidence.compareTo(a.confidence));
+    final gardees = <DetectionBox>[];
+
+    while (restantes.isNotEmpty) {
+      final meilleure = restantes.removeAt(0);
+      gardees.add(meilleure);
+      restantes.removeWhere(
+        (autre) => _recouvrement(meilleure, autre) > seuilRecouvrement,
+      );
+    }
+    return gardees;
+  }
+
+  /// Part commune a deux boites, rapportee a la surface qu'elles couvrent
+  /// ensemble (intersection sur union).
+  static double _recouvrement(DetectionBox a, DetectionBox b) {
+    final gauche = a.x > b.x ? a.x : b.x;
+    final haut = a.y > b.y ? a.y : b.y;
+    final droite = (a.x + a.width) < (b.x + b.width)
+        ? (a.x + a.width)
+        : (b.x + b.width);
+    final bas = (a.y + a.height) < (b.y + b.height)
+        ? (a.y + a.height)
+        : (b.y + b.height);
+
+    if (droite <= gauche || bas <= haut) return 0;
+
+    final commune = (droite - gauche) * (bas - haut);
+    final union = a.width * a.height + b.width * b.height - commune;
+    return union <= 0 ? 0 : commune / union;
   }
 
   Float32List _preprocessImage(Uint8List bytes) {

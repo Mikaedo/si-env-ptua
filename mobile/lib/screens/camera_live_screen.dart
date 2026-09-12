@@ -10,7 +10,19 @@ import '../services/ia_service.dart';
 class CameraLiveResultat {
   final XFile photo;
   final List<DetectionBox> cadres;
-  const CameraLiveResultat({required this.photo, required this.cadres});
+
+  /// Le nombre de dechets retenu pour deduire la criticite.
+  ///
+  /// Ce n'est pas la longueur de [cadres], qui ne decrit que la derniere
+  /// image analysee : c'est la mediane des decomptes des dernieres
+  /// analyses, plus stable qu'une frame isolee.
+  final int nbObjets;
+
+  const CameraLiveResultat({
+    required this.photo,
+    required this.cadres,
+    required this.nbObjets,
+  });
 }
 
 /// Ecran de capture avec detection EN DIRECT : les cadres verts et le type de
@@ -33,6 +45,28 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
   bool _analyseEnCours = false;
   List<DetectionBox> _cadres = const [];
   bool _auMoinsUneAnalyse = false;
+
+  /// Les decomptes d'objets des dernieres analyses.
+  ///
+  /// La criticite du signalement se deduit du nombre de dechets vus. Le
+  /// retenir sur la seule frame qui precede le declenchement le rendait
+  /// instable : un reflet, un flou de bouge ou un dechet momentanement
+  /// masque par la main de l'agent font varier ce compte d'une image a
+  /// l'autre, et deux captures du meme tas pouvaient donner deux
+  /// criticites differentes.
+  ///
+  /// On garde donc les derniers decomptes et on retient la valeur
+  /// mediane, qui resiste aux frames aberrantes sans lisser les vraies
+  /// variations quand l'agent deplace la camera.
+  static const int _tailleFenetre = 7;
+  final List<int> _decomptes = <int>[];
+
+  /// Le nombre d'objets retenu : la mediane des dernieres analyses.
+  int get _nbObjetsStable {
+    if (_decomptes.isEmpty) return 0;
+    final tries = List<int>.from(_decomptes)..sort();
+    return tries[tries.length ~/ 2];
+  }
 
   @override
   void initState() {
@@ -90,6 +124,8 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
           setState(() {
             _cadres = cadres;
             _auMoinsUneAnalyse = true;
+            _decomptes.add(cadres.length);
+            if (_decomptes.length > _tailleFenetre) _decomptes.removeAt(0);
           });
         }
       }
@@ -200,12 +236,16 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
       }
       final fichier = await ctrl.takePicture();
       if (!mounted) return;
-      // Retourne la photo ET les dernieres detections encore visibles a
-      // l'ecran : l'appelant s'en servira pour deriver le type et la
-      // criticite sans faire intervenir l'agent.
+      // Retourne la photo, les cadres encore visibles a l'ecran, et le
+      // decompte stabilise sur les dernieres analyses : l'appelant en
+      // deduit le type et la criticite sans faire intervenir l'agent.
       Navigator.pop<CameraLiveResultat>(
         context,
-        CameraLiveResultat(photo: fichier, cadres: List.of(_cadres)),
+        CameraLiveResultat(
+          photo: fichier,
+          cadres: List.of(_cadres),
+          nbObjets: _nbObjetsStable,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -301,6 +341,17 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
     );
   }
 
+  /// Le mot que l'agent lira pour la criticite que ce comptage entraine.
+  ///
+  /// Meme bareme que l'ecran de saisie : un ou deux objets pour une
+  /// accumulation faible, trois a cinq pour moderee, six ou plus pour
+  /// importante.
+  String _libelleCriticite(int nbObjets) {
+    if (nbObjets >= 6) return 'accumulation importante';
+    if (nbObjets >= 3) return 'accumulation moderee';
+    return 'accumulation faible';
+  }
+
   Widget _bandeauEtat() {
     // Regroupe les types detectes avec leur meilleure confiance
     final meilleurParType = <String, double>{};
@@ -320,11 +371,16 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
       texte = 'Aucun dechet reconnu';
       couleur = Colors.white;
     } else {
-      final parts = meilleurParType.entries
-          .map((e) => '${e.key} ${(e.value * 100).round()}%')
-          .toList()
-        ..sort();
-      texte = parts.join('   ');
+      // Le bandeau nommait les categories sans jamais dire combien
+      // d'objets etaient comptes, alors que c'est ce nombre qui fixe la
+      // criticite du signalement. L'agent voyait donc « plastique 82 % »
+      // puis decouvrait une criticite importante a l'ecran suivant, sans
+      // pouvoir la rapporter a ce qu'il avait sous les yeux.
+      final n = _nbObjetsStable;
+      final categories = meilleurParType.keys.toList()..sort();
+      final denombrement = n <= 1 ? '$n dechet' : '$n dechets';
+      texte = '$denombrement  ·  ${categories.join(', ')}'
+          '  ·  ${_libelleCriticite(n)}';
       couleur = const Color(0xFF00E676);
     }
 

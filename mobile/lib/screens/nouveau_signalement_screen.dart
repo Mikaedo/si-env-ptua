@@ -47,6 +47,14 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
   // de nuisance et la criticite sont figes automatiquement : l'agent n'a plus
   // aucun choix a faire pour les dechets, conformement au principe pose.
   int? _nbObjetsDetectes;
+
+  /// L'agent a demande a reprendre la main sur le diagnostic.
+  ///
+  /// Le detecteur sous-compte quand les dechets sont transparents ou
+  /// superposes : le memoire releve un rappel de 0,559 sur le plastique.
+  /// Le diagnostic reste propose, mais il cesse de s'imposer des que
+  /// l'agent, qui a le tas sous les yeux, le juge inexact.
+  bool _repriseManuelle = false;
   final _descriptionController = TextEditingController();
   final _gpsController = TextEditingController();
   XFile? _photo;
@@ -93,18 +101,31 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
         MaterialPageRoute(builder: (_) => const CameraLiveScreen()),
       );
       if (!mounted || resultat == null) return;
-      final n = resultat.cadres.length;
+      // Le decompte vient du viseur, qui l'a stabilise sur ses dernieres
+      // analyses : le compter ici sur les seuls cadres de la derniere
+      // image le rendrait de nouveau tributaire d'une frame isolee.
+      final n = resultat.nbObjets;
       setState(() {
         _photo = resultat.photo;
         _nbObjetsDetectes = n;
         _criticite = _deriverCriticite(n);
+        // Une nouvelle capture est un nouveau diagnostic : la correction
+        // demandee sur la photo precedente ne le concerne plus.
+        _repriseManuelle = false;
         _iaResult = IaResult(
           detected: n > 0,
           criticite: _criticite,
-          confiance: n == 0
+          confiance: resultat.cadres.isEmpty
               ? null
-              : (resultat.cadres.map((c) => c.confidence).reduce((a, b) => a > b ? a : b) * 100),
-          objets: resultat.cadres.map((c) => c.label).toSet().toList(),
+              : (resultat.cadres
+                      .map((c) => c.confidence)
+                      .reduce((a, b) => a > b ? a : b) *
+                  100),
+          // Une categorie vue sur plusieurs dechets reste une categorie :
+          // l'ensemble ecarte les repetitions, et l'ordre alphabetique
+          // evite que la liste change d'ordre a chaque capture.
+          objets: (resultat.cadres.map((c) => c.label).toSet().toList()
+            ..sort()),
         );
         _iaLoading = false;
       });
@@ -122,9 +143,17 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
     }
   }
 
-  /// Regle deterministe du §5.8 du memoire : peu d'objets = faible, moyen =
-  /// modere, beaucoup = eleve. Reste centralisee ici pour que la meme regle
-  /// soit appliquee quel que soit l'appelant.
+  /// Deduit la criticite du nombre de dechets comptes.
+  ///
+  /// Regle deterministe posee au chapitre V du memoire, section 2.1 :
+  /// un ou deux objets pour une accumulation faible, trois a cinq pour
+  /// moderee, six ou plus pour importante. C'est la regle qui a servi a
+  /// etiqueter le corpus d'entrainement ; le memoire note en 2.5 que le
+  /// comptage direct est retenu de preference a la classification, dont
+  /// les classes intermediaires sont moins fiables.
+  ///
+  /// Elle reste centralisee ici pour que le meme bareme s'applique quel
+  /// que soit l'appelant.
   String _deriverCriticite(int nbObjets) {
     if (nbObjets >= 6) return 'ELEVE';
     if (nbObjets >= 3) return 'MODERE';
@@ -133,9 +162,53 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
 
   bool get _hasIa => _selectedType == 'Déchets de chantier';
 
-  /// Vrai des qu'on est passe par le viseur live : dans ce cas, l'agent ne peut
-  /// plus changer ni le type de nuisance ni la criticite.
-  bool get _diagnosticIaFige => _hasIa && _nbObjetsDetectes != null;
+  /// Rappelle ce que le modele avait compte, une fois la main rendue.
+  ///
+  /// L'agent corrige alors en connaissance de cause : il voit le nombre
+  /// de dechets reconnus et la criticite qui en decoulait, et sait donc
+  /// ce qu'il est en train de rectifier.
+  Widget _rappelDiagnostic() {
+    final n = _nbObjetsDetectes ?? 0;
+    final proposee = kCriticiteLabels[_deriverCriticite(n)] ?? '';
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: kGray100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kGray200),
+      ),
+      child: Row(children: [
+        const Icon(LucideIcons.brain, size: 16, color: kGray400),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            "L'IA avait compté $n déchet${n > 1 ? 's' : ''}, "
+            'soit une criticité « $proposee ». '
+            'Indiquez ce que vous constatez.',
+            style: const TextStyle(
+                fontSize: 12, color: kGray600, height: 1.45),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  /// Vrai quand le viseur live a effectivement reconnu quelque chose : dans ce
+  /// cas seulement, l'agent ne peut plus changer ni le type ni la criticite.
+  ///
+  /// Une capture sans aucune detection figeait auparavant le formulaire de la
+  /// meme facon : le type restait « Dechets de chantier » et la criticite
+  /// « FAIBLE », sans qu'aucun selecteur ne soit reaffiche. L'agent n'avait
+  /// alors plus aucun moyen de renseigner ce qu'il venait de photographier.
+  /// C'est pourtant la branche « nuisance non reconnue » du diagramme de
+  /// sequence de la figure 4.4 : elle rouvre la saisie manuelle.
+  ///
+  /// La demande de reprise en main produit le meme effet : l'agent qui
+  /// juge le diagnostic inexact retrouve les selecteurs, conformement au
+  /// scenario alternatif du tableau A.2, ou ce qu'il constate prime sur
+  /// ce que le modele n'a pas su reconnaitre.
+  bool get _diagnosticIaFige =>
+      _hasIa && (_nbObjetsDetectes ?? 0) > 0 && !_repriseManuelle;
 
   IconData _iconForType(String type) {
     switch (type) {
@@ -193,6 +266,13 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
               const SizedBox(height: 20),
               _sectionLabel('Niveau de criticité', LucideIcons.shield),
               const SizedBox(height: 10),
+              // Apres reprise en main, le diagnostic reste affiche en
+              // rappel : l'agent corrige en sachant ce que le modele
+              // avait compte, non a l'aveugle.
+              if (_repriseManuelle) ...[
+                _rappelDiagnostic(),
+                const SizedBox(height: 10),
+              ],
               _buildCriticiteSelector(),
             ],
             const SizedBox(height: 20),
@@ -226,7 +306,17 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
                   gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
                     colors: [Colors.transparent, kBlack.withValues(alpha: 0.55)]),
                 )),
-                Positioned(right: 12, top: 12, child: _circleBtn(LucideIcons.x, () => setState(() { _photo = null; _iaResult = null; }))),
+                // Retirer la photo efface aussi le diagnostic qu'elle avait
+                // produit. Sans cela, le compteur d'objets survivait a la
+                // suppression et le formulaire restait fige sur un diagnostic
+                // dont la photo n'existait plus.
+                Positioned(right: 12, top: 12, child: _circleBtn(LucideIcons.x, () => setState(() {
+                  _photo = null;
+                  _iaResult = null;
+                  _nbObjetsDetectes = null;
+                  _criticite = 'FAIBLE';
+                  _repriseManuelle = false;
+                }))),
                 Positioned(left: 14, bottom: 12, child: Row(children: [
                   const Icon(LucideIcons.checkCircle, color: kWhite, size: 18),
                   const SizedBox(width: 6),
@@ -426,11 +516,70 @@ class _NouveauSignalementScreenState extends State<NouveauSignalementScreen> {
               child: Text(kCriticiteLabels[_iaResult!.criticite] ?? '', style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w700))),
           ]),
           const SizedBox(height: 12),
-          _iaRow(Icons.visibility_rounded, 'Objets', _iaResult!.objets.isEmpty ? '-' : _iaResult!.objets.join(', ')),
+          // Le nombre d'objets fixe la criticite : le taire revenait a
+          // afficher une conclusion sans la raison qui l'amene. L'agent
+          // peut desormais comparer ce compte a ce qu'il a sous les yeux.
+          _iaRow(Icons.filter_none_rounded, 'Déchets comptés',
+              '${_nbObjetsDetectes ?? 0}'),
+          const SizedBox(height: 6),
+          _iaRow(Icons.visibility_rounded, 'Catégories', _iaResult!.objets.isEmpty ? '-' : _iaResult!.objets.join(', ')),
           const SizedBox(height: 6),
           _iaRow(LucideIcons.trendingUp, 'Confiance', '${_iaResult!.confiance ?? 0}%'),
           const SizedBox(height: 6),
-          _iaRow(Icons.memory_rounded, 'Modèle', 'YOLOv8n + MobileNetV2'),
+          // Le circuit du viseur live n'appelle que le detecteur. La criticite
+          // vient ensuite d'une regle de comptage, non d'un classifieur : la
+          // carte annoncait donc un modele qui ne tournait pas.
+          _iaRow(Icons.memory_rounded, 'Modèle', 'YOLOv8n, embarqué'),
+
+          // Reprise en main par l'agent.
+          //
+          // Le diagnostic etait fige des qu'un seul dechet etait reconnu.
+          // Or le detecteur sous-compte : le memoire releve un rappel de
+          // 0,559 sur le plastique, dont la transparence echappe au
+          // modele. Un tas de dix sacs pouvait n'en faire reconnaitre
+          // deux, et le constat partait en « accumulation faible » sans
+          // que l'agent, qui voyait le tas, puisse le corriger.
+          //
+          // Le scenario alternatif du tableau A.2 prevoit que l'agent
+          // renseigne lui-meme ce que le modele ne reconnait pas. Cette
+          // reprise l'etend au comptage incomplet : le diagnostic reste
+          // propose par defaut, l'agent garde le dernier mot.
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: kGray200),
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: () => setState(() => _repriseManuelle = true),
+            child: Row(children: [
+              const Icon(LucideIcons.pencil, size: 14, color: kBlue),
+              const SizedBox(width: 8),
+              const Expanded(child: Text(
+                'Ce diagnostic ne correspond pas ? Corriger la criticité',
+                style: TextStyle(fontSize: 12, color: kBlue,
+                    fontWeight: FontWeight.w600))),
+            ]),
+          ),
+        ]),
+      );
+    }
+    // Une photo a ete prise, mais le modele n'a rien reconnu. Le message
+    // precedent invitait a « prendre une photo » alors qu'elle venait de
+    // l'etre, et laissait l'agent sans consigne. Il lui est dit desormais ce
+    // qu'il doit faire : renseigner lui-meme, les selecteurs etant reaffiches.
+    if (_nbObjetsDetectes == 0) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: kGray100,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: kGray200, width: 1),
+        ),
+        child: Row(children: [
+          const Icon(LucideIcons.searchX, color: kGray400, size: 20),
+          const SizedBox(width: 12),
+          const Expanded(child: Text(
+            'Aucun déchet reconnu sur cette photographie.\n'
+            'Renseignez vous-même le type et la criticité.',
+            style: TextStyle(fontSize: 12, color: kGray600, height: 1.45))),
         ]),
       );
     }

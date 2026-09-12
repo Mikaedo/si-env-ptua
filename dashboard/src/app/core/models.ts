@@ -185,6 +185,11 @@ export interface Journal {
   utilisateur?: string | null;
   ip_source?: string | null;
   cree_le: string;
+  /** La nature de l'événement : ACCES, COMPTE, SYSTEME ou METIER.
+   *
+   * Absente des entrées antérieures à cette distinction, qui relevaient
+   * toutes du suivi environnemental. */
+  categorie?: string | null;
 }
 
 /**

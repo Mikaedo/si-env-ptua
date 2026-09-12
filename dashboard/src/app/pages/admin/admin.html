@@ -221,29 +221,48 @@
         }
       </div>
 
-      <div style="max-height:600px; overflow-y:auto; font-family:monospace;">
+      <div style="max-height:600px; overflow-y:auto;">
         @for (log of logs(); track $index) {
-          <div style="padding:12px 22px; border-bottom:1px solid #F8F8F8; display:flex; gap:14px; font-size:12.5px; transition:background 0.1s;" onmouseenter="this.style.background='#FAFAFA'" onmouseleave="this.style.background='transparent'">
-            <div style="width:70px; flex-shrink:0; padding-top:1px;">
-              <span style="display:inline-block; padding:3px 8px; border-radius:5px; font-size:10.5px; font-weight:800; font-family:monospace; text-transform:uppercase; letter-spacing:0.3px;"
-                [style.background]="log.niveau === 'ERROR' ? '#FFEBEE' : log.niveau === 'WARNING' ? '#FEF3E8' : '#F4F4F5'"
-                [style.color]="log.niveau === 'ERROR' ? '#C62828' : log.niveau === 'WARNING' ? '#F37021' : '#71717A'">
-                {{ log.niveau }}
+          <!-- Une ligne d'audit répond à quatre questions : quoi, qui,
+               quand, d'où. La nature de l'événement remplace le niveau
+               INFO/WARNING, qui est un vocabulaire de développeur, et
+               l'adresse d'origine était collectée sans jamais être
+               montrée. -->
+          <div class="ligne-journal">
+            <div class="ligne-journal__nature">
+              <span class="etiquette-nature"
+                [style.background]="couleurCategorie(log.categorie) + '1A'"
+                [style.color]="couleurCategorie(log.categorie)">
+                {{ libelleCategorie(log.categorie) }}
               </span>
+              @if (log.niveau === 'WARNING' || log.niveau === 'ERROR') {
+                <span class="etiquette-alerte"
+                  [style.background]="log.niveau === 'ERROR' ? '#FFEBEE' : '#FEF3E8'"
+                  [style.color]="log.niveau === 'ERROR' ? '#C62828' : '#F37021'">
+                  {{ log.niveau === 'ERROR' ? 'Échec' : 'À noter' }}
+                </span>
+              }
             </div>
             <div style="flex:1; min-width:0;">
-              <div style="font-weight:600; color:#27272A; margin-bottom:3px; font-family:var(--font-sans);">{{ log.message }}</div>
-              <div style="font-size:11px; color:#A1A1AA; display:flex; gap:8px; font-family:var(--font-sans);">
-                <span>{{ formatDate(log.cree_le) }}</span>
-                <span>•</span>
-                <span>Source : {{ log.utilisateur || 'SYSTEM' }}</span>
+              <div class="ligne-journal__fait">{{ log.message }}</div>
+              <div class="ligne-journal__detail">
+                <span>{{ formatHorodatage(log.cree_le) }}</span>
+                <span>·</span>
+                <span>{{ log.utilisateur || 'système' }}</span>
+                @if (log.ip_source) {
+                  <span>·</span>
+                  <span class="ligne-journal__ip">{{ log.ip_source }}</span>
+                }
               </div>
             </div>
           </div>
         } @empty {
           <div class="empty-state">
             <div class="empty-state-icon"><lucide-icon [img]="ScrollText" size="22" style="color:#D1D1D6;"></lucide-icon></div>
-            <div class="empty-state-text">Aucun journal généré.</div>
+            <div class="empty-state-text">
+              @if (journalEnCours()) { Chargement du journal... }
+              @else { Aucune entrée pour « {{ libelleFiltreJournal }} ». }
+            </div>
           </div>
         }
       </div>

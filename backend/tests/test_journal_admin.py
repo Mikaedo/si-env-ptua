@@ -137,3 +137,37 @@ class TestLesGardesDuCrud:
         entrees = client.get("/admin/logs", headers=auth_headers).json()
         assert any("RESP_ENV vers EXPERT_HSE" in e["message"]
                    for e in entrees)
+
+
+class TestLesRefusLaissentUneTrace:
+    """Le memoire annonce que les acces refuses sont consignes.
+
+    Ils ne l'etaient pas : le refus part d'une dependance FastAPI, qui
+    leve une exception sans rien ecrire. Un administrateur ne pouvait
+    donc pas voir qu'un profil tentait ce que son role ne permet pas.
+    """
+
+    def test_un_role_qui_depasse_son_perimetre_est_consigne(
+            self, client, resp_env_token, auth_headers):
+        # Un agent de terrain n'administre pas les comptes.
+        r = client.get("/admin/users",
+                       headers={"Authorization": f"Bearer {resp_env_token}"})
+        assert r.status_code == 403
+
+        entrees = client.get("/admin/logs", headers=auth_headers).json()
+        assert any("Accès refusé" in e["message"]
+                   and "/admin/users" in e["message"] for e in entrees)
+
+    def test_une_requete_sans_jeton_est_consignee(self, client, auth_headers):
+        r = client.get("/admin/users")
+        assert r.status_code in (401, 403)
+        entrees = client.get("/admin/logs", headers=auth_headers).json()
+        assert any("Accès refusé" in e["message"] for e in entrees)
+
+    def test_le_refus_est_range_dans_les_acces(self, client, resp_env_token,
+                                               auth_headers):
+        client.get("/admin/users",
+                   headers={"Authorization": f"Bearer {resp_env_token}"})
+        entrees = client.get(f"/admin/logs?categorie={journal_service.CAT_ACCES}",
+                             headers=auth_headers).json()
+        assert any("Accès refusé" in e["message"] for e in entrees)

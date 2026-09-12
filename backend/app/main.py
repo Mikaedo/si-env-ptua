@@ -22,7 +22,7 @@ import os
 from .config import settings
 from .database import Base, engine
 from .routers import auth_router, signalements_router, chantiers_router, alertes_router, stats_router, satellite_router, rapports_router, plaintes_router, admin_router, citoyen_router, modele_router, mesures_router
-from .services import erreur_service
+from .services import erreur_service, journal_service
 
 # Cree l'application avec un titre visible dans la doc Swagger
 app = FastAPI(
@@ -104,6 +104,65 @@ async def restreindre_consultation(request: Request, call_next):
                 # la dependance d'authentification renverra un 401 en aval.
                 pass
     return await call_next(request)
+
+
+@app.middleware("http")
+async def tracer_les_refus(request: Request, call_next):
+    """Consigne les acces refuses, quelle qu'en soit l'origine.
+
+    Le memoire annonce que les acces refuses laissent une trace
+    (section 1.7 du chapitre V). Ils n'en laissaient aucune : le refus
+    part d'une dependance FastAPI, qui leve une exception sans rien
+    ecrire, et un administrateur ne pouvait donc pas voir qu'un profil
+    tentait ce que son role ne permet pas.
+
+    Un middleware capte les trois cas d'un seul endroit : le refus de
+    role, celui du middleware de consultation, et la tentative sans
+    jeton valide sur une route protegee.
+
+    La lecture du journal, elle, n'est pas tracee : consulter n'est pas
+    agir, et tracer chaque consultation remplirait le journal de lignes
+    qui ne disent rien.
+    """
+    reponse = await call_next(request)
+
+    if reponse.status_code not in (401, 403):
+        return reponse
+    # Une connexion refusee est deja tracee par la route elle-meme, qui
+    # sait de quel compte il s'agit : la tracer ici ferait double emploi.
+    if request.url.path.endswith("/auth/login"):
+        return reponse
+
+    qui = "inconnu"
+    entete = request.headers.get("authorization", "")
+    if entete.lower().startswith("bearer "):
+        try:
+            charge = jwt.decode(entete.split(" ", 1)[1], settings.SECRET_KEY,
+                                algorithms=[settings.ALGORITHM])
+            qui = charge.get("role") or "inconnu"
+        except JWTError:
+            qui = "jeton invalide"
+
+    # Une session propre : la trace ne doit pas emprunter celle de la
+    # requete refusee, qui n'existe plus a ce stade.
+    from .database import SessionLocal
+    db = SessionLocal()
+    try:
+        journal_service.journaliser(
+            db,
+            f"Accès refusé ({reponse.status_code}) sur "
+            f"{request.method} {request.url.path} — profil {qui}",
+            niveau=journal_service.NIVEAU_WARNING,
+            utilisateur=qui, request=request,
+            categorie=journal_service.CAT_ACCES)
+        db.commit()
+    except Exception:
+        # Un echec de journalisation ne doit jamais changer la reponse
+        # rendue a l'appelant.
+        db.rollback()
+    finally:
+        db.close()
+    return reponse
 
 
 @app.on_event("startup")

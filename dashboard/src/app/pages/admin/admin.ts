@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { ToastService } from '../../core/toast.service';
-import { User, Chantier, AlerteSeuil } from '../../core/models';
+import { User, Journal } from '../../core/models';
 import { LucideAngularModule, Users, UserPlus, Cpu, ScrollText, Shield, Settings2, ShieldCheck, Upload, Building2, BellRing, Plus, AlertCircle, Trash2, Pencil, X } from 'lucide-angular';
 
 @Component({
@@ -39,9 +39,7 @@ export class Admin implements OnInit {
   // au contact des indices qu'ils gouvernent.
   activeTab = signal<'users' | 'ia' | 'logs'>('users');
   users = signal<User[]>([]);
-  logs = signal<any[]>([]);
-  chantiers = signal<Chantier[]>([]);
-  seuils = signal<AlerteSeuil[]>([]);
+  logs = signal<Journal[]>([]);
   modeles = signal<Record<string, { disponible: boolean; version: number; taille_octets: number; deploye_le?: string }>>({});
   readonly typesModeles: ('detection' | 'classification')[] = ['detection', 'classification'];
   loading = signal(true);
@@ -53,11 +51,6 @@ export class Admin implements OnInit {
   creating = signal(false);
   modelUploading = signal<'detection' | 'classification' | null>(null);
   dragOverType = signal<'detection' | 'classification' | null>(null);
-  newChantierNom = signal('');
-  newChantierCommune = signal('');
-  newSeuilNom = signal('');
-  newSeuilIndicateur = signal('NO2');
-  newSeuilValeur = signal('');
 
   ngOnInit() {
     this.route.queryParamMap.subscribe(params => {
@@ -92,22 +85,84 @@ export class Admin implements OnInit {
     { cle: 'TOUT', libelle: 'Tout, métier compris' },
   ];
 
+  journalCharge = signal(false);
+  journalEnCours = signal(false);
+
   loadLogs(force = false) {
-    if (this.logs().length === 0 || force) {
-      const cle = this.filtreJournal();
-      this.api.getLogs(
-        cle && cle !== 'TOUT' ? cle : undefined,
-        cle === 'TOUT',
-      ).subscribe({
-        next: (data) => this.logs.set(data),
-        error: () => {}
-      });
-    }
+    // La condition portait sur le nombre d'entrées déjà affichées : un
+    // filtre qui ne renvoyait rien laissait la liste vide, et le filtre
+    // suivant ne se rechargeait plus. C'est l'état du chargement, non
+    // son résultat, qui décide de rappeler le serveur.
+    if (this.journalCharge() && !force) return;
+    const cle = this.filtreJournal();
+    this.journalEnCours.set(true);
+    this.api.getLogs(
+      cle && cle !== 'TOUT' ? cle : undefined,
+      cle === 'TOUT',
+    ).subscribe({
+      next: (data) => {
+        this.logs.set(data);
+        this.journalCharge.set(true);
+        this.journalEnCours.set(false);
+      },
+      error: () => {
+        this.journalEnCours.set(false);
+        this.toast.error('Le journal n\'a pas pu être chargé.');
+      }
+    });
   }
 
   filtrerJournal(cle: string) {
     this.filtreJournal.set(cle);
     this.loadLogs(true);
+  }
+
+  /** Le libellé du filtre en cours, pour le dire quand la liste est vide. */
+  get libelleFiltreJournal(): string {
+    return this.filtresJournal
+      .find(f => f.cle === this.filtreJournal())?.libelle ?? '';
+  }
+
+  /**
+   * La nature de l'événement, en clair.
+   *
+   * Le journal n'affichait que INFO et WARNING, un vocabulaire de
+   * développeur qui ne dit pas de quoi il s'agit. La catégorie, elle,
+   * répond à la question que l'administrateur se pose en ouvrant cet
+   * écran : est-ce un accès, un compte, un réglage.
+   */
+  libelleCategorie(code: string | null | undefined): string {
+    const libelles: Record<string, string> = {
+      'ACCES': 'Accès',
+      'COMPTE': 'Compte',
+      'SYSTEME': 'Système',
+      'METIER': 'Suivi env.',
+    };
+    return libelles[code ?? ''] ?? 'Suivi env.';
+  }
+
+  couleurCategorie(code: string | null | undefined): string {
+    const couleurs: Record<string, string> = {
+      'ACCES': '#004F9F',
+      'COMPTE': '#7C3AED',
+      'SYSTEME': '#0891B2',
+      'METIER': '#71717A',
+    };
+    return couleurs[code ?? ''] ?? '#71717A';
+  }
+
+  /**
+   * L'heure précise de l'événement, non seulement le jour.
+   *
+   * Une trace d'audit sert à situer un fait dans le temps : « 12 sept. »
+   * ne permet ni de rapprocher deux événements, ni de dire si une
+   * tentative de connexion a précédé un changement de compte.
+   */
+  formatHorodatage(date: string): string {
+    return new Date(date).toLocaleString('fr-FR', {
+      day: '2-digit', month: 'short',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
   }
 
   setTab(tab: 'users' | 'ia' | 'logs') {
@@ -133,25 +188,6 @@ export class Admin implements OnInit {
     return subs[this.activeTab()] ?? '';
   }
 
-  createChantier() {
-    if (!this.newChantierNom()) return;
-    this.api.createChantier({ nom: this.newChantierNom(), commune: this.newChantierCommune() }).subscribe({
-      next: chantier => { this.chantiers.update(list => [...list, chantier]); this.newChantierNom.set(''); this.newChantierCommune.set(''); this.toast.success('Chantier créé avec succès'); },
-      error: () => this.toast.error('La création du chantier a échoué.')
-    });
-  }
-
-  createSeuil() {
-    const value = Number(this.newSeuilValeur());
-    if (!this.newSeuilNom() || !this.newSeuilIndicateur() || Number.isNaN(value)) {
-      this.error.set('Renseignez un nom, un indicateur et un seuil valide.');
-      return;
-    }
-    this.api.createSeuil({ nom: this.newSeuilNom(), indicateur: this.newSeuilIndicateur(), seuil: value, niveau: 'WARNING', actif: true }).subscribe({
-      next: seuil => { this.seuils.update(list => [...list, seuil]); this.newSeuilNom.set(''); this.newSeuilValeur.set(''); this.toast.success('Seuil créé avec succès'); },
-      error: () => this.toast.error('La création du seuil a échoué.')
-    });
-  }
 
   deployModel(type: 'detection' | 'classification', event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
@@ -275,27 +311,7 @@ export class Admin implements OnInit {
     });
   }
 
-  deleteChantier(c: Chantier) {
-    if (!confirm(`Supprimer le chantier ${c.nom} ?`)) return;
-    this.api.deleteChantier(c.id).subscribe({
-      next: () => {
-        this.chantiers.update(list => list.filter(x => x.id !== c.id));
-        this.toast.success('Chantier supprimé avec succès');
-      },
-      error: () => this.toast.error('Impossible de supprimer ce chantier (lié à des signalements)')
-    });
-  }
 
-  deleteSeuil(s: AlerteSeuil) {
-    if (!confirm(`Supprimer le seuil ${s.nom} ?`)) return;
-    this.api.deleteSeuil(s.id).subscribe({
-      next: () => {
-        this.seuils.update(list => list.filter(x => x.id !== s.id));
-        this.toast.success('Seuil supprimé avec succès');
-      },
-      error: () => this.toast.error('Échec de la suppression du seuil')
-    });
-  }
 
   get roleLabels(): Record<string, string> {
     return {

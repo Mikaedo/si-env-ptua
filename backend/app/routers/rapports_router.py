@@ -297,16 +297,29 @@ def transmettre_rapport(
 @router.get("/transmissions", response_model=List[TransmissionOut])
 def historique_transmissions(
     db: Session = Depends(get_db),
-    _: models.Utilisateur = Depends(auth.roles_requis(*ROLES_CONSULTATION)),
+    courant: models.Utilisateur = Depends(
+        auth.roles_requis(*ROLES_CONSULTATION)),
 ):
-    """Historique des remises, consultable par l'emetteur comme par les destinataires.
+    """Historique des remises, cloisonne par destinataire.
 
-    Les organismes de controle y accedent egalement : verifier ce qui leur a
-    ete adresse, et a quelle date, fait partie de leur mission.
+    L'emetteur voit tout ce qu'il a transmis : c'est son registre de
+    preuve, et il doit pouvoir attester de chaque remise.
+
+    Un organisme de controle ne voit que ce qui lui a ete adresse. La
+    liste entiere lui apprendrait quand le bailleur a ete servi, ou si
+    l'agence de tutelle l'a ete avant lui : ce sont des informations sur
+    la relation entre le maitre d'ouvrage et un tiers, etrangeres a sa
+    propre mission. Un registre de remise atteste de ce qu'on a recu,
+    non de ce que les autres ont recu.
     """
+    q = db.query(models.TransmissionRapport)
+
+    if courant.role in (models.RoleEnum.ANDE, models.RoleEnum.BAD):
+        q = q.filter(
+            models.TransmissionRapport.organisme == courant.role.value)
+
     return (
-        db.query(models.TransmissionRapport)
-        .order_by(models.TransmissionRapport.transmis_le.desc())
+        q.order_by(models.TransmissionRapport.transmis_le.desc())
         .limit(100)
         .all()
     )

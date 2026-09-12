@@ -189,6 +189,38 @@ class TestTraceConservee:
         assert reponse.status_code == 200
         assert len(reponse.json()) == 1
 
+    def test_chaque_organisme_ne_voit_que_ses_propres_remises(
+        self, client, ande_headers, bad_headers, spec_env_headers,
+        chantier_suivi, messagerie_simulee
+    ):
+        """Un registre de remise atteste de ce qu'on a recu, non de ce
+        que les autres ont recu.
+
+        L'historique complet apprendrait a l'agence de tutelle quand le
+        bailleur a ete servi, information qui porte sur la relation entre
+        le maitre d'ouvrage et un tiers, etrangere a sa mission.
+        """
+        for organisme in ("ANDE", "BAD", "BAD"):
+            client.post("/rapports/transmettre", headers=spec_env_headers,
+                        json={"chantier_ids": [chantier_suivi.id],
+                              "entreprise_destinataire": organisme})
+
+        # L'emetteur garde son registre entier : il doit pouvoir
+        # attester de chaque remise qu'il a faite.
+        complet = client.get("/rapports/transmissions",
+                             headers=spec_env_headers).json()
+        assert len(complet) == 3
+
+        vu_ande = client.get("/rapports/transmissions",
+                             headers=ande_headers).json()
+        assert len(vu_ande) == 1
+        assert all(t["organisme"] == "ANDE" for t in vu_ande)
+
+        vu_bad = client.get("/rapports/transmissions",
+                            headers=bad_headers).json()
+        assert len(vu_bad) == 2
+        assert all(t["organisme"] == "BAD" for t in vu_bad)
+
 
 class TestHabilitations:
     """Qui peut transmettre, et qui ne le peut pas."""

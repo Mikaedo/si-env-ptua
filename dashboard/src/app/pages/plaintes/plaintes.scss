@@ -1,1 +1,73 @@
 :host { display: block; }
+
+/* ── La barre de progression du mecanisme ──────────────────────────
+   Elle remplace le formulaire de saisie manuelle : ce que le
+   specialiste vient verifier, c'est ou en sont les doleances. */
+.progression { padding: 20px 24px; }
+.progression__entete {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; margin-bottom: 14px;
+}
+.progression__titre {
+  font-size: 14px; font-weight: 800; color: #18181B;
+  letter-spacing: -0.2px;
+}
+.progression__note {
+  font-size: 11.5px; color: #A1A1AA; font-weight: 500;
+  margin-top: 3px; line-height: 1.55; max-width: 46ch;
+}
+.progression__taux {
+  font-size: 30px; font-weight: 800; letter-spacing: -1.2px;
+  line-height: 1; flex-shrink: 0;
+}
+.progression__taux span { font-size: 16px; font-weight: 700; }
+
+.progression__barre {
+  display: flex; gap: 2px; height: 9px;
+  border-radius: 5px; overflow: hidden; background: #F4F4F5;
+}
+.progression__segment { transition: flex 0.4s ease; }
+
+.progression__legende {
+  display: flex; flex-wrap: wrap; gap: 16px; margin-top: 11px;
+}
+.progression__item {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; color: #52525B; font-weight: 600;
+}
+.progression__pastille {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+
+/* ── Les gestes de traitement ──────────────────────────────────────
+   Une liste deroulante demandait de choisir dans un etat ; ces boutons
+   proposent le geste suivant, nomme par son effet. */
+.gestes { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+
+.geste {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 8px;
+  font-size: 12px; font-weight: 700; font-family: inherit;
+  border: 1.5px solid transparent; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.geste--principal {
+  background: #004F9F; color: white; border-color: #004F9F;
+}
+.geste--principal:hover { background: #003D7A; border-color: #003D7A; }
+
+.geste--valider {
+  background: #16A34A; color: white; border-color: #16A34A;
+}
+.geste--valider:hover { background: #15803D; border-color: #15803D; }
+
+.geste--discret {
+  background: white; color: #71717A; border-color: #E4E4E7;
+}
+.geste--discret:hover { color: #3F3F46; border-color: #A1A1AA; }
+
+/* Un etat atteint n'est pas un bouton : il ne se clique pas. */
+.geste--fait {
+  background: #F4F4F5; color: #52525B; border-color: #E4E4E7;
+  cursor: default;
+}

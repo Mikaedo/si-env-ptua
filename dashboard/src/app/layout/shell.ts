@@ -78,12 +78,16 @@ export class Shell implements OnInit, OnDestroy {
   // conformite environnementale, celui du bailleur englobe en plus le volet
   // social, dont releve le traitement des doleances de riverains.
   navItems: NavItem[] = [
-    { label: 'Tableau de bord', icon: LayoutDashboard, route: '/dashboard', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE'] },
+    { label: 'Tableau de bord', icon: LayoutDashboard, route: '/dashboard', roles: ['SPEC_ENV', 'RESP_ENV', 'EXPERT_HSE'] },
     // Les organismes de controle ont leur propre ecran d'accueil, et non
     // celui du specialiste prive de ses commandes. Le libelle le dit :
     // ils n'y pilotent rien, ils y attestent que le suivi est tenu.
     { label: 'Suivi de conformité', icon: Eye, route: '/controle', roles: ['ANDE', 'BAD'] },
-    { label: 'Signalements', icon: MapPin, route: '/signalements', roles: ['SPEC_ENV', 'SPEC_PAR', 'RESP_ENV', 'EXPERT_HSE', 'ANDE', 'BAD'] },
+    // Le Specialiste Suivi du P.A.R suit les personnes affectees par le
+    // projet, non les nuisances : son ecran compte les doleances, leur
+    // anciennete et leur canal de depot.
+    { label: 'Mécanisme des plaintes', icon: Users, route: '/suivi-par', roles: ['SPEC_PAR'] },
+    { label: 'Signalements', icon: MapPin, route: '/signalements', roles: ['SPEC_ENV', 'RESP_ENV', 'EXPERT_HSE', 'ANDE', 'BAD'] },
     // Les alertes vont a qui pilote et a qui controle, non a qui
     // constate : le besoin BF-06 les reserve au Specialiste et a
     // l'Administrateur, et le tableau 3.2 ne les mentionne que pour le
@@ -94,7 +98,7 @@ export class Shell implements OnInit, OnDestroy {
     // sur du NO2, un NDVI ou un risque calcule sur trente jours, dont
     // un agent de chantier ne peut rien faire. Il constate ce qu'il
     // voit, il ne pilote pas des indices.
-    { label: 'Alertes', icon: Bell, route: '/alertes', roles: ['SPEC_ENV', 'SPEC_PAR', 'ADMIN', 'ANDE', 'BAD'] },
+    { label: 'Alertes', icon: Bell, route: '/alertes', roles: ['SPEC_ENV', 'ADMIN', 'ANDE', 'BAD'] },
     { label: 'Analyse satellitaire', icon: Satellite, route: '/satellite', roles: ['SPEC_ENV', 'ANDE', 'BAD'] },
     { label: 'Rapports de suivi', icon: FileText, route: '/rapports', roles: ['SPEC_ENV', 'ANDE', 'BAD'] },
     { label: 'Plaintes (MGP)', icon: ShieldAlert, route: '/plaintes', roles: ['SPEC_PAR', 'BAD'] },

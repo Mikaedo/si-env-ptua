@@ -1,7 +1,7 @@
 import { Routes, Router } from '@angular/router';
 import { inject } from '@angular/core';
 import { authGuard, adminGuard, alertesGuard, specEnvGuard, specParGuard,
-         controleGuard } from './core/guards';
+         controleGuard, parGuard } from './core/guards';
 import { AuthService } from './core/auth.service';
 
 export const routes: Routes = [
@@ -35,6 +35,13 @@ export const routes: Routes = [
           if (auth.hasRole('ANDE', 'BAD')) {
             router.navigate(['/controle']); return false;
           }
+          // Le Specialiste Suivi du P.A.R non plus : le diagramme de cas
+          // d'utilisation ne lui relie que le traitement des plaintes et
+          // l'affectation d'une action corrective. Un tableau de bord qui
+          // compte les nuisances de chantier n'est pas son metier.
+          if (auth.hasRole('SPEC_PAR')) {
+            router.navigate(['/suivi-par']); return false;
+          }
           return true;
         }]
       },
@@ -42,6 +49,11 @@ export const routes: Routes = [
         path: 'controle',
         canActivate: [controleGuard],
         loadComponent: () => import('./pages/controle-dashboard/controle-dashboard').then(m => m.ControleDashboard)
+      },
+      {
+        path: 'suivi-par',
+        canActivate: [parGuard],
+        loadComponent: () => import('./pages/par-dashboard/par-dashboard').then(m => m.ParDashboard)
       },
       { path: 'signalements', loadComponent: () => import('./pages/signalements/signalements').then(m => m.Signalements) },
       { path: 'signalements/:id', loadComponent: () => import('./pages/signalement-detail/signalement-detail').then(m => m.SignalementDetail) },

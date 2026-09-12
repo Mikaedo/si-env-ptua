@@ -4,7 +4,7 @@ import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { ToastService } from '../../core/toast.service';
 import { Plainte, Chantier } from '../../core/models';
-import { LucideAngularModule, ShieldAlert, Search, MapPin, Plus, CheckCircle, X, Clock, User, Phone, Building2, AlertCircle, BarChart2, AlertTriangle, Smartphone } from 'lucide-angular';
+import { LucideAngularModule, ShieldAlert, Search, MapPin, Plus, CheckCircle, X, Clock, User, Phone, Building2, AlertCircle, BarChart2, AlertTriangle, Smartphone, Play } from 'lucide-angular';
 import { CustomSelect } from '../../shared/custom-select';
 
 @Component({
@@ -43,6 +43,49 @@ export class Plaintes implements OnInit {
   readonly User = User;
   readonly Phone = Phone;
   readonly Smartphone = Smartphone;
+  readonly Play = Play;
+
+  /** Les quatre etats du mecanisme, dans l'ordre du traitement.
+   *
+   * La barre de progression remplace le formulaire de saisie manuelle :
+   * ce que le specialiste vient verifier, c'est ou en sont les
+   * doleances, non comment en retaper une que le riverain a deja
+   * deposee depuis son telephone.
+   */
+  get etapes() {
+    const compte = (s: string) =>
+      this.plaintes().filter(p => p.statut === s).length;
+    return [
+      { cle: 'OUVERTE', libelle: 'reçues', couleur: '#F37021',
+        n: compte('OUVERTE') },
+      { cle: 'EN_COURS', libelle: 'en cours', couleur: '#004F9F',
+        n: compte('EN_COURS') },
+      { cle: 'RESOLU', libelle: 'closes', couleur: '#16A34A',
+        n: compte('RESOLU') },
+      { cle: 'REJETE', libelle: 'sans suite', couleur: '#A1A1AA',
+        n: compte('REJETE') },
+    ];
+  }
+
+  /** La part des doleances ayant recu une reponse.
+   *
+   * Les dossiers classes sans suite comptent comme traites : une
+   * doleance examinee puis ecartee a bien recu une reponse, elle n'est
+   * pas en souffrance.
+   */
+  get tauxTraitement(): number {
+    const total = this.plaintes().length;
+    if (!total) return 0;
+    const closes = this.plaintes().filter(
+      p => p.statut === 'RESOLU' || p.statut === 'REJETE').length;
+    return Math.round((closes / total) * 100);
+  }
+
+  couleurTaux(taux: number): string {
+    if (taux >= 80) return '#16A34A';
+    if (taux >= 50) return '#F37021';
+    return '#D32F2F';
+  }
 
   /**
    * Traduit la categorie declaree par le riverain.
@@ -77,10 +120,6 @@ export class Plaintes implements OnInit {
   searchTerm = signal('');
   filterStatut = signal('');
   selectedPlainte = signal<Plainte | null>(null);
-  newNom = signal('');
-  newContact = signal('');
-  newDescription = signal('');
-  newChantierId = signal('');
 
   // Meme trou que sur les signalements : passer « en cours » ne demandait
   // rien de plus qu'une valeur de liste deroulante. Ce formulaire capture
@@ -96,28 +135,18 @@ export class Plaintes implements OnInit {
     this.api.getChantiers().subscribe({ next: data => this.chantiers.set(data) });
   }
 
-  createPlainte() {
-    if (!this.newNom() || !this.newDescription()) {
-      this.error.set('Le nom du plaignant et la description sont obligatoires.');
-      return;
-    }
-    this.saving.set(true);
-    this.error.set('');
-    this.api.createPlainte({
-      nom_plaignant: this.newNom(),
-      contact: this.newContact() || undefined,
-      description: this.newDescription(),
-      chantier_id: this.newChantierId() ? Number(this.newChantierId()) : undefined
-    }).subscribe({
-      next: plainte => {
-        this.plaintes.update(list => [plainte, ...list]);
-        this.newNom.set(''); this.newContact.set(''); this.newDescription.set(''); this.newChantierId.set('');
-        this.saving.set(false);
-        this.toast.success('Plainte enregistrée avec succès');
-      },
-      error: () => { this.saving.set(false); this.error.set('La création de la plainte a échoué.'); this.toast.error('Échec de l\'enregistrement de la plainte'); }
-    });
-  }
+  // La saisie manuelle d'une plainte a ete retiree de cet ecran.
+  //
+  // Elle datait d'avant l'application citoyenne : le riverain se
+  // presentait au guichet, un agent recopiait sa doleance dans le
+  // tableau de bord. Les doleances arrivent desormais du telephone du
+  // riverain, horodatees et geolocalisees a la source. Les retaper ici
+  // rouvrirait la ressaisie que tout le systeme supprime, et priverait
+  // la plainte de sa position comme de son canal d'origine.
+  //
+  // Le point d'entree du serveur reste ouvert : il sert a l'application
+  // citoyenne, et servirait a un guichet si l'AGEROUTE en remettait un
+  // en place.
 
   updateStatut(id: number, statut: string) {
     if (statut === 'EN_COURS') {
@@ -237,13 +266,6 @@ export class Plaintes implements OnInit {
       { value: 'EN_COURS', label: 'En cours' },
       { value: 'RESOLU', label: 'Résolues' },
       { value: 'REJETE', label: 'Rejetées' }
-    ];
-  }
-
-  get chantierOptions() {
-    return [
-      { value: '', label: 'Sélectionner...' },
-      ...this.chantiers().map(c => ({ value: String(c.id), label: c.nom }))
     ];
   }
 }

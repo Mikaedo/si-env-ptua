@@ -1,0 +1,141 @@
+:host { display: block; }
+
+.par { display: flex; flex-direction: column; gap: 24px; }
+
+.lien-alertes {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 15px; border-radius: 20px; text-decoration: none;
+  background: #FEF2F2; border: 1.5px solid #FECACA;
+  font-size: 12px; font-weight: 700; color: #B91C1C;
+}
+.lien-alertes:hover { background: #FEE2E2; }
+
+/* ── Titres de section ─────────────────────────────────────────── */
+.titre-section {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 15px; font-weight: 800; color: #18181B;
+  letter-spacing: -0.2px; margin: 0 0 4px;
+}
+.titre-section lucide-icon { color: #C4660A; }
+.titre-note {
+  font-size: 12px; color: #A1A1AA; font-weight: 500;
+  margin: 0 0 14px; line-height: 1.55;
+}
+
+/* ── Les jauges du mecanisme ───────────────────────────────────── */
+.jauges {
+  display: grid; gap: 14px;
+  grid-template-columns: 1.6fr 1fr 1fr 1fr;
+}
+@media (max-width: 1100px) { .jauges { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 620px) { .jauges { grid-template-columns: 1fr; } }
+
+.jauge {
+  padding: 18px 20px; border-radius: 13px;
+  background: white; border: 1.5px solid #E4E4E7;
+}
+.jauge lucide-icon { color: #71717A; }
+.jauge--majeure {
+  background: linear-gradient(160deg, #FFF9F4, #FFFFFF);
+  border-color: #FED7AA;
+}
+.jauge--orange { border-color: #FED7AA; background: #FFF7ED; }
+.jauge--orange lucide-icon { color: #F37021; }
+.jauge--rouge { border-color: #FECACA; background: #FEF2F2; }
+.jauge--rouge lucide-icon { color: #D32F2F; }
+
+.jauge__valeur {
+  font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: -2px;
+}
+.jauge__unite { font-size: 22px; font-weight: 700; margin-left: 2px; }
+.jauge__chiffre {
+  font-size: 30px; font-weight: 800; color: #18181B;
+  line-height: 1.1; letter-spacing: -1px; margin-top: 10px;
+}
+.jauge__libelle {
+  font-size: 12.5px; font-weight: 700; color: #3F3F46;
+  margin-top: 8px; line-height: 1.4;
+}
+.jauge__detail, .jauge__note {
+  font-size: 11.5px; color: #A1A1AA; font-weight: 500;
+  margin-top: 4px; line-height: 1.5;
+}
+.jauge__barre {
+  height: 7px; border-radius: 4px; background: #F4F4F5;
+  margin-top: 14px; overflow: hidden;
+}
+.jauge__remplissage { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+
+/* ── La file d'attente ─────────────────────────────────────────── */
+.file { display: flex; flex-direction: column; gap: 9px; }
+.doleance {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px; border-radius: 12px; text-decoration: none;
+  background: white; border: 1.5px solid #E4E4E7;
+  transition: border-color 0.15s, background 0.15s;
+}
+.doleance:hover { border-color: #C4660A; background: #FFFCF8; }
+.doleance__jours {
+  font-size: 21px; font-weight: 800; letter-spacing: -0.8px;
+  flex-shrink: 0; min-width: 46px; text-align: center;
+}
+.doleance__jours span { font-size: 12px; font-weight: 700; margin-left: 1px; }
+.doleance__corps { flex: 1; min-width: 0; }
+.doleance__plaignant {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13.5px; font-weight: 700; color: #18181B;
+}
+.doleance__canal { color: #C4660A; }
+.doleance__objet {
+  font-size: 12.5px; color: #52525B; font-weight: 500;
+  margin-top: 3px; line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.doleance__meta {
+  font-size: 11.5px; color: #A1A1AA; font-weight: 500; margin-top: 4px;
+}
+.doleance__fleche { color: #D4D4D8; flex-shrink: 0; }
+
+.lien-tout {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 12px;
+  font-size: 12.5px; font-weight: 700; color: #C4660A; text-decoration: none;
+}
+.lien-tout:hover { text-decoration: underline; }
+
+/* ── La nature des doleances ───────────────────────────────────── */
+.categories { display: flex; flex-direction: column; gap: 11px; }
+.categorie {
+  padding: 13px 16px; border-radius: 11px;
+  background: white; border: 1.5px solid #E4E4E7;
+}
+.categorie__entete {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px;
+}
+.categorie__nom {
+  font-size: 13px; font-weight: 700; color: #18181B;
+  text-transform: capitalize;
+}
+.categorie__n { font-size: 15px; font-weight: 800; color: #C4660A; }
+.categorie__barre {
+  height: 6px; border-radius: 3px; background: #F4F4F5;
+  margin-top: 9px; overflow: hidden;
+}
+.categorie__remplissage {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, #C4660A, #F37021);
+}
+
+/* ── Etats vides et attente ────────────────────────────────────── */
+.vide {
+  display: flex; align-items: center; gap: 13px;
+  padding: 22px; border-radius: 12px;
+  background: #F0FDF4; border: 1.5px solid #BBF7D0;
+  font-size: 12.5px; color: #15803D; font-weight: 600; line-height: 1.6;
+}
+.vide lucide-icon { color: #16A34A; flex-shrink: 0; }
+.attente {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 60px 20px; font-size: 13px; color: #71717A; font-weight: 500;
+}

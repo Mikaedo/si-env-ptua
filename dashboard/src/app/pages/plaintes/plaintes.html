@@ -59,49 +59,48 @@
     }
   </div>
 
-  <!-- Nouvelle plainte -->
-  @if (canManage) {
-  <div class="card" style="padding:20px 24px;">
-    <div class="section-label">
-      <lucide-icon [img]="Plus" size="13"></lucide-icon>
-      Enregistrer une nouvelle plainte
-    </div>
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-      <div>
-        <label class="form-label">Nom du plaignant</label>
-        <input type="text" [value]="newNom()" (input)="newNom.set($any($event.target).value)"
-          placeholder="Ex : Kouame Aya" class="form-input" />
-      </div>
-      <div>
-        <label class="form-label">Contact</label>
-        <input type="text" [value]="newContact()" (input)="newContact.set($any($event.target).value)"
-          placeholder="Téléphone ou localisation" class="form-input" />
-      </div>
-      <div>
-        <label class="form-label">Description de la plainte</label>
-        <input type="text" [value]="newDescription()" (input)="newDescription.set($any($event.target).value)"
-          placeholder="Nature du problème signalé" class="form-input" />
-      </div>
-      <div>
-        <label class="form-label">Chantier concerné</label>
-        <div class="flex gap-2">
-          <app-custom-select
-            [options]="chantierOptions"
-            [value]="newChantierId()"
-            placeholder="Sélectionner..."
-            (valueChange)="newChantierId.set($event)"
-          />
-          <button (click)="createPlainte()" [disabled]="saving()" class="btn btn-orange" style="flex-shrink:0; padding:9px 16px;">
-            @if (saving()) {
-              <div class="spinner"></div>
-            } @else {
-              Ajouter
-            }
-          </button>
+  <!-- Le formulaire de saisie manuelle a disparu.
+       Il datait d'avant l'application citoyenne : le riverain déposait
+       au guichet, un agent recopiait. Les doléances arrivent désormais
+       depuis le téléphone du riverain, horodatées et géolocalisées à la
+       source ; retaper une plainte à sa place rouvrirait la ressaisie
+       que tout le système supprime. Le canal guichet subsiste pour qui
+       n'a pas de téléphone, et il se recueille par l'application
+       citoyenne, non par ce tableau de bord.
+
+       La barre de progression remplace le formulaire : elle dit où en
+       est le mécanisme, ce que le bailleur vérifie. -->
+  @if (plaintes().length) {
+    <div class="card progression">
+      <div class="progression__entete">
+        <div>
+          <div class="progression__titre">Traitement des doléances</div>
+          <div class="progression__note">
+            Une doléance close est une doléance qui a reçu une réponse et
+            une action corrective.
+          </div>
+        </div>
+        <div class="progression__taux" [style.color]="couleurTaux(tauxTraitement)">
+          {{ tauxTraitement }}<span>%</span>
         </div>
       </div>
+      <div class="progression__barre">
+        @for (e of etapes; track e.cle) {
+          <div class="progression__segment"
+               [style.flex]="e.n || 0.001"
+               [style.background]="e.couleur"
+               [title]="e.n + ' ' + e.libelle"></div>
+        }
+      </div>
+      <div class="progression__legende">
+        @for (e of etapes; track e.cle) {
+          <span class="progression__item">
+            <span class="progression__pastille" [style.background]="e.couleur"></span>
+            {{ e.n }} {{ e.libelle }}
+          </span>
+        }
+      </div>
     </div>
-  </div>
   }
 
   <!-- Filtres + Recherche -->
@@ -189,14 +188,61 @@
                 {{ chantiers().find(c => c.id === p.chantier_id)?.nom ?? 'Chantier #' + p.chantier_id }}
               </span>
             }
+            <!-- Le statut se changeait par une liste deroulante qui
+                 offrait les quatre valeurs a la fois, y compris celle
+                 en cours et celles qui n'ont pas de sens a cet instant.
+                 Une liste deroulante n'est pas une decision : elle
+                 demande de choisir dans un etat, quand l'agent veut
+                 faire un geste.
+
+                 Chaque etape propose donc le geste suivant, nomme par
+                 son effet, et lui seul. Clore reste indisponible tant
+                 qu'aucune action corrective n'est consignee : on ne
+                 ferme pas un dossier sans dire ce qu'on a fait. -->
             <div style="margin-left:auto;">
               @if (canManage) {
-                <select [value]="p.statut" (click)="$event.stopPropagation()" (change)="updateStatut(p.id, $any($event.target).value)" class="form-select" style="font-size:12px; padding:6px 10px;">
-                  <option value="OUVERTE">Ouverte</option>
-                  <option value="EN_COURS">En cours</option>
-                  <option value="RESOLU" [disabled]="!aUnTraitement(p)">Résolue</option>
-                  <option value="REJETE">Rejetée</option>
-                </select>
+                <div class="gestes" (click)="$event.stopPropagation()">
+                  @if (p.statut === 'OUVERTE') {
+                    <button class="geste geste--principal"
+                            (click)="updateStatut(p.id, 'EN_COURS')">
+                      <lucide-icon [img]="Play" size="13"></lucide-icon>
+                      Prendre en charge
+                    </button>
+                    <button class="geste geste--discret"
+                            (click)="updateStatut(p.id, 'REJETE')">
+                      Classer sans suite
+                    </button>
+                  } @else if (p.statut === 'EN_COURS') {
+                    @if (aUnTraitement(p)) {
+                      <button class="geste geste--valider"
+                              (click)="updateStatut(p.id, 'RESOLU')">
+                        <lucide-icon [img]="CheckCircle" size="13"></lucide-icon>
+                        Clore la doléance
+                      </button>
+                    } @else {
+                      <button class="geste geste--principal"
+                              (click)="openDetail(p)">
+                        <lucide-icon [img]="Plus" size="13"></lucide-icon>
+                        Consigner l'action corrective
+                      </button>
+                    }
+                  } @else if (p.statut === 'RESOLU') {
+                    <span class="geste geste--fait">
+                      <lucide-icon [img]="CheckCircle" size="13"></lucide-icon>
+                      Close
+                    </span>
+                    <button class="geste geste--discret"
+                            (click)="updateStatut(p.id, 'EN_COURS')">
+                      Rouvrir
+                    </button>
+                  } @else {
+                    <span class="geste geste--fait">Classée sans suite</span>
+                    <button class="geste geste--discret"
+                            (click)="updateStatut(p.id, 'EN_COURS')">
+                      Rouvrir
+                    </button>
+                  }
+                </div>
               } @else {
                 <span class="badge badge-gray" style="font-size:11px;">Lecture seule</span>
               }

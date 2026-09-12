@@ -1,0 +1,166 @@
+<!-- L'ecran d'accueil du Specialiste Suivi du P.A.R.
+     Trois temps : ou en est le mecanisme, qui attend une reponse, et
+     par quel canal les doleances arrivent. -->
+
+<div class="par">
+
+  <div class="page-header" style="justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div class="flex items-center gap-4">
+      <div class="page-header-icon" style="background:linear-gradient(135deg,#7A3B00,#C4660A);">
+        <lucide-icon [img]="Users" size="22" style="color:white;"></lucide-icon>
+      </div>
+      <div>
+        <h1 class="page-header-title">Mécanisme de gestion des plaintes</h1>
+        <p class="page-header-sub">
+          Plan d'Action de Réinstallation · Doléances des populations riveraines
+        </p>
+      </div>
+    </div>
+    @if (alertesNonLues() > 0) {
+      <a routerLink="/alertes" class="lien-alertes">
+        <lucide-icon [img]="Bell" size="14"></lucide-icon>
+        {{ alertesNonLues() }} alerte{{ alertesNonLues() > 1 ? 's' : '' }} non lue{{ alertesNonLues() > 1 ? 's' : '' }}
+      </a>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="attente">
+      <div class="spinner"></div>
+      Chargement du mécanisme de gestion des plaintes...
+    </div>
+  } @else {
+
+    <!-- ── 1. Ou en est le mecanisme ? ────────────────────────────── -->
+    <div class="jauges">
+      <div class="jauge jauge--majeure">
+        <div class="jauge__valeur" [style.color]="couleurTaux(tauxReponse())">
+          {{ tauxReponse() }}<span class="jauge__unite">%</span>
+        </div>
+        <div class="jauge__libelle">Doléances traitées</div>
+        <div class="jauge__detail">{{ traitees() }} sur {{ total() }} reçues</div>
+        <div class="jauge__barre">
+          <div class="jauge__remplissage"
+               [style.width.%]="tauxReponse()"
+               [style.background]="couleurTaux(tauxReponse())"></div>
+        </div>
+      </div>
+
+      <div class="jauge" [class.jauge--orange]="ouvertes() > 0">
+        <lucide-icon [img]="Clock" size="18"></lucide-icon>
+        <div class="jauge__chiffre">{{ ouvertes() }}</div>
+        <div class="jauge__libelle">En attente de réponse</div>
+        <div class="jauge__note">
+          @if (ouvertes() > 0) {
+            À instruire ou à clore
+          } @else {
+            Aucune doléance en souffrance
+          }
+        </div>
+      </div>
+
+      <div class="jauge" [class.jauge--rouge]="attenteMax() >= 30">
+        <lucide-icon [img]="AlertTriangle" size="18"></lucide-icon>
+        <div class="jauge__chiffre">{{ attenteMax() }}</div>
+        <div class="jauge__libelle">Jours, attente la plus longue</div>
+        <div class="jauge__note">
+          @if (attenteMax() >= 30) {
+            Un riverain attend depuis un mois
+          } @else {
+            Dans un délai raisonnable
+          }
+        </div>
+      </div>
+
+      <!-- Le canal de depot. Il est conserve pour mesurer ce que
+           l'application citoyenne apporte au mecanisme, qui reposait
+           jusqu'ici sur un recueil au guichet. -->
+      <div class="jauge">
+        <lucide-icon [img]="Smartphone" size="18"></lucide-icon>
+        <div class="jauge__chiffre">{{ partMobile() }}%</div>
+        <div class="jauge__libelle">Déposées depuis le mobile</div>
+        <div class="jauge__note">
+          {{ parMobile() }} sur {{ total() }} · le reste au guichet
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 2. Qui attend une reponse ? ────────────────────────────── -->
+    <section>
+      <h2 class="titre-section">
+        <lucide-icon [img]="Clock" size="16"></lucide-icon>
+        File d'attente
+      </h2>
+      <p class="titre-note">
+        La plus ancienne en tête : c'est elle qui expose le plus le projet.
+      </p>
+
+      @if (filesDAttente().length) {
+        <div class="file">
+          @for (p of filesDAttente(); track p.id) {
+            <a class="doleance" routerLink="/plaintes">
+              <div class="doleance__jours"
+                   [style.color]="couleurAttente(joursDepuis(p.cree_le))">
+                {{ joursDepuis(p.cree_le) }}<span>j</span>
+              </div>
+              <div class="doleance__corps">
+                <div class="doleance__plaignant">
+                  {{ p.nom_plaignant }}
+                  @if (p.canal === 'MOBILE') {
+                    <lucide-icon [img]="Smartphone" size="12"
+                                 class="doleance__canal"></lucide-icon>
+                  }
+                </div>
+                <div class="doleance__objet">{{ p.description }}</div>
+                <div class="doleance__meta">
+                  {{ nomChantier(p) }}
+                  @if (p.categorie) { · {{ p.categorie }} }
+                  · {{ libelleStatut(p.statut) }}
+                </div>
+              </div>
+              <lucide-icon [img]="ChevronRight" size="16"
+                           class="doleance__fleche"></lucide-icon>
+            </a>
+          }
+        </div>
+        <a routerLink="/plaintes" class="lien-tout">
+          Ouvrir le registre complet des doléances
+          <lucide-icon [img]="ChevronRight" size="14"></lucide-icon>
+        </a>
+      } @else {
+        <div class="vide">
+          <lucide-icon [img]="CheckCircle" size="22"></lucide-icon>
+          <div>Aucune doléance en attente. Toutes ont reçu une réponse.</div>
+        </div>
+      }
+    </section>
+
+    <!-- ── 3. De quoi se plaint-on ? ──────────────────────────────── -->
+    @if (parCategorie().length) {
+      <section>
+        <h2 class="titre-section">
+          <lucide-icon [img]="Building2" size="16"></lucide-icon>
+          Nature des doléances
+        </h2>
+        <p class="titre-note">
+          Telle que le riverain la déclare, dans son propre vocabulaire.
+        </p>
+
+        <div class="categories">
+          @for (c of parCategorie(); track c.nom) {
+            <div class="categorie">
+              <div class="categorie__entete">
+                <span class="categorie__nom">{{ c.nom }}</span>
+                <span class="categorie__n">{{ c.n }}</span>
+              </div>
+              <div class="categorie__barre">
+                <div class="categorie__remplissage"
+                     [style.width.%]="total() ? (c.n / total()) * 100 : 0"></div>
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+    }
+  }
+</div>

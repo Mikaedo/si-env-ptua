@@ -48,6 +48,29 @@ export const controleGuard: CanActivateFn = () => {
   return false;
 };
 
+/** L'ecran d'accueil du Specialiste Suivi du P.A.R.
+ *
+ * Son metier est le mecanisme de gestion des plaintes, non le suivi des
+ * nuisances : le diagramme de cas d'utilisation ne lui relie que le
+ * traitement des doleances et l'affectation d'une action corrective.
+ */
+export const parGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  if (auth.isAuthenticated && auth.hasRole('SPEC_PAR')) {
+    return true;
+  }
+
+  if (auth.isAuthenticated && auth.hasRole('ADMIN')) {
+    router.navigate(['/admin-dashboard']);
+    return false;
+  }
+
+  router.navigate(['/dashboard']);
+  return false;
+};
+
 export const adminGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);

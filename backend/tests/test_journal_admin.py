@@ -171,3 +171,43 @@ class TestLesRefusLaissentUneTrace:
         entrees = client.get(f"/admin/logs?categorie={journal_service.CAT_ACCES}",
                              headers=auth_headers).json()
         assert any("Accès refusé" in e["message"] for e in entrees)
+
+
+class TestLeDecompteDesFiltres:
+    """Un filtre doit dire ce qu'il contient.
+
+    L'ecran en proposait cinq sans le dire : deux renvoyaient les memes
+    lignes, deux n'en renvoyaient aucune. Le decompte permet de n'en
+    afficher que ce qui existe.
+    """
+
+    def test_chaque_nature_est_comptee(self, client, db_session, auth_headers):
+        _poser(db_session, "Connexion A", journal_service.CAT_ACCES)
+        _poser(db_session, "Connexion B", journal_service.CAT_ACCES)
+        _poser(db_session, "Compte créé", journal_service.CAT_COMPTE)
+
+        d = client.get("/admin/logs/decompte", headers=auth_headers).json()
+        assert d[journal_service.CAT_ACCES] == 2
+        assert d[journal_service.CAT_COMPTE] == 1
+
+    def test_une_nature_absente_vaut_zero_ou_manque(
+            self, client, db_session, auth_headers):
+        """L'ecran ne doit pas proposer un filtre vide."""
+        _poser(db_session, "Connexion seule", journal_service.CAT_ACCES)
+        d = client.get("/admin/logs/decompte", headers=auth_headers).json()
+        assert d.get(journal_service.CAT_SYSTEME, 0) == 0
+
+    def test_le_total_couvre_tout(self, client, db_session, auth_headers):
+        _poser(db_session, "Accès", journal_service.CAT_ACCES)
+        _poser(db_session, "Alerte seuil", journal_service.CAT_METIER)
+        d = client.get("/admin/logs/decompte", headers=auth_headers).json()
+        assert d["TOTAL"] == sum(v for k, v in d.items() if k != "TOTAL")
+
+    def test_une_entree_sans_nature_compte_comme_metier(
+            self, client, db_session, auth_headers):
+        """Les entrees anterieures a la distinction en relevaient toutes."""
+        db_session.add(models.Journal(niveau="INFO", message="Ancienne",
+                                      utilisateur="x", categorie=None))
+        db_session.commit()
+        d = client.get("/admin/logs/decompte", headers=auth_headers).json()
+        assert d[journal_service.CAT_METIER] >= 1

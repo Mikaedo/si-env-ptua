@@ -214,12 +214,17 @@
            déclenchées par le système et relèvent du Spécialiste ; elles
            noyaient ce que l'administrateur vient lire. La vue complète
            reste accessible. -->
-      <div class="filtres-journal">
-        @for (f of filtresJournal; track f.cle) {
-          <button class="filtre" [class.filtre--actif]="filtreJournal() === f.cle"
-                  (click)="filtrerJournal(f.cle)">{{ f.libelle }}</button>
-        }
-      </div>
+      @if (filtresJournal.length) {
+        <div class="filtres-journal">
+          @for (f of filtresJournal; track f.cle) {
+            <button class="filtre" [class.filtre--actif]="filtreJournal() === f.cle"
+                    (click)="filtrerJournal(f.cle)">
+              {{ f.libelle }}
+              <span class="filtre__n">{{ f.n }}</span>
+            </button>
+          }
+        </div>
+      }
 
       <div style="max-height:600px; overflow-y:auto;">
         @for (log of logs(); track $index) {

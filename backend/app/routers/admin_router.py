@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import auth, models, schemas
@@ -95,6 +96,35 @@ def lister_journaux(
         q.order_by(models.Journal.cree_le.desc())
         .offset((page - 1) * taille).limit(taille).all()
     )
+
+
+@router.get("/logs/decompte", response_model=dict)
+def decompte_journaux(
+    db: Session = Depends(get_db),
+    _: models.Utilisateur = Depends(_admin_only),
+):
+    """Combien d'entrees porte chaque nature d'evenement.
+
+    L'ecran proposait cinq filtres sans dire ce qu'ils contenaient :
+    deux renvoyaient la meme chose et deux ne renvoyaient rien. Un
+    filtre qui ne mene nulle part se clique une fois, puis n'est plus
+    jamais cru. Le decompte permet de n'afficher que ce qui existe, et
+    de le dire.
+    """
+    lignes = (
+        db.query(models.Journal.categorie, func.count(models.Journal.id))
+        .group_by(models.Journal.categorie)
+        .all()
+    )
+    # Une entree sans categorie est anterieure a la distinction : elle
+    # relevait du metier, comme toutes celles d'alors.
+    decompte = {journal_service.CAT_METIER: 0}
+    for categorie, nombre in lignes:
+        cle = categorie or journal_service.CAT_METIER
+        decompte[cle] = decompte.get(cle, 0) + nombre
+    decompte["TOTAL"] = sum(
+        n for c, n in decompte.items() if c != "TOTAL")
+    return decompte
 
 
 @router.get("/erreurs", response_model=list[schemas.ErreurAppOut])

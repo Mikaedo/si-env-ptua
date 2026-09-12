@@ -251,6 +251,12 @@ export class ApiService {
    * connexions, comptes, parametrage. C'est ce que l'administrateur
    * vient lire. `tout` rend la vue complete, `categorie` en isole une.
    */
+  /** Combien d'entrées porte chaque nature d'événement. */
+  getLogsDecompte(): Observable<Record<string, number>> {
+    return this.http.get<Record<string, number>>(
+      `${API_URL}/admin/logs/decompte`, { headers: this.headers });
+  }
+
   getLogs(categorie?: string, tout = false): Observable<Journal[]> {
     let params = '';
     if (categorie) params = `?categorie=${categorie}`;

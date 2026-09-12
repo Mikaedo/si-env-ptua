@@ -77,13 +77,51 @@ export class Admin implements OnInit {
   // font : qui s'est connecté, qui a échoué, quel compte a changé. Un
   // NO2 au-dessus du seuil relève du Spécialiste et noyait ces lignes.
   filtreJournal = signal('');
-  readonly filtresJournal = [
-    { cle: '', libelle: 'Actions des utilisateurs' },
-    { cle: 'ACCES', libelle: 'Connexions' },
-    { cle: 'COMPTE', libelle: 'Comptes' },
-    { cle: 'SYSTEME', libelle: 'Paramétrage' },
-    { cle: 'TOUT', libelle: 'Tout, métier compris' },
-  ];
+  decompteJournal = signal<Record<string, number>>({});
+
+  /**
+   * Les filtres réellement proposés.
+   *
+   * Ils étaient cinq, en dur. « Actions des utilisateurs » et
+   * « Connexions » renvoyaient exactement les mêmes lignes tant que
+   * seuls des accès étaient tracés ; « Comptes » et « Paramétrage »
+   * n'en renvoyaient aucune. Un filtre qui ne mène nulle part se clique
+   * une fois, puis n'est plus jamais cru.
+   *
+   * La liste se construit donc sur ce que le journal contient : chaque
+   * filtre porte son compte, ceux qui sont vides ne s'affichent pas, et
+   * le filtre général disparaît quand une seule nature subsiste, faute
+   * de distinguer quoi que ce soit.
+   */
+  get filtresJournal(): { cle: string; libelle: string; n: number }[] {
+    const d = this.decompteJournal();
+    const n = (c: string) => d[c] ?? 0;
+    const parNature = [
+      { cle: 'ACCES', libelle: 'Accès', n: n('ACCES') },
+      { cle: 'COMPTE', libelle: 'Comptes', n: n('COMPTE') },
+      { cle: 'SYSTEME', libelle: 'Paramétrage', n: n('SYSTEME') },
+    ].filter(f => f.n > 0);
+
+    const actions = parNature.reduce((s, f) => s + f.n, 0);
+    const liste: { cle: string; libelle: string; n: number }[] = [];
+
+    // Le filtre général n'a de sens que s'il regroupe plusieurs natures.
+    if (parNature.length > 1) {
+      liste.push({ cle: '', libelle: 'Toutes les actions', n: actions });
+    }
+    liste.push(...parNature);
+
+    // Le suivi environnemental n'est pas le métier de l'administrateur,
+    // mais rien ne doit lui être caché : l'entrée reste, quand elle a
+    // quelque chose à montrer.
+    if (n('METIER') > 0) {
+      liste.push({ cle: 'TOUT', libelle: 'Suivi environnemental compris',
+                   n: (d['TOTAL'] ?? actions) });
+    }
+    // Aucun filtre n'a de sens sur une seule nature d'événement : la
+    // liste vide laisse alors l'écran afficher le journal, sans barre.
+    return liste.length > 1 ? liste : [];
+  }
 
   journalCharge = signal(false);
   journalEnCours = signal(false);
@@ -110,6 +148,12 @@ export class Admin implements OnInit {
         this.toast.error('Le journal n\'a pas pu être chargé.');
       }
     });
+    // Le décompte suit le journal : il dit ce que chaque filtre
+    // contient, et une action venant d'être tracée le fait varier.
+    this.api.getLogsDecompte().subscribe({
+      next: (d) => this.decompteJournal.set(d),
+      error: () => {}
+    });
   }
 
   filtrerJournal(cle: string) {
@@ -120,7 +164,7 @@ export class Admin implements OnInit {
   /** Le libellé du filtre en cours, pour le dire quand la liste est vide. */
   get libelleFiltreJournal(): string {
     return this.filtresJournal
-      .find(f => f.cle === this.filtreJournal())?.libelle ?? '';
+      .find(f => f.cle === this.filtreJournal())?.libelle ?? 'ce filtre';
   }
 
   /**

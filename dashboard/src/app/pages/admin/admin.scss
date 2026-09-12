@@ -142,3 +142,17 @@
   .ligne-journal { flex-direction: column; gap: 7px; padding: 12px 16px; }
   .ligne-journal__nature { width: auto; }
 }
+
+/* Le compte porté par chaque filtre : il dit ce qu'on y trouvera,
+   plutôt que de laisser cliquer sur une liste vide. */
+.filtre {
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.filtre__n {
+  font-size: 10.5px; font-weight: 800;
+  padding: 1px 6px; border-radius: 20px;
+  background: #F4F4F5; color: #A1A1AA;
+}
+.filtre--actif .filtre__n {
+  background: rgba(255, 255, 255, 0.22); color: white;
+}
